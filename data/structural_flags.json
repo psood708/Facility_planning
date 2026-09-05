@@ -1,0 +1,23 @@
+[
+  {
+    "id": "SF-01",
+    "trigger": {
+      "specific_dosage_form_any_of": [
+        "MDF (Mouth Dissolving Film)",
+        "Buccal Film",
+        "Implant"
+      ]
+    },
+    "message": "No Schedule M basis exists for this dosage form — design directly to FDA/EU/WHO guidance and document the rationale for regulatory review."
+  },
+  {
+    "id": "SF-02",
+    "trigger": {
+      "facility_development_stage_any_of": [
+        "R&D Lab",
+        "Pilot Plant"
+      ]
+    },
+    "message": "R&D/Pilot rooms are not aligned 1:1 with production rooms in Schedule M — this is a structural gap, not a parameter mismatch. Design to production-equivalent standards and document the rationale for regulatory review."
+  }
+]

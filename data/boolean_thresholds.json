@@ -1,0 +1,66 @@
+[
+  {
+    "id": "THR-B01",
+    "linked_param_id": "DFS-001",
+    "parameter_name": "Dust Containment Required",
+    "severity": "Partial",
+    "schedule_m_explicit": true,
+    "note": "Required for dusting-powder/granulation/compression rooms; exhaust capacity specified qualitatively, not quantitatively."
+  },
+  {
+    "id": "THR-B02",
+    "linked_param_id": "DFS-002",
+    "parameter_name": "Solvent Vapor Extraction Required",
+    "severity": "Partial",
+    "schedule_m_explicit": true,
+    "note": "Exhaust system required; no quantified extraction rate given."
+  },
+  {
+    "id": "THR-B03",
+    "linked_param_id": "DFS-005",
+    "parameter_name": "Contamination Control Strategy (CCS) Document",
+    "severity": "Partial",
+    "schedule_m_explicit": false,
+    "note": "Concept introduced, not a mandatory structured document. EU Annex 1 §3 requires a formal, living CCS."
+  },
+  {
+    "id": "THR-B04",
+    "linked_param_id": "DFS-006",
+    "parameter_name": "Container-Closure Integrity Test",
+    "severity": "Partial",
+    "schedule_m_explicit": true,
+    "note": "Required implicitly."
+  },
+  {
+    "id": "THR-B05",
+    "linked_param_id": "SHE-003",
+    "parameter_name": "Dust Explosion Zone Classification (ATEX/NFPA)",
+    "severity": "Critical",
+    "schedule_m_explicit": false,
+    "note": "Not covered by Schedule M. Relevant to granulation, blending, compression, dusting-powder and solvent coating rooms."
+  },
+  {
+    "id": "THR-B06",
+    "linked_param_id": "SHE-006",
+    "parameter_name": "Emergency Shower / Eyewash Provision",
+    "severity": "Critical",
+    "schedule_m_explicit": false,
+    "note": "Not explicit in Schedule M text."
+  },
+  {
+    "id": "THR-B07",
+    "linked_param_id": "WTR-006",
+    "parameter_name": "Grey Water (Process Effluent) Treatment",
+    "severity": "Critical",
+    "schedule_m_explicit": true,
+    "note": "Defers to local SPCB/CPCB norms; no pharma-specific API-deactivation requirement (EU/China/Japan expect stricter, pharma-specific limits)."
+  },
+  {
+    "id": "THR-B08",
+    "linked_param_id": "WTR-007",
+    "parameter_name": "Black Water (Sewage) Treatment",
+    "severity": "Aligned",
+    "schedule_m_explicit": true,
+    "note": "Per Factories Act 1948 and local norms — all authorities defer to local sewage regulation, rare full alignment."
+  }
+]

@@ -1,0 +1,70 @@
+[
+  {
+    "key": "schedule_m",
+    "data_key": "schedule_m",
+    "label": "India — Schedule M",
+    "covered": true
+  },
+  {
+    "key": "us_fda",
+    "data_key": "us_fda",
+    "label": "US FDA",
+    "covered": true
+  },
+  {
+    "key": "eu_gmp",
+    "data_key": "eu_gmp_pics",
+    "label": "EU-GMP",
+    "covered": true,
+    "shared_note": "Shares source data with PIC/S in this dataset (Threshold Library does not distinguish them)."
+  },
+  {
+    "key": "uk_mhra",
+    "data_key": null,
+    "label": "UK MHRA",
+    "covered": false
+  },
+  {
+    "key": "pics",
+    "data_key": "eu_gmp_pics",
+    "label": "PIC/S",
+    "covered": true,
+    "shared_note": "Shares source data with EU-GMP in this dataset (Threshold Library does not distinguish them)."
+  },
+  {
+    "key": "who_gmp",
+    "data_key": "who_gmp",
+    "label": "WHO GMP",
+    "covered": true
+  },
+  {
+    "key": "tga_australia",
+    "data_key": null,
+    "label": "TGA (Australia)",
+    "covered": false
+  },
+  {
+    "key": "china_nmpa",
+    "data_key": "china_nmpa",
+    "label": "NMPA (China)",
+    "covered": true
+  },
+  {
+    "key": "japan_pmda",
+    "data_key": "japan_pmda",
+    "label": "PMDA (Japan)",
+    "covered": true
+  },
+  {
+    "key": "sahpra",
+    "data_key": null,
+    "label": "SAHPRA (South Africa)",
+    "covered": false
+  },
+  {
+    "key": "sfda",
+    "data_key": null,
+    "label": "SFDA (Saudi Arabia)",
+    "covered": false
+  }
+]

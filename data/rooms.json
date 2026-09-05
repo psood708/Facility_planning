@@ -1,0 +1,1028 @@
+[
+  {
+    "id": "Z-01",
+    "process_stage": "Receiving",
+    "name": "Inward Material / Goods Receiving Bay",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Unclassified/Controlled",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": "Weather-protected in all authorities; Schedule M gives no m²",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-02",
+    "process_stage": "Receiving",
+    "name": "Cold Storage (2–8°C)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Temperature-mapped",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": "Sterile-specific for temperature-sensitive materials",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-03",
+    "process_stage": "Storage",
+    "name": "Quarantine Warehouse (RM & Packaging)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled (15–25°C)",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": "Segregation from approved/rejected stock universally required",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-04",
+    "process_stage": "Storage",
+    "name": "Approved Raw Material Store",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled (15–25°C / 45–65% RH)",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-05",
+    "process_stage": "Storage",
+    "name": "Packaging Material Store",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": "Separate from RM; security for printed components expected globally",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-06",
+    "process_stage": "Sampling",
+    "name": "Raw Material Sampling Room / Booth",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade C/D + LAF (Sterile: Grade A env.)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "No",
+    "notes": "Schedule M less specific on differential pressure/capture velocity than WHO/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-07",
+    "process_stage": "Dispensing",
+    "name": "Dispensing / Weighing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade C–D (Sterile: up to Grade B)",
+    "grade_tag": "B",
+    "schedule_m_area_given": "Partial (Ext.Prep within 30+10 m² total)",
+    "notes": "Schedule M bundles this into total production area for OSD/Ext.Prep rather than sizing it separately",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-08",
+    "process_stage": "Staging",
+    "name": "Pre-Production / Intermediate Staging Hold",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-09",
+    "process_stage": "Manufacturing-Core",
+    "name": "Liquid Preparation Room (solutions, lotions, liniments)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade D (exposed)",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (within 30+10 m² basic)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-10",
+    "process_stage": "Manufacturing-Core",
+    "name": "Emulsion Manufacturing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade D (exposed)",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (within basic area)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-11",
+    "process_stage": "Manufacturing-Core",
+    "name": "Suspension Manufacturing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade D (exposed)",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (within basic area)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-12",
+    "process_stage": "Manufacturing-Core",
+    "name": "Cream Manufacturing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade C/D",
+    "grade_tag": "C",
+    "schedule_m_area_given": "Yes (within basic area)",
+    "notes": "China mandates formal Grade D; Schedule M gives area but no formal grade",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-13",
+    "process_stage": "Manufacturing-Core",
+    "name": "Ointment Manufacturing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (within basic area)",
+    "notes": "Cleaning-validation emphasis varies by authority",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-14",
+    "process_stage": "Manufacturing-Core",
+    "name": "Gel Manufacturing Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (within basic area)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-15",
+    "process_stage": "Manufacturing-Core",
+    "name": "Dusting Powder Blending Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D + dust containment",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (Ext.Prep, within basic area)",
+    "notes": "WHO/China more prescriptive on pressure cascade for dust rooms",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 30+10 m² total Ext. Preparations production area (covers Liquids/Emulsions/Suspensions/Creams/Ointments/Gels/Dusting Powder combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-16",
+    "process_stage": "Manufacturing-Core",
+    "name": "Granulation Room (Wet)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (OSD 60 m² total for tablets)",
+    "notes": "Schedule M's bundled 60 m² is below the 48 m² industry norm for wet granulation alone",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² total OSD tablet-production area (Granulation/Drying/Blending/Compression combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-17",
+    "process_stage": "Manufacturing-Core",
+    "name": "Granulation Room (Dry) / Roller Compaction",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (within 60 m² total)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² total OSD tablet-production area (Granulation/Drying/Blending/Compression combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-18",
+    "process_stage": "Manufacturing-Core",
+    "name": "Drying (Fluid Bed Dryer)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (within granulation allocation)",
+    "notes": "High ceiling (~5 m) needed; not addressed by any authority",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² total OSD tablet-production area (Granulation/Drying/Blending/Compression combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-19",
+    "process_stage": "Manufacturing-Core",
+    "name": "Blending / Lubrication Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade C/D",
+    "grade_tag": "C",
+    "schedule_m_area_given": "Partial (within 60 m² total)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² total OSD tablet-production area (Granulation/Drying/Blending/Compression combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-20",
+    "process_stage": "Manufacturing-Core",
+    "name": "Compression Room (Tablets)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (within 60 m² total)",
+    "notes": "China mandates Grade D explicitly",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² total OSD tablet-production area (Granulation/Drying/Blending/Compression combined) — not an individual room minimum."
+  },
+  {
+    "id": "Z-21",
+    "process_stage": "Manufacturing-Core",
+    "name": "Encapsulation Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (25 m² basic + 10 m² ancillary)",
+    "notes": null,
+    "min_area_sqm": 25,
+    "min_area_source": "Schedule M: 25 m² basic + 10 m² ancillary (Encapsulation Room)",
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-22",
+    "process_stage": "Manufacturing-Core",
+    "name": "Coating Room (Film/Sugar/ER-MR)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (+30 m² additional)",
+    "notes": "Solvent extraction / ATEX zone not addressed by Schedule M",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² tablet-production allocation plus 30 m² additional for coating — not an individual room minimum."
+  },
+  {
+    "id": "Z-23",
+    "process_stage": "Manufacturing-Core",
+    "name": "Coating Solution Preparation",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial (within coating allocation)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": "Part of Schedule M's bundled 60 m² tablet-production allocation plus 30 m² additional for coating — not an individual room minimum."
+  },
+  {
+    "id": "Z-24",
+    "process_stage": "Manufacturing-Core",
+    "name": "Oral Powder Processing / Suite",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Yes (30 m²)",
+    "notes": null,
+    "min_area_sqm": 30,
+    "min_area_source": "Schedule M: 30 m² (Oral Powder Processing Suite)",
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-25",
+    "process_stage": "Manufacturing-Core",
+    "name": "MDF (Mouth Dissolving Film) Processing / Manufacturing Suite",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Controlled RH ≤30%",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "NOT ADDRESSED",
+    "notes": "❌ Critical structural gap — zero Schedule M provision",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-26",
+    "process_stage": "Manufacturing-Core",
+    "name": "Buccal Adhesive Film Processing / Manufacturing Suite",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Controlled RH ≤35%",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "NOT ADDRESSED",
+    "notes": "❌ Critical structural gap — zero Schedule M provision",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-27",
+    "process_stage": "Manufacturing-Core",
+    "name": "Solution Preparation / Compounding Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade C (terminal) / Grade A+B (aseptic)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Yes (part of SVP/LVP allocation)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-28",
+    "process_stage": "Manufacturing-Core",
+    "name": "Buffer / Intermediate Hold Tank Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade C",
+    "grade_tag": "C",
+    "schedule_m_area_given": "Partial (within production allocation)",
+    "notes": "Hold-time validation less detailed than EU/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-29",
+    "process_stage": "Filling",
+    "name": "Aseptic Filling Suite (Vials/Ampoules/PFS/Cartridge)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B (RABS/Isolator: A in C/D)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Yes (150 m² min., SVP)",
+    "notes": "Core sterile room — largely aligned with EU/PIC/S",
+    "min_area_sqm": 150,
+    "min_area_source": "Schedule M: 150 m² minimum (Aseptic Filling Suite, SVP)",
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-30",
+    "process_stage": "Filling",
+    "name": "Ophthalmic Solution Filling (Drops/Irrigation)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B (BFS: A in C/D)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Yes (25+10 m² total)",
+    "notes": "No explicit Grade A/B split — area spec minimal vs EU/WHO",
+    "min_area_sqm": 25,
+    "min_area_source": "Schedule M: 25 + 10 m² total (Ophthalmic Solution Filling)",
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-31",
+    "process_stage": "Filling",
+    "name": "Sterile Dry Powder Filling (Reconstitution)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B + containment",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Partial (dust extraction only, grade not explicit)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-32",
+    "process_stage": "Filling",
+    "name": "Ophthalmic Ointment Filling",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Partial (part of ophthalmic 25+10 m²)",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-33",
+    "process_stage": "Filling",
+    "name": "Implant Assembly / Packaging Suite",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B (dedicated)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "NOT explicitly addressed",
+    "notes": "✗ Gap — general sterile parenteral rules applied by default",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-34",
+    "process_stage": "Filling",
+    "name": "Vial Capping / Crimping Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A air supply (room can be Grade C)",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Partial",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-35",
+    "process_stage": "Filling",
+    "name": "Lyophilizer Loading/Unloading Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade A in Grade B",
+    "grade_tag": "A",
+    "schedule_m_area_given": "Partial",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-36",
+    "process_stage": "Filling",
+    "name": "Lyophilizer Technical Area",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Unclassified/Technical",
+    "grade_tag": "Technical",
+    "schedule_m_area_given": "Partial",
+    "notes": "Maintenance-from-outside preferred by all authorities",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-37",
+    "process_stage": "Support",
+    "name": "In-Process QC / IPC Testing Area or Lab",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Same grade as adjacent production, or unclassified",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": "All authorities allow in-process testing within production if risk-assessed",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-38",
+    "process_stage": "Inspection",
+    "name": "Visual Inspection Room (Manual)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade C/D",
+    "grade_tag": "C",
+    "schedule_m_area_given": "Partial",
+    "notes": "No lux value specified by Schedule M — EU/WHO expect ≥500 lux",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-39",
+    "process_stage": "Inspection",
+    "name": "Automated Inspection Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade C/D",
+    "grade_tag": "C",
+    "schedule_m_area_given": "Partial",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-40",
+    "process_stage": "Packaging-Primary",
+    "name": "Primary Packaging Room (filling: tubes/jars/bottles/blister/strip)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Same grade as manufacturing (Grade D typical)",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial",
+    "notes": "Schedule M: 'may be provided' (discretionary) for some Ext.Prep — others mandate it",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-41",
+    "process_stage": "Packaging-Secondary",
+    "name": "Secondary Packaging Area / Hall (cartoning, labeling)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled / unclassified",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "Partial",
+    "notes": "Line-clearance and reconciliation detail weaker than FDA/EU",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-42",
+    "process_stage": "Packaging-Secondary",
+    "name": "Labeling Room",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade D / Controlled",
+    "grade_tag": "D",
+    "schedule_m_area_given": "Partial",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-43",
+    "process_stage": "Hold",
+    "name": "Finished Product / Finished Goods Quarantine Hold",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled (15–25°C)",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "Partial",
+    "notes": "Segregation aligned; electronic inventory/data-integrity expectations weaker",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-44",
+    "process_stage": "Hold",
+    "name": "In-Process Hold / Bulk Hold",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Same grade as process",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": "Hold-time validation detail weaker than EU/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-45",
+    "process_stage": "Hold",
+    "name": "Input Hold Area (pre-production staging)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade D or entry-zone grade",
+    "grade_tag": "D",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-46",
+    "process_stage": "Store",
+    "name": "Approved / Released Finished Goods Warehouse & Dispatch",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled (15–25°C, cold chain validated)",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "Partial",
+    "notes": "Cold-chain/temperature-mapping detail weaker for non-sterile externals",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-47",
+    "process_stage": "Store",
+    "name": "Rejected / Recalled Material or Product Store",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Controlled, physically segregated",
+    "grade_tag": "Controlled",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-48",
+    "process_stage": "Support",
+    "name": "Equipment / Tube-Bottle Wash Room",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Grade D",
+    "grade_tag": "D",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-49",
+    "process_stage": "Support",
+    "name": "Autoclave / Sterilization Room (equipment & terminal)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Through-wall between grades",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "Partial",
+    "notes": "Documented pressure cascade & door interlocks less explicit than EU/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-50",
+    "process_stage": "Corridor",
+    "name": "Manufacturing Corridor — Clean",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Same as adjacent rooms",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": "Less prescriptive on recessed services, coving, dust-trap avoidance vs EU/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-51",
+    "process_stage": "Airlock/Gowning",
+    "name": "Personnel Change / Gowning — Stage 1 (General→Grade D)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade D equivalent",
+    "grade_tag": "D",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-52",
+    "process_stage": "Airlock/Gowning",
+    "name": "Personnel Change / Gowning — Stage 2 (Grade D→Grade C)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade C equivalent",
+    "grade_tag": "C",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-53",
+    "process_stage": "Airlock/Gowning",
+    "name": "Personnel Change / Gowning — Stage 3 (Grade C→Grade B)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade B at rest",
+    "grade_tag": "B",
+    "schedule_m_area_given": "No",
+    "notes": "Sterile-specific final aseptic gowning stage",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-54",
+    "process_stage": "Airlock",
+    "name": "Material Airlock (MAL) — General to Production",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Same grade as target zone",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": "No dimensions or ACH given by Schedule M",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-55",
+    "process_stage": "Airlock",
+    "name": "Material Airlock (MAL) — to Grade A/B (sterile)",
+    "applies_to": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "typical_grade": "Grade B equivalent",
+    "grade_tag": "B",
+    "schedule_m_area_given": "No",
+    "notes": "Double-ended sterilizer/autoclave preferred by EU/PIC/S",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-56",
+    "process_stage": "Airlock",
+    "name": "Pass-Through Hatch",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "typical_grade": "Grade of cleaner side",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": null,
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  },
+  {
+    "id": "Z-57",
+    "process_stage": "Buffer",
+    "name": "Buffer Zone (dusty ↔ non-dusty / between grades)",
+    "applies_to": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "typical_grade": "Intermediate grade",
+    "grade_tag": "Unclassified",
+    "schedule_m_area_given": "No",
+    "notes": "No buffer-zone concept explicitly defined for OSD by Schedule M",
+    "min_area_sqm": null,
+    "min_area_source": null,
+    "bundled_area_note": null
+  }
+]

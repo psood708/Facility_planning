@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facility Compliance Interface — Prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <h1>Facility Compliance Interface <span class="version-tag">prototype v1</span></h1>
+    <p class="subtitle">Enter your facility's design parameters and see which regulatory frameworks it satisfies — and exactly what to change where it doesn't.</p>
+    <ol class="step-indicator" id="step-indicator">
+      <li data-step="1">1. Classification</li>
+      <li data-step="2">2. Rooms &amp; Zones</li>
+      <li data-step="3">3. Parameters</li>
+      <li data-step="4">4. Results</li>
+    </ol>
+  </header>
+
+  <main id="main">
+    <section id="step-1" class="step"></section>
+    <section id="step-2" class="step" hidden></section>
+    <section id="step-3" class="step" hidden></section>
+    <section id="step-4" class="step" hidden></section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-note">Data source: <em>Facility_Compliance_Parameter_Schema.xlsx</em> — a prototype rules engine, not a validated regulatory tool.</div>
+    <div class="nav-buttons">
+      <button id="btn-back" type="button">Back</button>
+      <button id="btn-next" type="button">Next</button>
+      <button id="btn-restart" type="button" class="secondary" hidden>Start Over</button>
+    </div>
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

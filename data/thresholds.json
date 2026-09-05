@@ -1,0 +1,2057 @@
+[
+  {
+    "id": "THR-001",
+    "linked_param_id": "HVAC-002",
+    "parameter_name": "Temperature",
+    "context": "sterile_filling",
+    "unit": "°C",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Dependent on product; not uncomfortable"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified; 'appropriate'"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "min": 18,
+        "max": 22,
+        "note": "Not formally mandated — CCS-driven; typical 18–22°C"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Controlled; compatible with operations (no number given)"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 18,
+        "max": 22,
+        "note": "20±2°C typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 18,
+        "max": 26,
+        "note": "Typical 18–26°C, continuous monitoring"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 18,
+        "max": 22,
+        "note": "18–22°C filling; 20–24°C gowning (ISPE)"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-002",
+    "linked_param_id": "HVAC-002",
+    "parameter_name": "Temperature",
+    "context": "non_sterile_manufacturing",
+    "unit": "°C",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "No specific range"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Controlled 'when appropriate' — no number"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "No specific range"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "max": 25,
+        "note": "Typically 20–25°C (guidance)"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 18,
+        "max": 26,
+        "note": "18–26°C typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "max": 25,
+        "note": "Product-specific, ~20–25°C"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "max": 25,
+        "note": "20–25°C (ISPE)"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-003",
+    "linked_param_id": "HVAC-003",
+    "parameter_name": "Relative Humidity",
+    "context": "sterile_filling",
+    "unit": "% RH",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Dependent on product; monitored"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified; 'appropriate'"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "min": 30,
+        "max": 55,
+        "note": "Not formally mandated — CCS-driven; typical 30–55%"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Controlled (no number)"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 40,
+        "max": 50,
+        "note": "45±5% typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 35,
+        "max": 55,
+        "note": "Typical 45±10%"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 30,
+        "max": 55,
+        "note": "30–55% general; 20–35% for dry-powder fill"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-004",
+    "linked_param_id": "HVAC-003",
+    "parameter_name": "Relative Humidity",
+    "context": "non_sterile_manufacturing",
+    "unit": "% RH",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "No specific range"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Controlled 'when appropriate'"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "No specific range"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "max": 65,
+        "note": "≤65% (guidance)"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 45,
+        "max": 65,
+        "note": "45–65% typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 45,
+        "max": 65
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 35,
+        "max": 65
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-005",
+    "linked_param_id": "HVAC-004",
+    "parameter_name": "Air Changes per Hour",
+    "context": "grade_b",
+    "unit": "ACH",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "'Significantly higher than 20 ACH' — interpreted as a minimum exceeding 20; FDA does not codify an exact figure"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified; 'effective flushing'"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 30,
+        "note": "≥30 ACH typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 30,
+        "note": "≥30 ACH; 15–20 min recovery expected"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 30,
+        "max": 60,
+        "note": "30–60 ACH (ISPE)"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-006",
+    "linked_param_id": "HVAC-004",
+    "parameter_name": "Air Changes per Hour",
+    "context": "grade_c",
+    "unit": "ACH",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "Not formally specified; >20 ACH implied"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "≥20 ACH"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "≥20 ACH"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "max": 40
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-007",
+    "linked_param_id": "HVAC-004",
+    "parameter_name": "Air Changes per Hour",
+    "context": "grade_d",
+    "unit": "ACH",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "≥20 ACH for ISO 8"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified numerically"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 15,
+        "note": "≥15 ACH typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 15,
+        "max": 25
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-008",
+    "linked_param_id": "HVAC-004",
+    "parameter_name": "Air Changes per Hour",
+    "context": "non_sterile_production",
+    "unit": "ACH",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Effective ventilation' — no number"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 20,
+        "note": "20 ACH is industry practice, not an FDA regulation"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified; industry range 10–20 ACH"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not prescriptive; typical 10–20 ACH"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 15,
+        "max": 25,
+        "note": "15–25 ACH typical"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 15,
+        "max": 20,
+        "note": "Risk-based, typical 15–20 ACH"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 15,
+        "max": 20
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-009",
+    "linked_param_id": "HVAC-005",
+    "parameter_name": "Pressure Differential",
+    "context": "between_adjacent_grades",
+    "unit": "Pa",
+    "severity": "Aligned",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15,
+        "note": "10–15 Pa (guidance)"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15,
+        "note": "10–15 Pa; ≥12.5 Pa vs unclassified space"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "note": "≥10 Pa minimum"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "note": "≥10 Pa"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15,
+        "note": "≥10–15 Pa, continuous monitoring"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15,
+        "note": "10–15 Pa normal; ≥15 Pa at A/B interface"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-010",
+    "linked_param_id": "HVAC-005",
+    "parameter_name": "Pressure Differential",
+    "context": "non_sterile",
+    "unit": "Pa",
+    "severity": "Aligned",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15,
+        "note": "10–15 Pa (Ext.Prep); ≥15 Pa mfg-vs-support (OSD, stricter)"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Adequate control expected, no Pa value given"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified for non-sterile"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 5,
+        "max": 20,
+        "note": "5–20 Pa acceptable"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "note": "≥10 Pa clean vs non-clean"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 10,
+        "max": 15
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-011",
+    "linked_param_id": "HVAC-009",
+    "parameter_name": "Unidirectional Airflow (UDAF) Velocity",
+    "context": "grade_a",
+    "unit": "m/s",
+    "severity": "Aligned",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54,
+        "note": "0.45 m/s ±20%"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54,
+        "note": "Guidance value"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54,
+        "note": "0.45 m/s ±20%"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 0.36,
+        "max": 0.54
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-012",
+    "linked_param_id": "HVAC-008",
+    "parameter_name": "HEPA Filter Efficiency",
+    "context": "all",
+    "unit": "% at 0.3µm",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "min": 99.97,
+        "note": "H13+ minimum"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 99.97
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "min": 99.995,
+        "note": "H14 required for Grade A/B terminal filters"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 99.97
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 99.995,
+        "note": "H14 for Grade A/B"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 99.97,
+        "note": "Integrity tested"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 99.97,
+        "note": "H14 (99.995%) for A/B; H13 (99.97%) acceptable for C/D"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-013",
+    "linked_param_id": "HVAC-010",
+    "parameter_name": "Recovery Time (Grade B)",
+    "context": "all",
+    "unit": "minutes",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not formally specified (100:1 in 15–20 min is mentioned informally)"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified; rapid recovery expected"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "max": 20,
+        "note": "Not specified formally; 15–20 min is the working guidance"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "max": 20,
+        "note": "15–20 min for 100-fold reduction"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "max": 20,
+        "note": "15–20 min direct support"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "max": 20
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 20,
+        "note": "15–20 min (100:1, at-rest→operational)"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-014",
+    "linked_param_id": "LGT-001",
+    "parameter_name": "Illumination",
+    "context": "general_processing",
+    "unit": "lux",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Adequate lighting', no value"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 300,
+        "max": 500
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-015",
+    "linked_param_id": "LGT-001",
+    "parameter_name": "Illumination",
+    "context": "filling_area",
+    "unit": "lux",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Adequate lighting', no value"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 500,
+        "max": 750
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-016",
+    "linked_param_id": "LGT-001",
+    "parameter_name": "Illumination",
+    "context": "inspection",
+    "unit": "lux",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Well lit', no numeric value"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "'Suitable conditions for inspection'"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Implied adequate for inspection"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "'Adequate lighting'"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "'Qualified lighting'"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 750,
+        "note": "750–2000+ lux for parenteral visual inspection"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-017",
+    "linked_param_id": "LGT-001",
+    "parameter_name": "Illumination",
+    "context": "storage",
+    "unit": "lux",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Adequate lighting'"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "min": 150,
+        "max": 200,
+        "note": "IESNA ~150–200 lux (guidance only)"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "'Adequate lighting'"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": true,
+        "min": 100,
+        "max": 200,
+        "note": "Guidance"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 150,
+        "note": "150 lux (GB 50073)"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": true,
+        "min": 100,
+        "max": 200
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 150,
+        "max": 200
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-018",
+    "linked_param_id": "UTIL-001",
+    "parameter_name": "Compressed Air Quality Class",
+    "context": "all",
+    "unit": "ISO 8573-1 class",
+    "severity": "Critical",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "Class 2",
+      "Class 1.2.1",
+      "Class 1"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Filtered/oil-free expected, but no ISO class mandated"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "'Appropriate purity', no class given"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "category": "Class 1.2.1",
+        "note": "Class 1.2.1 or better"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "ISO 8573-1 referenced but no specific class given"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "category": "Class 2",
+        "note": "Class 2 or better, oil-free"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "'Validated gas quality', no class given"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "Class 1.2.1",
+        "note": "Product-contact air"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-019",
+    "linked_param_id": "WTR-002",
+    "parameter_name": "Water Conductivity",
+    "context": "all",
+    "unit": "µS/cm",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia, no explicit value"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "max": 1.3
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "max": 4.3,
+        "note": "Ph.Eur. Stage 1"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Per ChP"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Per JP"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 4.3,
+        "note": "≤1.3–4.3 µS/cm depending on stage/pharmacopoeia"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-020",
+    "linked_param_id": "WTR-003",
+    "parameter_name": "Water TOC",
+    "context": "all",
+    "unit": "ppb",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "max": 500
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "max": 500
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Per ChP"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Per JP"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 500
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-021",
+    "linked_param_id": "WTR-004",
+    "parameter_name": "Water Microbial Limit",
+    "context": "all",
+    "unit": "CFU/mL",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": true,
+        "max": 100,
+        "note": "E. coli must also be absent"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Per risk assessment"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Per pharmacopoeia"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Per ChP"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Per JP"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 100
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-022",
+    "linked_param_id": "SHE-001",
+    "parameter_name": "Noise Limit",
+    "context": "all",
+    "unit": "dBA",
+    "severity": "Significant",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified (Factories Act general reference only)"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "OSHA general industry standard, no pharma-specific figure"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "max": 85,
+        "note": "Common EU/UK threshold"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "References national regulations"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "GBZ occupational limits, no single figure"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "MHLW workplace standards, no single figure"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 90,
+        "note": "85 dBA (EU/UK) vs ~90 dBA elsewhere"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-023",
+    "linked_param_id": "DFS-003",
+    "parameter_name": "MDF / Buccal Film Environmental Control (RH)",
+    "context": "all",
+    "unit": "% RH",
+    "severity": "Critical",
+    "source": "industry_guidance_notes",
+    "applies_to_specific_forms": [
+      "MDF",
+      "Buccal Film"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "NOT ADDRESSED in Schedule M"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "No India-specific figure; design to FDA/EU/WHO guidance"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "max": 35,
+        "note": "RH ≤30–35% with tight temperature control"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-024",
+    "linked_param_id": "DIM-004",
+    "parameter_name": "Room Clear Height",
+    "context": "all",
+    "unit": "m",
+    "severity": "Significant",
+    "source": "industry_guidance_notes",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false,
+        "note": "Not specified"
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 2.7,
+        "max": 6.0,
+        "note": "Depends heavily on room/equipment — wide band"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-025",
+    "linked_param_id": "DIM-005",
+    "parameter_name": "Corridor / Buffer Zone Width",
+    "context": "all",
+    "unit": "m",
+    "severity": "Critical",
+    "source": "industry_guidance_notes",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "No buffer-zone concept defined for OSD"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 1.8,
+        "max": 2.5
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-026",
+    "linked_param_id": "DIM-006",
+    "parameter_name": "Airlock Internal Dimension (smallest side)",
+    "context": "all",
+    "unit": "m",
+    "severity": "Critical",
+    "source": "industry_guidance_notes",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Airlock referenced, no dimensions given"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 2.0,
+        "max": 3.0,
+        "note": "Per side, depends on PAL/MAL type"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-027",
+    "linked_param_id": "FLOW-003",
+    "parameter_name": "Gowning Stages",
+    "context": "all",
+    "unit": "count",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Change rooms required; stage count not detailed"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "min": 2,
+        "note": "Mandates two-stage gowning explicitly"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "min": 2,
+        "note": "Two-stage gowning recommended"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    },
+    "type": "numeric"
+  },
+  {
+    "id": "THR-028",
+    "linked_param_id": "HVAC-007",
+    "parameter_name": "Filtration Stage",
+    "context": "all",
+    "severity": "Aligned",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "G4",
+      "G4+F8",
+      "G4+F8+H13",
+      "H14"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "category": "G4+F8+H13",
+        "note": "Explicitly specified for Ext.Prep recirculated air — Schedule M leads here"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "G4+F8+H13"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-029",
+    "linked_param_id": "FLOW-004",
+    "parameter_name": "Personnel Flow Type",
+    "context": "all",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "Logical flow",
+      "Unidirectional",
+      "Strict unidirectional"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "category": "Logical flow"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "category": "Strict unidirectional",
+        "note": "China mandates strict unidirectional flow"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "Unidirectional"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-030",
+    "linked_param_id": "FLOW-005",
+    "parameter_name": "Material Flow Segregation",
+    "context": "all",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "Basic segregation",
+      "Dedicated de-boxing room",
+      "Dedicated MAL"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": true,
+        "category": "Basic segregation",
+        "note": "Airlock required; no de-boxing detail"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": true,
+        "category": "Dedicated de-boxing room",
+        "note": "China requires a mandatory dedicated de-boxing room"
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "Dedicated de-boxing room"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-031",
+    "linked_param_id": "FLOW-002",
+    "parameter_name": "Airlock Interlock Type",
+    "context": "all",
+    "severity": "Critical",
+    "source": "industry_guidance_notes",
+    "type": "categorical",
+    "hierarchy": [
+      "None",
+      "Mechanical",
+      "Electronic"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Not detailed"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "Mechanical",
+        "note": "At minimum an interlocked airlock is expected"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-032",
+    "linked_param_id": "DFS-004",
+    "parameter_name": "Barrier Technology Type",
+    "context": "all",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "Conventional",
+      "RABS",
+      "Isolator"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "Referenced via CCS, not mandated"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": true,
+        "category": "RABS",
+        "note": "EU Annex 1 strongly prefers RABS/Isolator for new greenfield sterile lines — a preference, not an absolute mandate"
+      },
+      "industry": {
+        "covered": true,
+        "specified": false
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  },
+  {
+    "id": "THR-033",
+    "linked_param_id": "UTIL-003",
+    "parameter_name": "Steam Type Required",
+    "context": "all",
+    "severity": "Partial",
+    "source": "regulatory_threshold_library",
+    "type": "categorical",
+    "hierarchy": [
+      "Utility Steam",
+      "Clean Steam",
+      "Pure Steam (EN 285)"
+    ],
+    "applies_to_dosage_category": [
+      "sterile"
+    ],
+    "authorities": {
+      "schedule_m": {
+        "covered": true,
+        "specified": false,
+        "note": "'Suitable quality' tested chemically/micro/endotoxin — no EN 285 reference"
+      },
+      "us_fda": {
+        "covered": true,
+        "specified": false
+      },
+      "eu_gmp_pics": {
+        "covered": true,
+        "specified": false
+      },
+      "who_gmp": {
+        "covered": true,
+        "specified": false
+      },
+      "china_nmpa": {
+        "covered": true,
+        "specified": false
+      },
+      "japan_pmda": {
+        "covered": true,
+        "specified": false
+      },
+      "industry": {
+        "covered": true,
+        "specified": true,
+        "category": "Pure Steam (EN 285)",
+        "note": "Expected for sterile applications"
+      },
+      "uk_mhra": {
+        "covered": false
+      },
+      "tga_australia": {
+        "covered": false
+      },
+      "sahpra": {
+        "covered": false
+      },
+      "sfda": {
+        "covered": false
+      }
+    }
+  }
+]

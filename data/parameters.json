@@ -1,0 +1,1064 @@
+[
+  {
+    "id": "CLASS-001",
+    "category": "Classification",
+    "name": "Dosage Form Category",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "External Preparations / OSD / Sterile / OSD R&D-Pilot",
+    "schedule_m_baseline": "—",
+    "gap_severity": "N/A",
+    "notes": "Top-level selector; determines which room set (Sheet 3) and parameter set load"
+  },
+  {
+    "id": "CLASS-002",
+    "category": "Classification",
+    "name": "Specific Dosage Form",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical (multi-select)",
+    "unit_options": "Liquid/Emulsion/Suspension/Cream/Ointment/Gel/Dusting Powder — Tablet(UC/Coated/ER/MR)/Capsule/Oral Powder/MDF/Buccal Film — Sterile Liquid(Vial/Ampoule/PFS/Cartridge)/Ophthalmic Drops/Ophthalmic Ointment/Dry Powder Reconstitution/Implant",
+    "schedule_m_baseline": "—",
+    "gap_severity": "Critical",
+    "notes": "MDF, Buccal Film and Implants have zero Schedule M provisions — flag immediately on selection"
+  },
+  {
+    "id": "CLASS-003",
+    "category": "Classification",
+    "name": "Facility Development Stage",
+    "applicable_raw": "OSD",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "R&D Lab / Pilot Plant / Commercial Production",
+    "schedule_m_baseline": "Only commercial scale defined",
+    "gap_severity": "Critical",
+    "notes": "Selecting R&D or Pilot should trigger the structural-gap warning (no dedicated Schedule M chapter)"
+  },
+  {
+    "id": "CLASS-004",
+    "category": "Classification",
+    "name": "Target Regulatory Market(s)",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical (multi-select)",
+    "unit_options": "India(Schedule M), US-FDA, EU-GMP, UK-MHRA, PIC/S, WHO-GMP, TGA(Australia), NMPA(China), PMDA(Japan), SAHPRA(S.Africa), SFDA(Saudi)",
+    "schedule_m_baseline": "—",
+    "gap_severity": "N/A",
+    "notes": "Determines which columns of Sheet 4 are pulled into the compliance check"
+  },
+  {
+    "id": "CLASS-005",
+    "category": "Classification",
+    "name": "Facility Scale / Batch Size",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric + Categorical",
+    "unit_options": "Small/Medium/Large; kg or units per batch",
+    "schedule_m_baseline": "Not prescribed",
+    "gap_severity": "Partial",
+    "notes": "Room areas scale proportionally per source docx reports; no authority gives a formula"
+  },
+  {
+    "id": "CLASS-006",
+    "category": "Classification",
+    "name": "Room / Functional Zone",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "See Sheet 3 — Room-Zone Master List",
+    "schedule_m_baseline": "—",
+    "gap_severity": "N/A",
+    "notes": "Each room selection loads its own DIM/HVAC/FLOW parameter set"
+  },
+  {
+    "id": "DIM-001",
+    "category": "Dimensional",
+    "name": "Room Net Area",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m²",
+    "schedule_m_baseline": "Specified only for Ext.Prep production (30+10) and Sterile SVP/LVP/Ophthalmic; otherwise 'adequate space'",
+    "gap_severity": "Varies",
+    "notes": "Compare entered value to Schedule M minimum (if any) and to global recommended band in Sheet 3"
+  },
+  {
+    "id": "DIM-002",
+    "category": "Dimensional",
+    "name": "Room Length",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m",
+    "schedule_m_baseline": "Not specified",
+    "gap_severity": "Significant",
+    "notes": "No authority prescribes room length directly"
+  },
+  {
+    "id": "DIM-003",
+    "category": "Dimensional",
+    "name": "Room Width",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m",
+    "schedule_m_baseline": "Not specified",
+    "gap_severity": "Significant",
+    "notes": null
+  },
+  {
+    "id": "DIM-004",
+    "category": "Dimensional",
+    "name": "Room Clear Height",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m",
+    "schedule_m_baseline": "Not specified",
+    "gap_severity": "Significant",
+    "notes": "Industry bands ~2.7–6.0 m depending on room/equipment"
+  },
+  {
+    "id": "DIM-005",
+    "category": "Dimensional",
+    "name": "Corridor / Buffer Zone Width",
+    "applicable_raw": "OSD, Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m",
+    "schedule_m_baseline": "No buffer-zone concept defined for OSD",
+    "gap_severity": "Critical",
+    "notes": "Global guidance: 1.8–2.5 m"
+  },
+  {
+    "id": "DIM-006",
+    "category": "Dimensional",
+    "name": "Airlock Internal Dimensions",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m (L×W×H)",
+    "schedule_m_baseline": "Airlock referenced, no dimensions given",
+    "gap_severity": "Critical",
+    "notes": "Global bands ~2.0–3.0 m per side depending on PAL/MAL type"
+  },
+  {
+    "id": "HVAC-001",
+    "category": "HVAC/Environmental",
+    "name": "Cleanroom Grade / ISO Class",
+    "applicable_raw": "OSD, Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "Unclassified / CNC / Grade D(ISO8) / Grade C(ISO7) / Grade B / Grade A(ISO5)",
+    "schedule_m_baseline": "Non-sterile: not formally classified. Sterile: Grade A–D defined, 5µm limit for Grade A (stricter than EU 2022)",
+    "gap_severity": "Partial–Significant",
+    "notes": "China applies Class D to non-sterile OSD/Ext.Prep where Schedule M gives none"
+  },
+  {
+    "id": "HVAC-002",
+    "category": "HVAC/Environmental",
+    "name": "Temperature",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric range",
+    "unit_options": "°C",
+    "schedule_m_baseline": "Not prescribed numerically — 'appropriate' / 'not uncomfortable'",
+    "gap_severity": "Partial",
+    "notes": "Industry bands 18–26°C by zone; WHO/China give guidance values"
+  },
+  {
+    "id": "HVAC-003",
+    "category": "HVAC/Environmental",
+    "name": "Relative Humidity",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric range",
+    "unit_options": "% RH",
+    "schedule_m_baseline": "Not prescribed numerically — 'where necessary'",
+    "gap_severity": "Partial",
+    "notes": "30–65% by zone; ≤30–40% RH critical for MDF/dusting powders"
+  },
+  {
+    "id": "HVAC-004",
+    "category": "HVAC/Environmental",
+    "name": "Air Changes per Hour (ACH)",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "ACH/hr",
+    "schedule_m_baseline": "Never specified in any Schedule M source document",
+    "gap_severity": "Critical",
+    "notes": "Single most-repeated gap across all four analyses — needs an external default (ISPE: 15–60 by grade)"
+  },
+  {
+    "id": "HVAC-005",
+    "category": "HVAC/Environmental",
+    "name": "Pressure Differential (to adjacent zone)",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "Pa",
+    "schedule_m_baseline": "10–15 Pa (Ext.Prep, Sterile guidance); ≥15 Pa (OSD production); not specified (R&D/Pilot)",
+    "gap_severity": "Aligned (Ext/Sterile) / Critical (R&D)",
+    "notes": "Meeting Schedule M's 10–15 Pa (or stricter ≥15 Pa OSD figure) satisfies WHO/EU/PIC/S/China"
+  },
+  {
+    "id": "HVAC-006",
+    "category": "HVAC/Environmental",
+    "name": "Pressure Cascade Direction",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "Clean→less-clean / Positive / Negative",
+    "schedule_m_baseline": "Specified qualitatively",
+    "gap_severity": "Aligned",
+    "notes": null
+  },
+  {
+    "id": "HVAC-007",
+    "category": "HVAC/Environmental",
+    "name": "Filtration Stage",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "G4 / G4+F8 / G4+F8+H13 / H14",
+    "schedule_m_baseline": "G4+F8+H13 explicitly specified for Ext.Prep recirculated air — Schedule M leads",
+    "gap_severity": "Aligned / Leads",
+    "notes": "One of the few parameters where Schedule M is MORE prescriptive than global peers"
+  },
+  {
+    "id": "HVAC-008",
+    "category": "HVAC/Environmental",
+    "name": "HEPA Filter Efficiency",
+    "applicable_raw": "Sterile, OSD",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "% at 0.3µm",
+    "schedule_m_baseline": "H13+ (≥99.97%) specified for sterile",
+    "gap_severity": "Partial",
+    "notes": "EU Annex 1 wants H14 (≥99.995%) for Grade A/B terminal filters"
+  },
+  {
+    "id": "HVAC-009",
+    "category": "HVAC/Environmental",
+    "name": "Unidirectional Airflow (UDAF) Velocity",
+    "applicable_raw": "Sterile (Grade A)",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "m/s",
+    "schedule_m_baseline": "0.36–0.54 m/s specified",
+    "gap_severity": "Aligned",
+    "notes": "Matches EU Annex 1 / FDA 0.45±20% / Japan PMDA"
+  },
+  {
+    "id": "HVAC-010",
+    "category": "HVAC/Environmental",
+    "name": "Recovery Time (Grade B)",
+    "applicable_raw": "Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "minutes",
+    "schedule_m_baseline": "Not specified",
+    "gap_severity": "Partial–Critical",
+    "notes": "Global guidance 15–20 min for 100:1 particle reduction"
+  },
+  {
+    "id": "HVAC-011",
+    "category": "HVAC/Environmental",
+    "name": "Environmental Monitoring Regime",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical + Text",
+    "unit_options": "Continuous / Periodic / During production & non-production",
+    "schedule_m_baseline": "Explicitly required during production AND non-production periods",
+    "gap_severity": "Aligned",
+    "notes": "Matches global best practice — rare full alignment"
+  },
+  {
+    "id": "UTIL-001",
+    "category": "Utilities",
+    "name": "Compressed Air Quality Class",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room / Facility",
+    "data_type": "Categorical",
+    "unit_options": "ISO 8573-1 Class 1 / 1.2.1 / 2, etc.",
+    "schedule_m_baseline": "Not mandated — only 'qualify and monitor'",
+    "gap_severity": "Critical",
+    "notes": "EU/PIC/S/WHO/China all reference ISO 8573-1 explicitly; Schedule M does not"
+  },
+  {
+    "id": "UTIL-002",
+    "category": "Utilities",
+    "name": "Compressed Air Filtration at Point of Use",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "µm",
+    "schedule_m_baseline": "0.2µm referenced for MDI use only",
+    "gap_severity": "Partial",
+    "notes": null
+  },
+  {
+    "id": "UTIL-003",
+    "category": "Utilities",
+    "name": "Steam Type Required",
+    "applicable_raw": "Sterile, OSD",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "Utility Steam / Clean Steam / Pure Steam (EN 285)",
+    "schedule_m_baseline": "'Suitable quality' tested chemically/micro/endotoxin — no EN 285 reference",
+    "gap_severity": "Partial",
+    "notes": "Utility steam for jacketed heating is typical for non-sterile; clean steam usually not required there"
+  },
+  {
+    "id": "UTIL-004",
+    "category": "Utilities",
+    "name": "Nitrogen / Process Gas Purity Grade",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical / Text",
+    "unit_options": "CoA-based / 0.22µm sterile-filtered at POU",
+    "schedule_m_baseline": "Qualification required, but no quality grade specified",
+    "gap_severity": "Partial",
+    "notes": "FDA/EU expect 0.22µm sterile filtration at point of use for sterile applications"
+  },
+  {
+    "id": "WTR-001",
+    "category": "Water",
+    "name": "Water Grade Required",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room / Facility",
+    "data_type": "Categorical",
+    "unit_options": "Potable / Purified Water (PW) / Highly Purified Water / WFI",
+    "schedule_m_baseline": "Specified per use (PW for compounding, potable for cleaning)",
+    "gap_severity": "Aligned (method)",
+    "notes": "WFI production method (distillation/RO/EDI) is fully aligned with EU 2017 revision"
+  },
+  {
+    "id": "WTR-002",
+    "category": "Water",
+    "name": "Water Conductivity",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "µS/cm",
+    "schedule_m_baseline": "Per pharmacopoeia, no explicit number given",
+    "gap_severity": "Partial",
+    "notes": "FDA ≤1.3 µS/cm; EU/Ph.Eur. ≤4.3 µS/cm (Stage 1)"
+  },
+  {
+    "id": "WTR-003",
+    "category": "Water",
+    "name": "Water TOC",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "ppb",
+    "schedule_m_baseline": "Per pharmacopoeia",
+    "gap_severity": "Partial",
+    "notes": "Industry standard ≤500 ppb"
+  },
+  {
+    "id": "WTR-004",
+    "category": "Water",
+    "name": "Water Microbial Limit",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "CFU/mL",
+    "schedule_m_baseline": "Per pharmacopoeia",
+    "gap_severity": "Partial",
+    "notes": "Industry standard ≤100 CFU/mL, E. coli absent"
+  },
+  {
+    "id": "WTR-005",
+    "category": "Water",
+    "name": "Distribution Loop Design",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "Recirculating loop / Dead-leg controlled / SS316L",
+    "schedule_m_baseline": "Basic requirement only — less detail on loop design, dead-leg length, material spec",
+    "gap_severity": "Partial",
+    "notes": "FDA/EU expect no dead legs >6D, SS316L piping, 80°C or ozone sanitization"
+  },
+  {
+    "id": "WTR-006",
+    "category": "Water",
+    "name": "Grey Water (Process Effluent) Treatment",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Boolean + Text",
+    "unit_options": "Required Y/N + treatment method",
+    "schedule_m_baseline": "Defers to local SPCB/CPCB norms; no pharma-specific API-deactivation requirement",
+    "gap_severity": "Critical",
+    "notes": "EU/China/Japan expect pharma-specific effluent characterization and stricter discharge limits"
+  },
+  {
+    "id": "WTR-007",
+    "category": "Water",
+    "name": "Black Water (Sewage) Treatment",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Boolean + Text",
+    "unit_options": "Required Y/N + treatment method",
+    "schedule_m_baseline": "Per Factories Act 1948 and local norms",
+    "gap_severity": "Aligned",
+    "notes": "All authorities defer to local sewage regulations — not a GMP-specific gap"
+  },
+  {
+    "id": "LGT-001",
+    "category": "Lighting",
+    "name": "Lux Level (by room function)",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric",
+    "unit_options": "lux",
+    "schedule_m_baseline": "Never specified numerically — only 'adequate lighting' / 'well lit'",
+    "gap_severity": "Critical",
+    "notes": "Industry bands: 150–200 storage, 300–500 general processing, 500–750 inspection, up to 2000+ for sterile particle inspection"
+  },
+  {
+    "id": "LGT-002",
+    "category": "Lighting",
+    "name": "Fixture Type / Protection Rating",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "Flush-mounted / Shatterproof / IP65",
+    "schedule_m_baseline": "Not specified for fixture type",
+    "gap_severity": "Significant",
+    "notes": "Industry expects flush-mounted, shatterproof, easy-to-clean fittings"
+  },
+  {
+    "id": "SHE-001",
+    "category": "OSHA/SHE",
+    "name": "Noise Limit",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "dBA",
+    "schedule_m_baseline": "Not specified (Factories Act general reference only)",
+    "gap_severity": "Significant",
+    "notes": "EU/UK use 85 dBA; US/India industry norm closer to 90 dBA"
+  },
+  {
+    "id": "SHE-002",
+    "category": "OSHA/SHE",
+    "name": "Occupational Exposure Limit (OEL/PEL) Standard",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical / Text",
+    "unit_options": "OSHA PEL / EU OEL Directive / EMA HBEL / China GBZ",
+    "schedule_m_baseline": "Factories Act referenced only — no pharma-specific OEL/HBEL framework",
+    "gap_severity": "Critical",
+    "notes": "No HBEL-based cleaning validation basis exists in Schedule M text"
+  },
+  {
+    "id": "SHE-003",
+    "category": "OSHA/SHE",
+    "name": "Dust Explosion Zone Classification (ATEX/NFPA)",
+    "applicable_raw": "OSD, Ext.Prep (powders)",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "applies_at": "Room",
+    "data_type": "Boolean + Categorical",
+    "unit_options": "Required Y/N + Zone rating",
+    "schedule_m_baseline": "Not covered",
+    "gap_severity": "Critical",
+    "notes": "Relevant to granulation, blending, compression, dusting-powder and coating (solvent) rooms"
+  },
+  {
+    "id": "SHE-004",
+    "category": "OSHA/SHE",
+    "name": "OEB Banding (Potent/Cytotoxic Handling)",
+    "applicable_raw": "Sterile, OSD",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "OEB 1–5",
+    "schedule_m_baseline": "Not covered",
+    "gap_severity": "Critical",
+    "notes": "PIC/S uses OEB classification; EU uses HBEL/EMA framework"
+  },
+  {
+    "id": "SHE-005",
+    "category": "OSHA/SHE",
+    "name": "Fire Safety Code Reference",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Text",
+    "unit_options": "NBC / NFPA / local code",
+    "schedule_m_baseline": "Per National Building Code + Factories Act",
+    "gap_severity": "Partial",
+    "notes": "Volatile-solvent areas (externals) require flameproof design per all authorities"
+  },
+  {
+    "id": "SHE-006",
+    "category": "OSHA/SHE",
+    "name": "Emergency Shower / Eyewash Provision",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Boolean",
+    "unit_options": "Y/N",
+    "schedule_m_baseline": "Not explicit in source text",
+    "gap_severity": "Critical",
+    "notes": null
+  },
+  {
+    "id": "SHE-007",
+    "category": "OSHA/SHE",
+    "name": "Personnel Welfare Facility Area",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "m²",
+    "schedule_m_baseline": "Rest/refreshment rooms required, separate from production",
+    "gap_severity": "Aligned",
+    "notes": "Matches global norms — rare full alignment"
+  },
+  {
+    "id": "FLOW-001",
+    "category": "Airlock & Flow",
+    "name": "Airlock Type",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "PAL (Personnel) / MAL (Material) / Pass-through hatch",
+    "schedule_m_baseline": "Required conceptually",
+    "gap_severity": "Partial–Critical",
+    "notes": "No dimensions or design detail given for OSD/R&D; Sterile is closer to EU Annex 1 concept"
+  },
+  {
+    "id": "FLOW-002",
+    "category": "Airlock & Flow",
+    "name": "Airlock Interlock Type",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "Mechanical / Electronic / None",
+    "schedule_m_baseline": "Not detailed",
+    "gap_severity": "Critical",
+    "notes": "Especially absent for OSD and R&D/Pilot"
+  },
+  {
+    "id": "FLOW-003",
+    "category": "Airlock & Flow",
+    "name": "Gowning Stages",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Numeric",
+    "unit_options": "Count (1 / 2 / 3)",
+    "schedule_m_baseline": "Change rooms required; number of stages not detailed",
+    "gap_severity": "Partial",
+    "notes": "China mandates two-stage gowning explicitly"
+  },
+  {
+    "id": "FLOW-004",
+    "category": "Airlock & Flow",
+    "name": "Personnel Flow Type",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "Logical flow / Unidirectional / Strict unidirectional",
+    "schedule_m_baseline": "'Logical flow'",
+    "gap_severity": "Partial",
+    "notes": "China mandates strict unidirectional flow"
+  },
+  {
+    "id": "FLOW-005",
+    "category": "Airlock & Flow",
+    "name": "Material Flow Segregation",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Categorical",
+    "unit_options": "Basic segregation / Dedicated de-boxing room / Dedicated MAL",
+    "schedule_m_baseline": "Airlock required; no de-boxing room detail",
+    "gap_severity": "Partial",
+    "notes": "China requires a mandatory dedicated de-boxing room"
+  },
+  {
+    "id": "DFS-001",
+    "category": "Dosage-Form-Specific",
+    "name": "Dust Containment Required",
+    "applicable_raw": "Ext.Prep, OSD (powders)",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "applies_at": "Room",
+    "data_type": "Boolean",
+    "unit_options": "Y/N",
+    "schedule_m_baseline": "Required for dusting-powder/granulation/compression rooms",
+    "gap_severity": "Aligned (concept) / Partial (detail)",
+    "notes": "Exhaust capacity specified qualitatively, not quantitatively"
+  },
+  {
+    "id": "DFS-002",
+    "category": "Dosage-Form-Specific",
+    "name": "Solvent Vapor Extraction Required",
+    "applicable_raw": "Ext.Prep (liquids), OSD (coating)",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "applies_at": "Room",
+    "data_type": "Boolean",
+    "unit_options": "Y/N",
+    "schedule_m_baseline": "Exhaust system required",
+    "gap_severity": "Partial",
+    "notes": "No quantified extraction rate given"
+  },
+  {
+    "id": "DFS-003",
+    "category": "Dosage-Form-Specific",
+    "name": "MDF / Buccal Film Environmental Controls",
+    "applicable_raw": "OSD",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": false
+    },
+    "applies_at": "Room",
+    "data_type": "Numeric + Categorical",
+    "unit_options": "RH ≤30–35%, tight temperature control",
+    "schedule_m_baseline": "NOT ADDRESSED in Schedule M",
+    "gap_severity": "Critical",
+    "notes": "Zero regulatory basis in India — must default to FDA/EU/WHO guidance"
+  },
+  {
+    "id": "DFS-004",
+    "category": "Dosage-Form-Specific",
+    "name": "Barrier Technology Type",
+    "applicable_raw": "Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Categorical",
+    "unit_options": "Conventional / RABS / Isolator",
+    "schedule_m_baseline": "Referenced via CCS, not mandated",
+    "gap_severity": "Partial",
+    "notes": "EU Annex 1 strongly prefers RABS/Isolator for new greenfield sterile lines"
+  },
+  {
+    "id": "DFS-005",
+    "category": "Dosage-Form-Specific",
+    "name": "Contamination Control Strategy (CCS) Document Status",
+    "applicable_raw": "Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Boolean",
+    "unit_options": "Y/N (formal document exists)",
+    "schedule_m_baseline": "Concept introduced, not a mandatory structured document",
+    "gap_severity": "Partial",
+    "notes": "EU Annex 1 §3 requires a formal, living CCS covering 17+ element categories"
+  },
+  {
+    "id": "DFS-006",
+    "category": "Dosage-Form-Specific",
+    "name": "Container-Closure Integrity Test Required",
+    "applicable_raw": "Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Facility",
+    "data_type": "Boolean",
+    "unit_options": "Y/N",
+    "schedule_m_baseline": "Required implicitly",
+    "gap_severity": "Partial",
+    "notes": null
+  },
+  {
+    "id": "DFS-007",
+    "category": "Dosage-Form-Specific",
+    "name": "Implant-Specific Facility Requirements",
+    "applicable_raw": "Sterile",
+    "applicability": {
+      "ext_prep": false,
+      "osd_production": false,
+      "osd_rnd_pilot": false,
+      "sterile": true
+    },
+    "applies_at": "Room",
+    "data_type": "Text",
+    "unit_options": "Dedicated suite design spec",
+    "schedule_m_baseline": "NOT explicitly addressed — general sterile parenteral rules applied by default",
+    "gap_severity": "Critical",
+    "notes": "Regulatory vacuum flagged across the analysis; Japan is the only authority with a dedicated implant suite concept"
+  },
+  {
+    "id": "COMP-001",
+    "category": "Compliance Output",
+    "name": "Compliance Status",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Any",
+    "data_type": "Categorical (derived)",
+    "unit_options": "Compliant / Partial / Non-Compliant / Not Applicable",
+    "schedule_m_baseline": "—",
+    "gap_severity": "—",
+    "notes": "Output of the rules engine after comparing entered value to Sheet 4 thresholds"
+  },
+  {
+    "id": "COMP-002",
+    "category": "Compliance Output",
+    "name": "Gap Severity",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Any",
+    "data_type": "Categorical (derived)",
+    "unit_options": "Aligned / Partial / Significant / Critical",
+    "schedule_m_baseline": "—",
+    "gap_severity": "—",
+    "notes": "Derived directly from the threshold comparison; mirrors the color coding used throughout Sheets 2–4"
+  },
+  {
+    "id": "COMP-003",
+    "category": "Compliance Output",
+    "name": "Recommended Modification",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Any",
+    "data_type": "Text (derived)",
+    "unit_options": "—",
+    "schedule_m_baseline": "—",
+    "gap_severity": "—",
+    "notes": "Auto-generated: e.g. 'Increase pressure differential from 8 Pa to ≥10 Pa to align with EU/PIC/S/WHO'"
+  },
+  {
+    "id": "COMP-004",
+    "category": "Compliance Output",
+    "name": "Target Value for Compliance",
+    "applicable_raw": "All",
+    "applicability": {
+      "ext_prep": true,
+      "osd_production": true,
+      "osd_rnd_pilot": true,
+      "sterile": true
+    },
+    "applies_at": "Any",
+    "data_type": "Numeric / Categorical (derived)",
+    "unit_options": "—",
+    "schedule_m_baseline": "—",
+    "gap_severity": "—",
+    "notes": "Nearest compliant value/band across the selected target market(s)"
+  }
+]
