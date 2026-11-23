@@ -10,6 +10,10 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // Bump (and match package.json "version") whenever evaluation logic changes:
+  // saved projects record it so results can be reproduced or flagged as stale.
+  const ENGINE_VERSION = "0.2.0";
+
   const GRADE_HIERARCHY = ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"];
   const GRADE_TAG_TO_LABEL = { A: "Grade A (ISO 5)", B: "Grade B", C: "Grade C (ISO 7)", D: "Grade D (ISO 8)", Unclassified: "Unclassified/CNC", Controlled: "Unclassified/CNC", Technical: "Unclassified/CNC" };
 
@@ -539,6 +543,7 @@
   }
 
   return {
+    ENGINE_VERSION,
     GRADE_HIERARCHY,
     GRADE_TAG_TO_LABEL,
     SEVERITY_RANK,

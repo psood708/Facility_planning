@@ -1,0 +1,13 @@
+{
+  "manifest_version": 1,
+  "content_hash": "7d9b15b3c16c5d83cff53bfed25db429df3042e60bca39bd6886aa8e15d5f4e3",
+  "files": {
+    "authorities.json": "3079b6d9d8d102f606514cd014b6f40e7aa0d34f6bfa4849d2fab54f5809d949",
+    "boolean_thresholds.json": "d7603892dd4a323b375578baaab2cb390ece7716e5dff6ddb133b9743869b4b4",
+    "parameters.json": "1560a13f426f7d9dd69358c984fdb287b06d8df0c66a8e69e950a400dc630792",
+    "provenance.json": "9126ddd73876f37419f35806d500181a8553234fdcb20b8e2a4f183b02c4e2b7",
+    "rooms.json": "50035880e471f4d4be9437cd50d7f9c84af136e113d29fc76c97a79706db28b9",
+    "structural_flags.json": "721bbfea8938d87bc79e9e91456589e765abe6f49410e82702ac51964d0d8bfa",
+    "thresholds.json": "ef4613667f0b46d59b818b876314a37724dc9ca401d68fa13b3aa48c6525f34c"
+  }
+}
