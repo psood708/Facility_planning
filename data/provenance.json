@@ -1,0 +1,807 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "generated_on": "2026-11-24",
+    "about": "Citation and mandatory/recommended label per benchmark. Generated — do not edit by hand. The expert fills expert-review/provenance_review.csv and re-runs scripts/build_provenance.py.",
+    "fallback": {
+      "data_key": "industry",
+      "label": "International/industry standard",
+      "obligation": "recommended",
+      "why": "Used only when a selected authority gives no number, or selected authorities conflict. Never treated as an authority requirement."
+    }
+  },
+  "entries": {
+    "THR-001": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Not formally'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-002": {
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-003": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Not formally'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-004": {
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'guidance'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-005": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'interpreted'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'expected'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-006": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Not formally'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-007": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-008": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'industry practice'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'typical'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-009": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'guidance'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-010": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: '≥'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-011": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Guidance'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-012": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'minimum'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'required'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-013": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Not specified'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-017": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'guidance'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "who_gmp": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "recommended",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Guidance'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "japan_pmda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-018": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-019": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-020": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-021": {
+      "us_fda": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'must'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-022": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-027": {
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'Mandat'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-028": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-029": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'mandat'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-030": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'required'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      },
+      "china_nmpa": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'requires'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-032": {
+      "eu_gmp_pics": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "note wording: 'mandat'",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "AREA-Z-21": {
+      "schedule_m": {
+        "citation": "Schedule M: 25 m² basic + 10 m² ancillary (Encapsulation Room)",
+        "citation_status": "workbook",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "Schedule M states a minimum area in m²",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "AREA-Z-24": {
+      "schedule_m": {
+        "citation": "Schedule M: 30 m² (Oral Powder Processing Suite)",
+        "citation_status": "workbook",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "Schedule M states a minimum area in m²",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "AREA-Z-29": {
+      "schedule_m": {
+        "citation": "Schedule M: 150 m² minimum (Aseptic Filling Suite, SVP)",
+        "citation_status": "workbook",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "Schedule M states a minimum area in m²",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "AREA-Z-30": {
+      "schedule_m": {
+        "citation": "Schedule M: 25 + 10 m² total (Ophthalmic Solution Filling)",
+        "citation_status": "workbook",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "Schedule M states a minimum area in m²",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B01": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "schedule_m_explicit=true in workbook",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B02": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "schedule_m_explicit=true in workbook",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B03": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B04": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "schedule_m_explicit=true in workbook",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B05": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B06": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": null,
+        "obligation_status": "unclassified",
+        "draft_basis": null,
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B07": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "schedule_m_explicit=true in workbook",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    },
+    "THR-B08": {
+      "schedule_m": {
+        "citation": null,
+        "citation_status": "pending",
+        "obligation": "mandatory",
+        "obligation_status": "draft",
+        "draft_basis": "schedule_m_explicit=true in workbook",
+        "reviewed_by": null,
+        "reviewed_on": null
+      }
+    }
+  }
+}

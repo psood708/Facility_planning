@@ -28,31 +28,11 @@ const OPTION_OVERRIDES = {
   "HVAC-001": ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"],
 };
 
-const GRADE_HIERARCHY = ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"];
-const GRADE_TAG_TO_LABEL = { A: "Grade A (ISO 5)", B: "Grade B", C: "Grade C (ISO 7)", D: "Grade D (ISO 8)", Unclassified: "Unclassified/CNC", Controlled: "Unclassified/CNC", Technical: "Unclassified/CNC" };
+const {
+  GRADE_HIERARCHY, GRADE_TAG_TO_LABEL, SEVERITY_RANK, NON_SCORED_CATEGORY_EXCLUDE, PARAM_ROOM_FILTERS,
+} = FacilityEngine;
 
-const SEVERITY_RANK = { Critical: 4, Significant: 3, Partial: 2, Aligned: 1, Varies: 2 };
 const SEVERITY_ORDER = ["Critical", "Significant", "Partial", "Aligned"];
-
-// Parameters that are captured but never scored pass/fail (free-text / structural).
-const NON_SCORED_CATEGORY_EXCLUDE = ["Classification", "Compliance Output"];
-
-// Restrict a handful of parameters to the rooms they actually apply to
-// (their schema-level applicability is broader than a single room type).
-const PARAM_ROOM_FILTERS = {
-  "DFS-003": (room) => /MDF|Buccal/i.test(room.name),
-  "DFS-004": (room) => room.process_stage === "Filling",
-  "DFS-007": (room) => /Implant/i.test(room.name),
-  "SHE-003": (room) => /Granulat|Compress|Blend|Coat|Dust|Powder/i.test(room.name),
-  "DFS-001": (room) => /Dust|Powder|Granulat|Blend/i.test(room.name),
-  "DFS-002": (room) => /Liquid|Emulsion|Suspension|Coating/i.test(room.name),
-  "HVAC-009": (room) => room.grade_tag === "A",
-  "HVAC-010": (room) => room.grade_tag === "A" || room.grade_tag === "B",
-  "DIM-005": (room) => /Corridor|Buffer/i.test(room.process_stage),
-  "DIM-006": (room) => /Airlock|Hatch|Gowning/i.test(room.process_stage + " " + room.name),
-  "FLOW-001": (room) => /Airlock|Hatch|Gowning/i.test(room.process_stage + " " + room.name),
-  "FLOW-002": (room) => /Airlock|Hatch|Gowning/i.test(room.process_stage + " " + room.name),
-};
 
 // ---------------------------------------------------------------------
 // State
@@ -106,10 +86,9 @@ async function loadData() {
   const results = await Promise.all(files.map((f) => fetch(`data/${f}.json`).then((r) => r.json())));
   const data = {};
   files.forEach((f, i) => (data[f] = results[i]));
-  data.paramById = Object.fromEntries(data.parameters.map((p) => [p.id, p]));
-  data.roomById = Object.fromEntries(data.rooms.map((r) => [r.id, r]));
-  data.authorityByKey = Object.fromEntries(data.authorities.map((a) => [a.key, a]));
-  return data;
+  // Optional: without provenance every result shows "Citation pending" / "Unclassified".
+  data.provenance = await fetch("data/provenance.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return FacilityEngine.indexData(data);
 }
 
 // ---------------------------------------------------------------------
@@ -298,12 +277,10 @@ function renderStep2() {
 // ---------------------------------------------------------------------
 
 function relevantParams() {
-  return DATA.parameters.filter((p) => !NON_SCORED_CATEGORY_EXCLUDE.includes(p.category) && p.applicability[state.category]);
+  return FacilityEngine.relevantParams(DATA, state);
 }
 
-function appliesAtNormalized(param) {
-  return param.applies_at === "Room" ? "room" : "facility";
-}
+const appliesAtNormalized = FacilityEngine.appliesAtNormalized;
 
 function resolveInputKind(param) {
   if (param.id === "DFS-003") return "number";
@@ -492,339 +469,14 @@ function renderStep3() {
 // Rules engine
 // ---------------------------------------------------------------------
 
-function resolveContext(paramId, room) {
-  if (paramId === "HVAC-002" || paramId === "HVAC-003") {
-    return room.grade_tag === "A" || room.grade_tag === "B" ? "sterile_filling" : "non_sterile_manufacturing";
-  }
-  if (paramId === "HVAC-004") {
-    if (room.grade_tag === "B" || room.grade_tag === "A") return "grade_b";
-    if (room.grade_tag === "C") return "grade_c";
-    if (room.grade_tag === "D") return "grade_d";
-    return "non_sterile_production";
-  }
-  if (paramId === "HVAC-005") {
-    return state.category === "sterile" ? "between_adjacent_grades" : "non_sterile";
-  }
-  if (paramId === "HVAC-009") return "grade_a";
-  if (paramId === "LGT-001") {
-    if (/Inspection/i.test(room.name)) return "inspection";
-    if (["Storage", "Store", "Hold", "Receiving"].includes(room.process_stage)) return "storage";
-    if ((room.grade_tag === "A" || room.grade_tag === "B") && room.process_stage === "Filling") return "filling_area";
-    return "general_processing";
-  }
-  return "all";
-}
-
-function getThresholdsFor(paramId, room) {
-  const ctx = room ? resolveContext(paramId, room) : "all";
-  return DATA.thresholds.filter((t) => t.linked_param_id === paramId && (t.context === "all" || t.context === ctx));
-}
-
-function authorityDataKey(marketKey) {
-  const a = DATA.authorityByKey[marketKey];
-  return a ? a.data_key : null;
-}
-
-function evaluateNumericOrCategorical(threshold, enteredValue, marketKeys) {
-  const perMarket = {};
-  const specifiedMarkets = []; // { marketKey, authEntry }
-
-  marketKeys.forEach((mk) => {
-    const dataKey = authorityDataKey(mk);
-    if (!dataKey) {
-      perMarket[mk] = { status: "not_covered" };
-      return;
-    }
-    const authEntry = threshold.authorities[dataKey];
-    if (!authEntry || !authEntry.specified) {
-      perMarket[mk] = { status: "not_regulated", note: authEntry ? authEntry.note : null };
-      return;
-    }
-    specifiedMarkets.push({ marketKey: mk, authEntry });
-  });
-
-  if (enteredValue === null || enteredValue === undefined || enteredValue === "") {
-    specifiedMarkets.forEach(({ marketKey }) => (perMarket[marketKey] = { status: "no_value" }));
-    return { perMarket, hasValue: false };
-  }
-
-  if (threshold.type === "categorical") {
-    const hierarchy = threshold.hierarchy;
-    const enteredIdx = hierarchy.indexOf(enteredValue);
-    specifiedMarkets.forEach(({ marketKey, authEntry }) => {
-      const reqIdx = hierarchy.indexOf(authEntry.category);
-      const compliant = enteredIdx >= 0 && enteredIdx >= reqIdx;
-      perMarket[marketKey] = { status: compliant ? "compliant" : "non_compliant", required: authEntry.category, note: authEntry.note };
-    });
-  } else {
-    const isRange = typeof enteredValue === "object";
-    // Guard against JS's null <= N === true coercion: a range bound left blank must not
-    // silently read as compliant just because null coerces to 0 in a relational comparison.
-    specifiedMarkets.forEach(({ marketKey, authEntry }) => {
-      const okMin = authEntry.min == null || (isRange ? enteredValue.min != null && enteredValue.min >= authEntry.min : enteredValue >= authEntry.min);
-      const okMax = authEntry.max == null || (isRange ? enteredValue.max != null && enteredValue.max <= authEntry.max : enteredValue <= authEntry.max);
-      perMarket[marketKey] = { status: okMin && okMax ? "compliant" : "non_compliant", min: authEntry.min, max: authEntry.max, note: authEntry.note };
-    });
-  }
-  return { perMarket, hasValue: true };
-}
-
-function strictestBound(threshold, marketKeys) {
-  // Returns { min, max, drivingMin: [marketKeys], drivingMax: [marketKeys] } across specified+selected markets
-  let min = null, max = null;
-  let drivingMin = [], drivingMax = [];
-  marketKeys.forEach((mk) => {
-    const dataKey = authorityDataKey(mk);
-    if (!dataKey) return;
-    const a = threshold.authorities[dataKey];
-    if (!a || !a.specified) return;
-    if (a.min != null) {
-      if (min === null || a.min > min) { min = a.min; drivingMin = [mk]; }
-      else if (a.min === min) drivingMin.push(mk);
-    }
-    if (a.max != null) {
-      if (max === null || a.max < max) { max = a.max; drivingMax = [mk]; }
-      else if (a.max === max) drivingMax.push(mk);
-    }
-  });
-  return { min, max, drivingMin, drivingMax };
-}
-
-function strictestCategory(threshold, marketKeys) {
-  let best = null, driving = [];
-  marketKeys.forEach((mk) => {
-    const dataKey = authorityDataKey(mk);
-    if (!dataKey) return;
-    const a = threshold.authorities[dataKey];
-    if (!a || !a.specified) return;
-    const idx = threshold.hierarchy.indexOf(a.category);
-    const bestIdx = best === null ? -1 : threshold.hierarchy.indexOf(best);
-    if (idx > bestIdx) { best = a.category; driving = [mk]; }
-    else if (idx === bestIdx) driving.push(mk);
-  });
-  return { category: best, driving };
-}
-
-function marketLabel(mk) {
-  const a = DATA.authorityByKey[mk];
-  return a ? a.label : mk;
-}
-
-function labelList(keys) {
-  return keys.map(marketLabel).join(", ");
-}
-
-// ---------------------------------------------------------------------
-// Step 4 — Results
-// ---------------------------------------------------------------------
-
-function buildEvaluationRows() {
-  // Each row: { scope: 'facility'|room object, param, threshold, entered, evalResult }
-  const rows = [];
-  const params = relevantParams();
-  const facilityParams = params.filter((p) => appliesAtNormalized(p) === "facility");
-  const roomParams = params.filter((p) => appliesAtNormalized(p) === "room");
-  const selectedRooms = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
-
-  facilityParams.forEach((p) => {
-    const thresholds = getThresholdsFor(p.id, null);
-    thresholds.forEach((t) => {
-      const entered = state.facilityValues[p.id];
-      const evalResult = evaluateNumericOrCategorical(t, entered, state.targetMarkets);
-      rows.push({ scope: "facility", room: null, param: p, threshold: t, entered, evalResult });
-    });
-  });
-
-  selectedRooms.forEach((room) => {
-    roomParams.forEach((p) => {
-      const filter = PARAM_ROOM_FILTERS[p.id];
-      if (filter && !filter(room)) return;
-      const thresholds = getThresholdsFor(p.id, room);
-      thresholds.forEach((t) => {
-        const entered = (state.roomValues[room.id] || {})[p.id];
-        const evalResult = evaluateNumericOrCategorical(t, entered, state.targetMarkets);
-        rows.push({ scope: "room", room, param: p, threshold: t, entered, evalResult });
-      });
-    });
-
-    // Room Net Area special-case (Schedule M only — the only sourced number)
-    const enteredArea = (state.roomValues[room.id] || {})["DIM-001"];
-    if (room.min_area_sqm != null) {
-      const perMarket = {};
-      state.targetMarkets.forEach((mk) => {
-        if (mk === "schedule_m") {
-          if (enteredArea === null || enteredArea === undefined || enteredArea === "") perMarket[mk] = { status: "no_value" };
-          else perMarket[mk] = { status: enteredArea >= room.min_area_sqm ? "compliant" : "non_compliant", min: room.min_area_sqm };
-        } else {
-          const dataKey = authorityDataKey(mk);
-          perMarket[mk] = dataKey ? { status: "not_regulated", note: "No authority-specific room-area figure in this dataset" } : { status: "not_covered" };
-        }
-      });
-      rows.push({
-        scope: "room", room,
-        param: { id: "DIM-001-area", name: "Room Net Area", category: "Dimensional", gap_severity: "Significant" },
-        threshold: { id: "AREA-" + room.id, type: "numeric", unit: "m²", severity: "Significant", source: "schedule_m_notes", authorities: {} },
-        entered: enteredArea, evalResult: { perMarket, hasValue: enteredArea != null },
-        areaOverride: { min: room.min_area_sqm, source: room.min_area_source },
-      });
-    }
-
-    // Cleanroom Grade special-case: no authority-by-authority data exists for this in the
-    // source workbook — instead, each room already carries its own expected grade (Room-Zone
-    // Master List), synthesized across authorities. Compliant if entered grade >= that room's
-    // expected grade, on the Unclassified<D<C<B<A hierarchy. Applies uniformly across whichever
-    // markets are selected, since it is not an authority-differentiated check in this dataset.
-    const gradeParam = DATA.paramById["HVAC-001"];
-    if (gradeParam && gradeParam.applicability[state.category]) {
-      const enteredGrade = (state.roomValues[room.id] || {})["HVAC-001"];
-      const requiredLabel = GRADE_TAG_TO_LABEL[room.grade_tag] || "Unclassified/CNC";
-      const reqIdx = GRADE_HIERARCHY.indexOf(requiredLabel);
-      const perMarket = {};
-      state.targetMarkets.forEach((mk) => {
-        const dataKey = authorityDataKey(mk);
-        if (!dataKey) { perMarket[mk] = { status: "not_covered" }; return; }
-        if (enteredGrade === null || enteredGrade === undefined || enteredGrade === "") { perMarket[mk] = { status: "no_value" }; return; }
-        const enteredIdx = GRADE_HIERARCHY.indexOf(enteredGrade);
-        perMarket[mk] = { status: enteredIdx >= reqIdx ? "compliant" : "non_compliant", required: requiredLabel };
-      });
-      rows.push({
-        scope: "room", room,
-        param: gradeParam,
-        threshold: { id: "GRADE-" + room.id, type: "categorical", hierarchy: GRADE_HIERARCHY, severity: "Significant", source: "room_zone_master_list", authorities: {} },
-        entered: enteredGrade, evalResult: { perMarket, hasValue: !!enteredGrade },
-        gradeOverride: { required: requiredLabel },
-      });
-    }
-  });
-
-  return rows;
-}
-
-function computeMarketRollup(rows) {
-  const rollup = {};
-  state.targetMarkets.forEach((mk) => {
-    const dataKey = authorityDataKey(mk);
-    if (!dataKey) { rollup[mk] = "Not Covered by Dataset"; return; }
-    let worst = null;
-    let anyDefinitive = false;
-    rows.forEach((row) => {
-      const r = row.evalResult.perMarket[mk];
-      if (!r) return;
-      if (r.status === "compliant" || r.status === "non_compliant") anyDefinitive = true;
-      if (r.status === "non_compliant") {
-        const sev = row.threshold.severity || (row.param && row.param.gap_severity) || "Partial";
-        const rank = SEVERITY_RANK[sev] ?? 2;
-        if (worst === null || rank > worst.rank) worst = { rank, sev };
-      }
-    });
-    if (worst && worst.rank >= 4) rollup[mk] = "Non-Compliant";
-    else if (worst) rollup[mk] = "Partial";
-    else if (!anyDefinitive) rollup[mk] = "Insufficient Data";
-    else rollup[mk] = "Compliant";
-  });
-  return rollup;
-}
-
-function buildRecommendations(rows) {
-  const recs = [];
-  rows.forEach((row) => {
-    const failingMarkets = state.targetMarkets.filter((mk) => {
-      const r = row.evalResult.perMarket[mk];
-      return r && r.status === "non_compliant";
-    });
-    if (!failingMarkets.length) return;
-
-    const severity = row.threshold.severity || (row.param && row.param.gap_severity) || "Partial";
-    const roomLabel = row.room ? ` in '${row.room.name}'` : "";
-    let text;
-
-    if (row.areaOverride) {
-      text = `Increase Room Net Area${roomLabel} from ${row.entered} m² to at least ${row.areaOverride.min} m² to satisfy ${row.areaOverride.source}.`;
-    } else if (row.gradeOverride) {
-      text = `Upgrade Cleanroom Grade${roomLabel} from '${row.entered ?? "not entered"}' to '${row.gradeOverride.required}' — this is this room's designated grade per the Room-Zone Master List.`;
-    } else if (row.threshold.type === "categorical") {
-      const { category, driving } = strictestCategory(row.threshold, failingMarkets.length ? failingMarkets : state.targetMarkets);
-      text = `Upgrade ${row.param.name}${roomLabel} from '${row.entered}' to '${category}' to meet ${labelList(driving)}'s classification requirement.`;
-    } else {
-      const { min, max, drivingMin, drivingMax } = strictestBound(row.threshold, failingMarkets.length ? failingMarkets : state.targetMarkets);
-      const unit = row.threshold.unit || "";
-      const enteredDisplay = typeof row.entered === "object" ? `${row.entered.min}–${row.entered.max}` : row.entered;
-      if (min != null && max != null) {
-        text = `Adjust ${row.param.name}${roomLabel} from ${enteredDisplay} to fall within ${min}–${max} ${unit} to satisfy ${labelList([...new Set([...drivingMin, ...drivingMax])])}.`;
-      } else if (min != null) {
-        text = `Increase ${row.param.name}${roomLabel} from ${enteredDisplay} to at least ${min} ${unit} to satisfy ${labelList(drivingMin)}.`;
-      } else if (max != null) {
-        text = `Decrease ${row.param.name}${roomLabel} from ${enteredDisplay} to at most ${max} ${unit} to satisfy ${labelList(drivingMax)}.`;
-      } else {
-        text = `Review ${row.param.name}${roomLabel} — currently non-compliant with ${labelList(failingMarkets)}.`;
-      }
-    }
-    recs.push({ severity, text, id: row.threshold.id + (row.room ? "-" + row.room.id : "") });
-  });
-
-  // Boolean-required checks
-  const booleanRows = buildBooleanRows();
-  booleanRows.forEach((row) => {
-    if (row.status !== "non_compliant") return;
-    const roomLabel = row.room ? ` in '${row.room.name}'` : "";
-    recs.push({
-      severity: row.threshold.severity,
-      text: `Add ${row.threshold.parameter_name}${roomLabel} — ${row.threshold.note}`,
-      id: row.threshold.id + (row.room ? "-" + row.room.id : ""),
-    });
-  });
-
-  recs.sort((a, b) => (SEVERITY_RANK[b.severity] ?? 2) - (SEVERITY_RANK[a.severity] ?? 2));
-  return recs;
-}
-
-function buildBooleanRows() {
-  const rows = [];
-  const params = relevantParams();
-  const facilityParams = params.filter((p) => appliesAtNormalized(p) === "facility");
-  const roomParams = params.filter((p) => appliesAtNormalized(p) === "room");
-  const selectedRooms = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
-
-  DATA.boolean_thresholds.forEach((bt) => {
-    const param = DATA.paramById[bt.linked_param_id];
-    if (!param || !param.applicability[state.category]) return;
-    const atFacility = appliesAtNormalized(param) === "facility";
-    if (atFacility) {
-      const v = state.facilityValues[param.id];
-      const val = typeof v === "object" && v !== null ? v.value : v;
-      let status = "no_value";
-      if (val === true) status = "compliant";
-      else if (val === false) status = "non_compliant";
-      rows.push({ room: null, threshold: bt, param, entered: val, status });
-    } else {
-      selectedRooms.forEach((room) => {
-        const filter = PARAM_ROOM_FILTERS[param.id];
-        if (filter && !filter(room)) return;
-        const v = (state.roomValues[room.id] || {})[param.id];
-        const val = typeof v === "object" && v !== null ? v.value : v;
-        let status = "no_value";
-        if (val === true) status = "compliant";
-        else if (val === false) status = "non_compliant";
-        rows.push({ room, threshold: bt, param, entered: val, status });
-      });
-    }
-  });
-  return rows;
-}
-
-function checkStructuralFlags() {
-  const active = [];
-  DATA.structural_flags.forEach((f) => {
-    if (f.trigger.specific_dosage_form_any_of) {
-      const hit = f.trigger.specific_dosage_form_any_of.some((form) => state.specificForms.some((sf) => sf.includes(form) || form.includes(sf)));
-      if (hit) active.push(f);
-    }
-    if (f.trigger.facility_development_stage_any_of) {
-      if (state.devStage && f.trigger.facility_development_stage_any_of.includes(state.devStage)) active.push(f);
-    }
-  });
-  return active;
-}
+// Evaluation logic lives in engine.js (pure, tested). These wrappers bind it
+// to the wizard's DATA and state.
+const marketLabel = (mk) => FacilityEngine.marketLabel(DATA, mk);
+const buildEvaluationRows = () => FacilityEngine.buildEvaluationRows(DATA, state);
+const buildBooleanRows = () => FacilityEngine.buildBooleanRows(DATA, state);
+const computeMarketRollup = (rows) => FacilityEngine.computeMarketRollup(DATA, state, rows);
+const buildRecommendations = (rows) => FacilityEngine.buildRecommendations(DATA, state, rows);
+const checkStructuralFlags = () => FacilityEngine.checkStructuralFlags(DATA, state);
 
 function statusPillClass(status) {
   return {
@@ -848,6 +500,35 @@ function statusLabel(status) {
 
 function severityTagClass(sev) {
   return { Critical: "sev-critical", Significant: "sev-significant", Partial: "sev-partial", Aligned: "sev-aligned" }[sev] || "sev-partial";
+}
+
+// Mandatory / Recommended / Unclassified badge. Draft labels (inferred from note
+// wording, not yet confirmed by the domain expert) say so.
+function obligationBadge(obligation, status) {
+  const text = { mandatory: "Mandatory", recommended: "Recommended", unclassified: "Unclassified" }[obligation] || "Unclassified";
+  const suffix = status === "draft" ? " (draft)" : status === "unclassified" || !status ? " — pending review" : "";
+  return h("span", { class: "obligation-tag obligation-" + (obligation || "unclassified"), title: status === "draft" ? "Inferred from the benchmark's note wording; awaiting expert confirmation" : "" }, text + suffix);
+}
+
+function sourceLine(provenance) {
+  if (!provenance) return null;
+  const pending = !provenance.citation;
+  return h("div", { class: "source-line" + (pending ? " source-pending" : "") }, "Source: " + provenance.citationLabel);
+}
+
+function provenanceBlock(provenance) {
+  if (!provenance) return null;
+  return h("div", { class: "provenance" }, [obligationBadge(provenance.obligation, provenance.obligationStatus), sourceLine(provenance)]);
+}
+
+function fallbackBlock(fallback) {
+  if (!fallback) return null;
+  const bound = fallback.required ? fallback.required : [fallback.min, fallback.max].every((v) => v != null) ? `${fallback.min}–${fallback.max}` : fallback.min != null ? `≥ ${fallback.min}` : `≤ ${fallback.max}`;
+  return h("div", { class: "fallback-block" }, [
+    h("span", { class: "fallback-tag" }, fallback.label),
+    h("span", { class: "status-pill " + statusPillClass(fallback.status) }, statusLabel(fallback.status)),
+    h("div", { class: "field-note" }, `Reference ${bound}${fallback.note ? " — " + fallback.note : ""}. Advisory only; not this authority's requirement.`),
+  ]);
 }
 
 function renderStep4() {
@@ -876,15 +557,25 @@ function renderStep4() {
   });
   panel.appendChild(marketGrid);
 
+  panel.appendChild(
+    h("div", { class: "advisory-note" }, "Advisory only — not a regulatory sign-off. Mandatory/Recommended labels marked “draft” and sources marked “pending” are awaiting domain-expert review. “International/industry standard (fallback)” is shown where an authority gives no number, and never counts toward that authority's verdict.")
+  );
+
   panel.appendChild(h("h3", {}, "Recommended Modifications"));
   if (!recs.length) {
     panel.appendChild(h("p", { class: "empty-hint" }, "No non-compliant parameters found among selected markets — either everything entered checks out, or no values have been entered yet."));
   } else {
     recs.forEach((r) => {
+      const isFallback = r.basis === "fallback";
       panel.appendChild(
-        h("div", { class: "recommendation rec-" + r.severity.toLowerCase() }, [
-          h("div", { class: "rec-title" }, [h("span", { class: "severity-tag " + severityTagClass(r.severity) }, r.severity)]),
+        h("div", { class: "recommendation rec-" + r.severity.toLowerCase() + (isFallback ? " rec-fallback" : "") }, [
+          h("div", { class: "rec-title" }, [
+            h("span", { class: "severity-tag " + severityTagClass(r.severity) }, r.severity),
+            obligationBadge(r.obligation, r.obligationStatus),
+            isFallback ? h("span", { class: "fallback-tag" }, "International/industry standard (fallback)") : null,
+          ]),
           h("div", {}, r.text),
+          h("div", { class: "source-line" + (r.citations.every((c) => c === FacilityEngine.PENDING_CITATION) ? " source-pending" : "") }, "Source: " + r.citations.join("; ")),
         ])
       );
     });
@@ -899,9 +590,18 @@ function renderStep4() {
   rows.forEach((row) => {
     const enteredDisplay = row.entered === null || row.entered === undefined || row.entered === "" ? "—" : typeof row.entered === "object" ? `${row.entered.min ?? "?"}–${row.entered.max ?? "?"}` : String(row.entered);
     const sev = row.threshold.severity || (row.param && row.param.gap_severity) || "Partial";
+    const conflict = row.evalResult.conflict;
+    const paramCell = h("td", {}, row.param.name);
+    if (conflict) {
+      const ref = conflict.reference;
+      paramCell.appendChild(
+        h("div", { class: "conflict-note" }, `Authorities conflict (${conflict.markets.map(marketLabel).join(", ")}): no single value satisfies all.` +
+          (ref ? ` ${ref.label}: ${ref.min ?? "?"}–${ref.max ?? "?"}${ref.note ? " — " + ref.note : ""}.` : " No fallback standard in dataset."))
+      );
+    }
     const tr = h("tr", {}, [
       h("td", {}, row.room ? row.room.name : "Facility"),
-      h("td", {}, row.param.name),
+      paramCell,
       h("td", {}, enteredDisplay),
       h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, sev)),
     ]);
@@ -909,6 +609,10 @@ function renderStep4() {
       const r = row.evalResult.perMarket[mk] || { status: "no_value" };
       const cell = h("td", {}, h("span", { class: "status-pill " + statusPillClass(r.status) }, statusLabel(r.status)));
       if (r.note) cell.appendChild(h("div", { class: "field-note" }, r.note));
+      const prov = provenanceBlock(r.provenance);
+      if (prov) cell.appendChild(prov);
+      const fb = fallbackBlock(r.fallback);
+      if (fb) cell.appendChild(fb);
       tr.appendChild(cell);
     });
     tbody.appendChild(tr);
@@ -920,7 +624,7 @@ function renderStep4() {
   if (booleanRows.length) {
     panel.appendChild(h("h3", {}, "Required-Feature Checklist"));
     const btable = h("table", { class: "results-table" });
-    btable.appendChild(h("thead", {}, h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Feature"), h("th", {}, "Entered"), h("th", {}, "Severity"), h("th", {}, "Status")])));
+    btable.appendChild(h("thead", {}, h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Feature"), h("th", {}, "Entered"), h("th", {}, "Severity"), h("th", {}, "Status"), h("th", {}, "Requirement & source")])));
     const btbody = h("tbody");
     booleanRows.forEach((br) => {
       btbody.appendChild(
@@ -930,6 +634,7 @@ function renderStep4() {
           h("td", {}, br.entered === true ? "Yes" : br.entered === false ? "No" : "—"),
           h("td", {}, h("span", { class: "severity-tag " + severityTagClass(br.threshold.severity) }, br.threshold.severity)),
           h("td", {}, h("span", { class: "status-pill " + statusPillClass(br.status) }, statusLabel(br.status))),
+          h("td", {}, provenanceBlock(br.provenance)),
         ])
       );
     });
