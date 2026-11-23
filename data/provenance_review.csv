@@ -1,0 +1,81 @@
+benchmark_id,authority,draft_obligation,obligation_status,draft_basis,citation,citation_status
+AREA-Z-21,schedule_m,mandatory,draft,Schedule M states a minimum area in m²,Schedule M: 25 m² basic + 10 m² ancillary (Encapsulation Room),workbook
+AREA-Z-24,schedule_m,mandatory,draft,Schedule M states a minimum area in m²,Schedule M: 30 m² (Oral Powder Processing Suite),workbook
+AREA-Z-29,schedule_m,mandatory,draft,Schedule M states a minimum area in m²,"Schedule M: 150 m² minimum (Aseptic Filling Suite, SVP)",workbook
+AREA-Z-30,schedule_m,mandatory,draft,Schedule M states a minimum area in m²,Schedule M: 25 + 10 m² total (Ophthalmic Solution Filling),workbook
+THR-001,eu_gmp_pics,recommended,draft,note wording: 'Not formally',,pending
+THR-001,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-001,japan_pmda,recommended,draft,note wording: 'Typical',,pending
+THR-002,who_gmp,recommended,draft,note wording: 'Typical',,pending
+THR-002,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-002,japan_pmda,,unclassified,,,pending
+THR-003,eu_gmp_pics,recommended,draft,note wording: 'Not formally',,pending
+THR-003,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-003,japan_pmda,recommended,draft,note wording: 'Typical',,pending
+THR-004,who_gmp,recommended,draft,note wording: 'guidance',,pending
+THR-004,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-004,japan_pmda,,unclassified,,,pending
+THR-005,us_fda,recommended,draft,note wording: 'interpreted',,pending
+THR-005,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-005,japan_pmda,recommended,draft,note wording: 'expected',,pending
+THR-006,us_fda,recommended,draft,note wording: 'Not formally',,pending
+THR-006,china_nmpa,mandatory,draft,note wording: '≥',,pending
+THR-006,japan_pmda,mandatory,draft,note wording: '≥',,pending
+THR-007,us_fda,mandatory,draft,note wording: '≥',,pending
+THR-007,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-008,us_fda,recommended,draft,note wording: 'industry practice',,pending
+THR-008,china_nmpa,recommended,draft,note wording: 'typical',,pending
+THR-008,japan_pmda,recommended,draft,note wording: 'typical',,pending
+THR-009,schedule_m,recommended,draft,note wording: 'guidance',,pending
+THR-009,us_fda,mandatory,draft,note wording: '≥',,pending
+THR-009,eu_gmp_pics,mandatory,draft,note wording: '≥',,pending
+THR-009,who_gmp,,unclassified,,,pending
+THR-009,china_nmpa,mandatory,draft,note wording: '≥',,pending
+THR-009,japan_pmda,mandatory,draft,note wording: '≥',,pending
+THR-010,schedule_m,mandatory,draft,note wording: '≥',,pending
+THR-010,who_gmp,,unclassified,,,pending
+THR-010,china_nmpa,mandatory,draft,note wording: '≥',,pending
+THR-010,japan_pmda,,unclassified,,,pending
+THR-011,schedule_m,,unclassified,,,pending
+THR-011,us_fda,,unclassified,,,pending
+THR-011,eu_gmp_pics,recommended,draft,note wording: 'Guidance',,pending
+THR-011,who_gmp,,unclassified,,,pending
+THR-011,china_nmpa,,unclassified,,,pending
+THR-011,japan_pmda,,unclassified,,,pending
+THR-012,schedule_m,mandatory,draft,note wording: 'minimum',,pending
+THR-012,us_fda,,unclassified,,,pending
+THR-012,eu_gmp_pics,mandatory,draft,note wording: 'required',,pending
+THR-012,who_gmp,,unclassified,,,pending
+THR-012,china_nmpa,,unclassified,,,pending
+THR-012,japan_pmda,,unclassified,,,pending
+THR-013,eu_gmp_pics,recommended,draft,note wording: 'Not specified',,pending
+THR-013,who_gmp,,unclassified,,,pending
+THR-013,china_nmpa,,unclassified,,,pending
+THR-013,japan_pmda,,unclassified,,,pending
+THR-017,us_fda,recommended,draft,note wording: 'guidance',,pending
+THR-017,who_gmp,recommended,draft,note wording: 'Guidance',,pending
+THR-017,china_nmpa,,unclassified,,,pending
+THR-017,japan_pmda,,unclassified,,,pending
+THR-018,eu_gmp_pics,,unclassified,,,pending
+THR-018,china_nmpa,,unclassified,,,pending
+THR-019,us_fda,,unclassified,,,pending
+THR-019,eu_gmp_pics,,unclassified,,,pending
+THR-020,us_fda,,unclassified,,,pending
+THR-020,eu_gmp_pics,,unclassified,,,pending
+THR-021,us_fda,mandatory,draft,note wording: 'must',,pending
+THR-022,eu_gmp_pics,,unclassified,,,pending
+THR-027,china_nmpa,mandatory,draft,note wording: 'Mandat',,pending
+THR-028,schedule_m,,unclassified,,,pending
+THR-029,schedule_m,,unclassified,,,pending
+THR-029,china_nmpa,mandatory,draft,note wording: 'mandat',,pending
+THR-030,schedule_m,mandatory,draft,note wording: 'required',,pending
+THR-030,china_nmpa,mandatory,draft,note wording: 'requires',,pending
+THR-032,eu_gmp_pics,mandatory,draft,note wording: 'mandat',,pending
+THR-B01,schedule_m,mandatory,draft,schedule_m_explicit=true in workbook,,pending
+THR-B02,schedule_m,mandatory,draft,schedule_m_explicit=true in workbook,,pending
+THR-B03,schedule_m,,unclassified,,,pending
+THR-B04,schedule_m,mandatory,draft,schedule_m_explicit=true in workbook,,pending
+THR-B05,schedule_m,,unclassified,,,pending
+THR-B06,schedule_m,,unclassified,,,pending
+THR-B07,schedule_m,mandatory,draft,schedule_m_explicit=true in workbook,,pending
+THR-B08,schedule_m,mandatory,draft,schedule_m_explicit=true in workbook,,pending

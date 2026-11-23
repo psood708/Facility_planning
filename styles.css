@@ -370,3 +370,18 @@ details.threshold-detail summary {
   color: var(--accent-dark);
 }
 details.threshold-detail { margin-top: 4px; }
+
+/* Provenance: obligation label, source line, fallback and conflict notes */
+.provenance { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.obligation-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 5px; margin-left: 4px; }
+.provenance .obligation-tag { margin-left: 0; align-self: flex-start; }
+.obligation-mandatory { background: var(--critical-bg); color: var(--critical); }
+.obligation-recommended { background: var(--accent-soft); color: var(--accent-dark); }
+.obligation-unclassified { background: var(--neutral-bg); color: var(--ink-soft); }
+.source-line { font-size: 0.72rem; color: var(--ink-soft); }
+.source-line.source-pending { font-style: italic; }
+.fallback-block { margin-top: 6px; padding-top: 4px; border-top: 1px dashed var(--border); }
+.fallback-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 5px; margin: 0 4px 2px 0; background: var(--neutral-bg); color: var(--ink); border: 1px dashed var(--ink-soft); }
+.conflict-note { margin-top: 4px; font-size: 0.74rem; color: var(--significant); }
+.recommendation.rec-fallback { border-style: dashed; background: var(--panel); }
+.advisory-note { margin: 10px 0 4px; padding: 8px 10px; font-size: 0.8rem; color: var(--ink-soft); background: var(--neutral-bg); border-radius: var(--radius); }

@@ -1,0 +1,31 @@
+{
+  "_instructions": "Copy this file to a new name without the leading underscore (e.g. sterile-vial-line-2026.json). Describe one real or reference facility, then list the verdict you, as the expert, expect for each benchmark. The test suite fails if the engine disagrees. Files starting with '_' are ignored.",
+  "name": "TEMPLATE — Sterile vial filling line (replace with a real case)",
+  "author": "Domain expert name",
+  "date": "YYYY-MM-DD",
+  "facility": {
+    "category": "sterile",
+    "specificForms": ["Sterile Liquid (Vial)"],
+    "targetMarkets": ["schedule_m", "eu_gmp", "us_fda"],
+    "selectedRooms": ["Z-29"],
+    "facilityValues": {
+      "UTIL-001": "Class 1.2.1"
+    },
+    "roomValues": {
+      "Z-29": {
+        "DIM-001": 160,
+        "HVAC-001": "Grade A (ISO 5)",
+        "HVAC-002": { "min": 19, "max": 21 }
+      }
+    }
+  },
+  "expected": [
+    { "benchmark": "AREA-Z-29", "room": "Z-29", "authority": "schedule_m", "status": "compliant", "obligation": "mandatory" },
+    { "benchmark": "THR-001", "room": "Z-29", "authority": "eu_gmp", "status": "compliant" },
+    { "benchmark": "THR-001", "room": "Z-29", "authority": "schedule_m", "status": "not_regulated", "fallback_status": "compliant" },
+    { "benchmark": "THR-018", "room": null, "authority": "eu_gmp", "status": "compliant" }
+  ],
+  "expected_rollup": {
+    "eu_gmp": "Compliant"
+  }
+}
