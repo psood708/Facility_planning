@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
 Builds data/provenance.json — the citation and mandatory/recommended label for
-every benchmark the engine checks — plus data/provenance_review.csv, a review
-list for the domain expert.
+every benchmark the engine checks — plus expert-review/provenance_review.csv,
+the review sheet the domain expert fills in.
+
+Expert workflow (no JSON editing needed): open the CSV in Excel, fill the
+expert_obligation / expert_citation / reviewed_by / reviewed_on columns, save,
+and re-run this script. Filled rows are applied to provenance.json as
+expert_confirmed / expert_verified and survive every later re-run.
 
 Why a separate file: data/thresholds.json holds the benchmark *values*;
 provenance holds *where each value comes from and how binding it is*. The
@@ -29,7 +34,8 @@ from datetime import date
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 OUT_JSON = os.path.join(DATA, "provenance.json")
-OUT_CSV = os.path.join(DATA, "provenance_review.csv")
+OUT_CSV = os.path.join(ROOT, "expert-review", "provenance_review.csv")
+VALID_OBLIGATIONS = {"mandatory", "recommended"}
 
 REGULATORS = ["schedule_m", "us_fda", "eu_gmp_pics", "who_gmp", "china_nmpa", "japan_pmda"]
 
@@ -73,6 +79,41 @@ def blank_entry():
 
 def is_expert_touched(entry):
     return entry.get("obligation_status") == "expert_confirmed" or entry.get("citation_status") == "expert_verified"
+
+
+def read_expert_edits():
+    """Rows of the review CSV where the expert filled an expert_* column."""
+    if not os.path.exists(OUT_CSV):
+        return {}
+    edits = {}
+    with open(OUT_CSV, newline="", encoding="utf-8-sig") as f:  # utf-8-sig: Excel adds a BOM
+        for row in csv.DictReader(f):
+            obligation = (row.get("expert_obligation") or "").strip().lower()
+            citation = (row.get("expert_citation") or "").strip()
+            if not obligation and not citation:
+                continue
+            if obligation and obligation not in VALID_OBLIGATIONS:
+                raise SystemExit(f"{row['benchmark_id']}/{row['authority']}: expert_obligation must be 'mandatory' or 'recommended', got '{obligation}'")
+            edits[(row["benchmark_id"], row["authority"])] = {
+                "obligation": obligation,
+                "citation": citation,
+                "reviewed_by": (row.get("reviewed_by") or "").strip() or None,
+                "reviewed_on": (row.get("reviewed_on") or "").strip() or None,
+            }
+    return edits
+
+
+def apply_expert_edits(entries, edits):
+    for (key, data_key), edit in edits.items():
+        entry = entries.get(key, {}).get(data_key)
+        if entry is None:
+            print(f"warning: CSV row {key}/{data_key} matches no benchmark — skipped")
+            continue
+        if edit["obligation"]:
+            entry.update(obligation=edit["obligation"], obligation_status="expert_confirmed", draft_basis=None)
+        if edit["citation"]:
+            entry.update(citation=edit["citation"], citation_status="expert_verified")
+        entry.update(reviewed_by=edit["reviewed_by"] or entry.get("reviewed_by"), reviewed_on=edit["reviewed_on"] or entry.get("reviewed_on"))
 
 
 def build():
@@ -120,13 +161,14 @@ def build():
             e.update(obligation="mandatory", obligation_status="draft", draft_basis="schedule_m_explicit=true in workbook")
         put(b["id"], "schedule_m", e)
 
+    apply_expert_edits(entries, read_expert_edits())
+
     doc = {
         "_meta": {
             "schema_version": 1,
             "generated_on": date.today().isoformat(),
-            "about": "Citation and mandatory/recommended label per benchmark. Edit entries here; set "
-            "obligation_status='expert_confirmed' / citation_status='expert_verified' and fill reviewed_by/"
-            "reviewed_on so re-running scripts/build_provenance.py keeps your edits.",
+            "about": "Citation and mandatory/recommended label per benchmark. Generated — do not edit by hand. "
+            "The expert fills expert-review/provenance_review.csv and re-runs scripts/build_provenance.py.",
             "fallback": {
                 "data_key": "industry",
                 "label": "International/industry standard",
@@ -141,12 +183,21 @@ def build():
         json.dump(doc, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
-    with open(OUT_CSV, "w", newline="", encoding="utf8") as f:
+    os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
+    with open(OUT_CSV, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow(["benchmark_id", "authority", "draft_obligation", "obligation_status", "draft_basis", "citation", "citation_status"])
+        w.writerow([
+            "benchmark_id", "authority", "current_obligation", "obligation_status", "draft_basis", "current_citation", "citation_status",
+            "expert_obligation", "expert_citation", "reviewed_by", "reviewed_on",
+        ])
         for key in sorted(entries):
             for data_key, e in entries[key].items():
-                w.writerow([key, data_key, e["obligation"] or "", e["obligation_status"], e["draft_basis"] or "", e["citation"] or "", e["citation_status"]])
+                confirmed = e["obligation_status"] == "expert_confirmed"
+                verified = e["citation_status"] == "expert_verified"
+                w.writerow([
+                    key, data_key, e["obligation"] or "", e["obligation_status"], e["draft_basis"] or "", e["citation"] or "", e["citation_status"],
+                    e["obligation"] if confirmed else "", e["citation"] if verified else "", e.get("reviewed_by") or "", e.get("reviewed_on") or "",
+                ])
 
     rows = [e for v in entries.values() for e in v.values()]
     counts = {}

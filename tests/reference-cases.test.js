@@ -1,4 +1,4 @@
-// Runs every expert reference case in tests/reference-cases/*.json (files
+// Runs every expert reference case in expert-review/reference-cases/*.json (files
 // starting with "_" are templates and ignored). Skipped until a case exists.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { engine, loadData, makeState } = require("./helpers.js");
 
-const CASE_DIR = path.join(__dirname, "reference-cases");
+const CASE_DIR = path.join(__dirname, "..", "expert-review", "reference-cases");
 const DATA = loadData();
 
 function caseFiles() {
@@ -49,7 +49,7 @@ function runCase(file) {
 
 const files = caseFiles();
 if (!files.length) {
-  test("expert reference cases", { skip: "no expert cases yet — add tests/reference-cases/*.json (see README)" }, () => {});
+  test("expert reference cases", { skip: "no expert cases yet — add expert-review/reference-cases/*.json (see expert-review/README.md)" }, () => {});
 } else {
   for (const f of files) test(`expert reference case: ${f}`, () => runCase(f));
 }

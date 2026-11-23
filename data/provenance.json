@@ -2,7 +2,7 @@
   "_meta": {
     "schema_version": 1,
     "generated_on": "2026-11-24",
-    "about": "Citation and mandatory/recommended label per benchmark. Edit entries here; set obligation_status='expert_confirmed' / citation_status='expert_verified' and fill reviewed_by/reviewed_on so re-running scripts/build_provenance.py keeps your edits.",
+    "about": "Citation and mandatory/recommended label per benchmark. Generated — do not edit by hand. The expert fills expert-review/provenance_review.csv and re-runs scripts/build_provenance.py.",
     "fallback": {
       "data_key": "industry",
       "label": "International/industry standard",
