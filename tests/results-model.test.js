@@ -124,6 +124,9 @@ test("not covered markets are never green and never 'met'", () => {
   assert.equal(uk.met, 0);
   assert.equal(uk.checked, 0);
   assert.ok(uk.counts.not_covered > 0);
+  // Checklist rows carry one status everywhere, but an uncovered authority checks nothing.
+  assert.equal(uk.counts.not_covered, m.totals.checks);
+  assert.deepEqual(uk.gapsBySeverity, { Critical: 0, Significant: 0, Partial: 0 });
   noNaN(m);
 });
 

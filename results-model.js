@@ -68,6 +68,10 @@
     const sn = snapshot || {};
     const keys = Object.keys(sn.rollup || {});
     const checks = checksOf(sn, keys, L);
+    // An authority the dataset does not cover checks nothing — including the
+    // checklist rows, which otherwise carry one status for every market.
+    const uncovered = keys.filter((mk) => VERDICT_KEY[sn.rollup[mk]] === "not_covered");
+    checks.forEach((c) => uncovered.forEach((mk) => { c.status[mk] = "not_covered"; c.fallback[mk] = null; }));
     const recSeverity = Object.fromEntries((sn.recommendations || []).map((r) => [r.id, sevKey(r.severity)]));
     const severityOf = (id) => recSeverity[id] || "Partial";
 
