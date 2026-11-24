@@ -1,0 +1,38 @@
+# CI: unit tests, dependency audit, secret scan and a production build on
+# every push/PR (R20), plus the database tests against a local Supabase.
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run audit:high
+      - run: npm run scan
+      # Placeholder public values: proves the build works and its output is
+      # secret-free. Real values live only in the Vercel project settings.
+      - run: npm run build
+        env:
+          SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_ci_placeholder
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx supabase start
+      - run: npm run test:db

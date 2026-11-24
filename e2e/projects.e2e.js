@@ -37,6 +37,7 @@ async function openList(page) {
   const errors = collectErrors(page);
   await signIn(page, uniqueEmail("proj-a"));
 
+  await page.waitForSelector("#view-projects .empty-state, #view-projects .project-list"); // list loads after the view appears
   check("new account sees the empty state", await page.isVisible("#view-projects .empty-state"));
 
   // ---- create

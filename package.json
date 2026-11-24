@@ -8,7 +8,11 @@
     "test:db": "node --test --test-concurrency=1 db-tests/",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
-    "test:e2e": "node e2e/signin.e2e.js && node e2e/projects.e2e.js"
+    "test:e2e": "node e2e/signin.e2e.js && node e2e/projects.e2e.js",
+    "build": "node scripts/build.js",
+    "scan": "node scripts/secret-scan.js",
+    "audit:high": "npm audit --audit-level=high",
+    "serve:dist": "node scripts/serve.js --dir dist --port 8000 --allow-connect http://127.0.0.1:54321"
   },
   "engines": {
     "node": ">=20"

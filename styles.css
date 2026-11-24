@@ -434,3 +434,5 @@ button.danger { background: var(--critical); border-color: var(--critical); colo
 /* ---------------------------------------------------------------- unsaved changes */
 .unsaved-flag { font-size: 0.8rem; font-weight: 700; color: var(--significant); background: var(--significant-bg); padding: 2px 8px; border-radius: 999px; }
 .unsaved-guard { margin-top: 12px; padding: 12px 14px; border-radius: 8px; border: 2px solid var(--significant); background: var(--significant-bg); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+
+.range-row { display: flex; gap: 8px; align-items: center; }

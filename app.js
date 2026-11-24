@@ -298,7 +298,7 @@ function renderParamField(param, value, onChange) {
     wrap.appendChild(input);
     if (unit) wrap.appendChild(h("span", { class: "field-note" }, unit));
   } else if (kind === "number-range") {
-    const rowWrap = h("div", { style: "display:flex;gap:8px;align-items:center;" });
+    const rowWrap = h("div", { class: "range-row" });
     const v = value || {};
     rowWrap.appendChild(
       h("input", {
