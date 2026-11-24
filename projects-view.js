@@ -120,12 +120,12 @@
   // Read-only view of a stored snapshot (used while results are stale). It
   // renders through the same ResultsModel/ResultsView as the live page, minus
   // the numeric comparison (snapshots hold statuses only).
-  function snapshotSummary(h, s, snapshot, labels) {
+  function snapshotSummary(h, s, snapshot, labels, authority) {
     const RM = typeof ResultsModel !== "undefined" ? ResultsModel : require("./results-model.js");
     const RV = typeof ResultsView !== "undefined" ? ResultsView : require("./results-view.js");
     return h("div", { class: "panel snapshot-summary" }, [
       h("h2", {}, "Results as saved"),
-      RV.resultsPage(h, s, RM.build(snapshot, labels), { stale: true, labels }),
+      RV.resultsPage(h, s, RM.build(snapshot, labels), { stale: true, labels, authority }),
     ]);
   }
 
@@ -147,12 +147,33 @@
       if (state.category === "osd_rnd_pilot" && !state.devStage) issues.push({ field: "devStage", message: "Choose the facility development stage (R&D lab or pilot plant)." });
       // The specific-forms list only appears once a category is chosen.
       if (state.category && !(state.specificForms || []).length) issues.push({ field: "specificForms", message: "Select at least one specific dosage form." });
-      if (!(state.targetMarkets || []).length) issues.push({ field: "targetMarkets", message: "Select at least one target regulatory market." });
+      const markets = state.targetMarkets || [];
+      if (!markets.length) issues.push({ field: "targetMarkets", message: "Select at least one target regulatory market." });
+      else if (!markets.includes(state.primaryAuthority)) issues.push({ field: "primaryAuthority", message: "Choose the primary authority to check the facility against." });
     }
     if (n === 2 && !(state.selectedRooms || []).length) {
       issues.push({ field: "selectedRooms", message: "Select at least one room or zone to assess." });
     }
     return issues;
+  }
+
+  // Step 1 target markets: every authority is listed, but ones without data
+  // in this dataset are disabled ("No data yet") and can never be chosen.
+  function marketChoices(authorities, state) {
+    const chosen = state.targetMarkets || [];
+    return authorities.map((a) => ({
+      key: a.key, label: a.label, covered: a.covered !== false,
+      checked: chosen.includes(a.key), disabled: a.covered === false,
+      note: a.covered === false ? "No data yet" : null,
+    }));
+  }
+
+  // The primary authority is picked from the covered markets the planner chose.
+  function primaryChoices(authorities, state) {
+    const chosen = state.targetMarkets || [];
+    return authorities
+      .filter((a) => a.covered !== false && chosen.includes(a.key))
+      .map((a) => ({ key: a.key, label: a.label, checked: state.primaryAuthority === a.key }));
   }
 
   function errorSummaryTitle(count) {
@@ -240,7 +261,7 @@
   const filterText = (shown, total) => (shown ? `Showing ${shown} of ${total} rooms` : "No rooms match this filter");
 
   const wizard = {
-    STEP_TITLES, STEP_COUNT, stepIssues, errorSummaryTitle, errorSummary, fieldError,
+    STEP_TITLES, STEP_COUNT, stepIssues, marketChoices, primaryChoices, errorSummaryTitle, errorSummary, fieldError,
     stepperStates, stepStateLabel, stepAnnouncement, nextLabel, fieldId, describedBy,
     groupByStage, roomMatches, selectionText, filterText,
   };

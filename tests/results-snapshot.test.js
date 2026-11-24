@@ -92,3 +92,22 @@ test("compact(all, state) is the snapshot body without version fields (shared by
   const { snapshot_version, data_hash, engine_version, ...rest } = sn;
   assert.deepEqual(body, rest);
 });
+
+// Older saves could include an authority without data; loading drops it from
+// the inputs. The saved results are then compared only over the markets the
+// project still has, so the project reads as current, not "inconsistent".
+test("reconcile ignores saved markets the project no longer has (dropped authorities without data)", () => {
+  const withUncovered = { ...state(), targetMarkets: ["schedule_m", "uk_mhra"], primaryAuthority: "schedule_m" };
+  const saved = JSON.parse(JSON.stringify(snap.buildSnapshot(DATA, withUncovered, VERSIONS)));
+  const loaded = { ...withUncovered, targetMarkets: ["schedule_m"] };
+  const r = snap.reconcile(DATA, { inputs: loaded, results_snapshot: saved, data_hash: VERSIONS.dataHash, engine_version: VERSIONS.engineVersion }, VERSIONS);
+  assert.equal(r.status, "current", r.reasons.join());
+  assert.deepEqual(Object.keys(r.snapshot.rollup), ["schedule_m"]);
+});
+
+test("reconcile still reports real differences in the markets the project keeps", () => {
+  const s = { ...state(), primaryAuthority: "schedule_m" };
+  const saved = JSON.parse(JSON.stringify(snap.buildSnapshot(DATA, s, VERSIONS)));
+  saved.rollup[s.targetMarkets[0]] = "Compliant";
+  assert.equal(snap.reconcile(DATA, { inputs: s, results_snapshot: saved, data_hash: VERSIONS.dataHash, engine_version: VERSIONS.engineVersion }, VERSIONS).status, "inconsistent");
+});

@@ -28,7 +28,7 @@
   const SCALE_SIZES = ["Small", "Medium", "Large"];
 
   const LIMITS = { nameMax: 120, notesMax: 2000, textMax: 2000, batchSizeMax: 120, numberAbsMax: 1e9, bodyBytesMax: 256 * 1024 };
-  const INPUT_KEYS = ["category", "devStage", "specificForms", "targetMarkets", "scaleSize", "batchSize", "selectedRooms", "facilityValues", "roomValues"];
+  const INPUT_KEYS = ["category", "devStage", "specificForms", "targetMarkets", "primaryAuthority", "scaleSize", "batchSize", "selectedRooms", "facilityValues", "roomValues"];
   const PROJECT_KEYS = ["name", "notes", "inputs"];
   const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
@@ -45,7 +45,7 @@
 
   function defaultState() {
     return {
-      step: 1, category: null, devStage: null, specificForms: [], targetMarkets: ["schedule_m"],
+      step: 1, category: null, devStage: null, specificForms: [], targetMarkets: ["schedule_m"], primaryAuthority: "schedule_m",
       scaleSize: "Medium", batchSize: "", selectedRooms: [], facilityValues: {}, roomValues: {},
     };
   }
@@ -151,7 +151,24 @@
     out.specificForms = checkIdList(val("specificForms"), (f) => forms.includes(f), "specificForms", errors);
     out.devStage = val("devStage");
     if (out.devStage !== null && !DEV_STAGES.includes(out.devStage)) errors.push(`devStage: unknown "${out.devStage}"`);
-    out.targetMarkets = checkIdList(val("targetMarkets"), (k) => hasOwn(DATA.authorityByKey, k), "targetMarkets", errors);
+    // Authorities with no data in this dataset can no longer be chosen; older
+    // saves that include one load without it (never rejected).
+    const isAuthority = (k) => hasOwn(DATA.authorityByKey, k);
+    const covered = (k) => isAuthority(k) && DATA.authorityByKey[k].covered !== false;
+    const markets = val("targetMarkets");
+    const droppable = (k) => typeof k === "string" && isAuthority(k) && !covered(k);
+    out.targetMarkets = checkIdList(Array.isArray(markets) ? markets.filter((k) => !droppable(k)) : markets, isAuthority, "targetMarkets", errors);
+    if (!hasOwn(raw, "primaryAuthority")) {
+      out.primaryAuthority = out.targetMarkets.find(covered) || null; // saved before the field existed
+    } else if (raw.primaryAuthority === null) {
+      out.primaryAuthority = null; // the planner hasn't chosen yet; Step 1 asks before Next
+    } else {
+      const pa = raw.primaryAuthority;
+      if (typeof pa !== "string" || !covered(pa) || !out.targetMarkets.includes(pa)) {
+        errors.push(`primaryAuthority: "${String(pa).slice(0, 40)}" must be a covered authority chosen as a target market`);
+      }
+      out.primaryAuthority = pa;
+    }
     out.scaleSize = val("scaleSize");
     if (!SCALE_SIZES.includes(out.scaleSize)) errors.push(`scaleSize: unknown "${out.scaleSize}"`);
     out.batchSize = val("batchSize");
@@ -203,6 +220,16 @@
     return state;
   }
 
+  // Keep the primary authority consistent with the chosen markets: a still-
+  // selected choice stays; a single market is the obvious primary; otherwise
+  // the planner is asked to choose (null).
+  function ensurePrimary(state) {
+    const markets = state.targetMarkets || [];
+    if (markets.includes(state.primaryAuthority)) return state;
+    state.primaryAuthority = markets.length === 1 ? markets[0] : null;
+    return state;
+  }
+
   // Change the dosage-form category without losing work: the old category's
   // forms, stage and rooms are set aside in `memory` and restored if the user
   // comes back (arrow keys move through the category radios one by one).
@@ -232,6 +259,6 @@
 
   return {
     CATEGORY_DEFS, SPECIFIC_FORMS, DEV_STAGES, SCALE_SIZES, LIMITS,
-    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint, switchCategory,
+    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint, switchCategory, ensurePrimary,
   };
 });

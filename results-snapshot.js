@@ -89,6 +89,16 @@
 
   // project: { inputs, results_snapshot, data_hash, engine_version } with
   // inputs already validated (ProjectState.validateInputs).
+  // A copy of a saved snapshot restricted to the given markets.
+  function onlyMarkets(snapshot, markets) {
+    const keep = (obj) => Object.fromEntries(Object.entries(obj || {}).filter(([mk]) => markets.includes(mk)));
+    return {
+      ...snapshot,
+      rollup: keep(snapshot.rollup),
+      evaluations: (snapshot.evaluations || []).map((e) => ({ ...e, markets: keep(e.markets) })),
+    };
+  }
+
   function reconcile(DATA, project, versions) {
     const reasons = [];
     if (project.data_hash !== versions.dataHash) reasons.push("data");
@@ -97,7 +107,10 @@
       return { status: "stale", reasons, snapshot: project.results_snapshot ? deepFreeze(project.results_snapshot) : null };
     }
     const fresh = buildSnapshot(DATA, project.inputs, versions);
-    if (project.results_snapshot && !sameSnapshot(fresh, project.results_snapshot)) {
+    // Older saves may list an authority without data, which loading drops from
+    // the inputs; compare only over the markets the project still has.
+    const saved = project.results_snapshot && onlyMarkets(project.results_snapshot, project.inputs.targetMarkets || []);
+    if (saved && !sameSnapshot(fresh, saved)) {
       return { status: "inconsistent", reasons: ["results differ from the saved snapshot"], snapshot: fresh };
     }
     return { status: "current", reasons: [], snapshot: fresh };

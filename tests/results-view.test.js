@@ -262,3 +262,55 @@ test("scrollRegion builds the same focusable, labelled wrapper for app.js detail
   const r = view.scrollRegion(h, "Detailed parameter status", h("table", {}, []));
   assert.deepEqual([r.attrs.class, r.attrs.role, String(r.attrs.tabindex), r.attrs["aria-label"]], ["table-scroll", "region", "0", "Detailed parameter status"]);
 });
+
+// ---------------------------------------------------------------- one authority (Milestone 3)
+
+const authorityOpts = (current = "schedule_m") => {
+  const c = snap.compact(engine.evaluateAll(DATA, demo()), demo());
+  return {
+    view: model.forAuthority(c, current, LABELS),
+    choices: ["schedule_m", "us_fda", "eu_gmp", "who_gmp"].map((k) => ({ key: k, label: LABELS.market(k) })),
+    onSwitch: () => {},
+  };
+};
+
+test("authorityView: one captioned table per room with glyph + word per requirement", () => {
+  const sec = view.authorityView(h, authorityOpts());
+  assert.match(text(find(sec, tag("h3"))), /India — Schedule M/);
+  const tables = all(sec, tag("table"));
+  assert.ok(tables.length >= 2, "facility + at least one room");
+  for (const t of tables) {
+    assert.ok(find(t, tag("caption")), "each room table has a caption");
+    for (const th of all(t, tag("th"))) assert.ok(th.attrs.scope, "every header has a scope");
+  }
+  const cells = all(sec, cls("auth-status"));
+  assert.ok(cells.length > 0);
+  for (const c of cells) assert.match(text(c), /^(✓ Pass|✗ Fail|⊘ Not covered|\? No value)/);
+});
+
+test("authorityView: the switcher offers the chosen authorities and marks the current one", () => {
+  const sec = view.authorityView(h, authorityOpts("us_fda"));
+  const buttons = all(sec, (n) => n.tag === "button" && n.attrs["aria-pressed"] !== undefined);
+  assert.deepEqual(buttons.map((b) => [text(b).trim(), b.attrs["aria-pressed"]]),
+    ["schedule_m", "us_fda", "eu_gmp", "who_gmp"].map((k) => [LABELS.market(k), String(k === "us_fda")]));
+});
+
+test("resultsPage leads with the primary authority, then 'Compare with other authorities'", () => {
+  const page = view.resultsPage(h, s, model.build(snap.compact(engine.evaluateAll(DATA, demo()), demo()), LABELS), { labels: LABELS, authority: authorityOpts() });
+  // Headings stay under Step 4's h2: the comparison heading is an h3 like the sections it introduces.
+  const order = all(page, (n) => n.tag === "h3" || cls("auth-view")(n));
+  const iAuth = order.findIndex(cls("auth-view"));
+  const iCompare = order.findIndex((n) => n.tag === "h3" && /Compare with other authorities/.test(text(n)));
+  assert.ok(iAuth > -1 && iCompare > iAuth, `auth ${iAuth}, compare ${iCompare}`);
+  assert.ok(find(page, cls("scorecards")) || all(page, tag("figure")).length > 0, "comparison charts still render");
+});
+
+test("authorityView notes are short enough for a phone column", () => {
+  for (const n of all(view.authorityView(h, authorityOpts()), cls("auth-note"))) assert.ok(text(n).length <= 60, text(n));
+});
+
+test("with nothing to compare, the 'Compare with other authorities' heading is not shown", () => {
+  const page = view.resultsPage(h, s, model.build({ rollup: {} }, LABELS), { authority: authorityOpts() });
+  assert.equal(find(page, (n) => n.tag === "h3" && /Compare with other authorities/.test(text(n))), null);
+  assert.ok(find(page, cls("auth-view")), "the authority section still shows");
+});

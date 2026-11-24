@@ -40,6 +40,25 @@ async function openList(page) {
   await page.waitForSelector("#view-projects .empty-state, #view-projects .project-list"); // list loads after the view appears
   check("new account sees the empty state", await page.isVisible("#view-projects .empty-state"));
 
+  // ---- primary authority (Milestone 3)
+  await page.click("text=New project");
+  await page.waitForSelector('#step-1 input[name="primaryAuthority"]');
+  check("authorities without data can't be chosen", (await page.isDisabled("#mkt-uk_mhra")) && (await page.isDisabled("#mkt-sfda")) && (await page.isDisabled("#mkt-tga_australia")) && (await page.isDisabled("#mkt-sahpra")));
+  await page.check("#mkt-us_fda");
+  check("primary authority is offered from the chosen covered markets only", (await page.locator('input[name="primaryAuthority"]').count()) === 2);
+  await page.check('input[name="primaryAuthority"][value="us_fda"]');
+  check("choosing the primary authority updates the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
+  await page.evaluate(() => { Object.assign(state, { category: "sterile", specificForms: ["Sterile Liquid (Vial)"], selectedRooms: ["Z-29"], roomValues: { "Z-29": { "DIM-001": 120 } } }); showStep(4); });
+  await page.waitForSelector("#step-4 .auth-view h3");
+  check("results lead with the primary authority", /Against US FDA/.test(await page.textContent("#step-4 .auth-view h3")));
+  check("one requirement table per room, each with statuses", (await page.locator("#step-4 .auth-table").count()) >= 2 && (await page.locator("#step-4 .auth-status").count()) > 0);
+  await page.click('#step-4 .auth-choice:has-text("Schedule M")');
+  await page.waitForFunction(() => /Schedule M/.test(document.querySelector("#step-4 .auth-view h3").textContent));
+  check("the switcher shows another authority without changing the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
+  check("Schedule M shows the 120 m² room against its 150 m² minimum as Fail", /Fail/.test(await page.locator("#step-4 .auth-row.st-fail").first().textContent()));
+  await page.evaluate(() => { CURRENT.savedFingerprint = currentFingerprint(); }); // discard this throwaway project
+  await openList(page);
+
   // ---- create
   await page.click("text=New project");
   await page.waitForSelector("#view-wizard:not([hidden]) #project-bar:not([hidden])");

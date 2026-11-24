@@ -458,12 +458,68 @@
 
   // ------------------------------------------------------------ page
 
+  // ---------------------------------------------------------------- one authority (Milestone 3)
+
+  const ONE_STATUS = {
+    pass: { glyph: "✓", word: "Pass" },
+    fail: { glyph: "✗", word: "Fail" },
+    not_covered: { glyph: "⊘", word: "Not covered" },
+    no_value: { glyph: "?", word: "No value" },
+  };
+  const REASON = { no_figure: "Sets no figure", no_data: "No data in dataset" };
+  const ADVISORY_WORD = { pass: "met", fail: "not met" };
+
+  // The primary authority's results: every requirement, room by room.
+  // opts: { view: ResultsModel.forAuthority(...), choices: [{key,label}], onSwitch(key) }
+  function authorityView(h, opts) {
+    const v = opts.view;
+    const choices = opts.choices || [];
+    const switcher = choices.length > 1
+      ? h("div", { class: "auth-switch", role: "group", "aria-label": "Show results against" },
+          choices.map((c) => h("button", {
+            type: "button", class: "auth-choice", "aria-pressed": String(!!v && c.key === v.key),
+            onclick: () => opts.onSwitch && opts.onSwitch(c.key),
+          }, c.label)))
+      : null;
+    if (!v) {
+      return h("section", { class: "auth-view", "aria-labelledby": "auth-heading" }, [
+        h("h3", { id: "auth-heading" }, "Results against one authority"), switcher,
+        h("p", { class: "empty-state" }, "Choose a primary authority in Step 1 to see each room and requirement against it."),
+      ]);
+    }
+    const c = v.counts;
+    const verdict = VERDICT[v.verdictKey] || null;
+    return h("section", { class: "auth-view", "aria-labelledby": "auth-heading" }, [
+      h("h3", { id: "auth-heading" }, `Against ${v.label}`),
+      switcher,
+      h("p", { class: "auth-summary" }, [
+        verdict ? h("span", { class: "auth-verdict" }, [h("span", { "aria-hidden": "true" }, verdict.glyph + " "), verdict.word]) : null,
+        `${c.pass} pass · ${c.fail} fail · ${c.not_covered} not covered · ${c.no_value} no value entered`,
+      ]),
+      ...v.rooms.map((room) => scrollRegion(h, `${room.label}: requirements against ${v.label}`,
+        h("table", { class: "results-table auth-table" }, [
+          h("caption", {}, room.label),
+          h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Requirement"), h("th", { scope: "col" }, "Status"), h("th", { scope: "col" }, "Note")])),
+          h("tbody", {}, room.rows.map((r) => h("tr", { class: "auth-row st-" + r.status }, [
+            h("th", { scope: "row" }, r.label),
+            h("td", { class: "auth-status st-" + r.status }, [h("span", { "aria-hidden": "true" }, ONE_STATUS[r.status].glyph), ONE_STATUS[r.status].word]),
+            h("td", { class: "auth-note" }, [r.reason ? REASON[r.reason] : "", r.advisory ? `International standard: ${ADVISORY_WORD[r.advisory]} (advisory)` : ""].filter(Boolean).join(". ")),
+          ]))),
+        ]))),
+    ]);
+  }
+
   function resultsPage(h, s, model, opts = {}) {
     const labels = opts.labels || { market: (mk) => (model.markets.find((m) => m.key === mk) || {}).label || mk };
+    const hasComparison = !!model && !model.empty;
+    const primary = opts.authority
+      ? [authorityView(h, opts.authority), hasComparison ? h("h3", { class: "compare-heading" }, "Compare with other authorities") : null]
+      : [];
     if (!model || model.empty) {
-      return h("div", { class: "results-page" }, h("p", { class: "empty-state" }, "No results to show yet — select at least one target market and room, then enter values."));
+      return h("div", { class: "results-page" }, primary.concat(h("p", { class: "empty-state" }, "No results to show yet — select at least one target market and room, then enter values.")));
     }
     return h("div", { class: "results-page" + (opts.stale ? " results-stale" : "") }, [
+      ...primary,
       hero(h, s, model, opts),
       scorecards(h, s, model),
       fixList(h, model, labels),
@@ -472,5 +528,5 @@
     ]);
   }
 
-  return { GLYPH, resultsPage, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
+  return { GLYPH, resultsPage, authorityView, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
 });

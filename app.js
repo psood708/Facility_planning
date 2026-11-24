@@ -216,7 +216,7 @@ function radioCards(name, options, selected, onPick, compact) {
 
 function checkRow(id, checked, onToggle, label, extras) {
   return h("label", { class: "check-row" + (extras && extras.rowClass ? " " + extras.rowClass : ""), for: id }, [
-    h("input", { type: "checkbox", id, checked: checked ? "checked" : null, onchange: (e) => onToggle(e.target.checked) }),
+    h("input", { type: "checkbox", id, checked: checked ? "checked" : null, disabled: extras && extras.disabled ? "disabled" : null, onchange: (e) => onToggle(e.target.checked) }),
     h("span", { class: "row-text" }, [h("span", { class: "row-label" }, label)].concat((extras && extras.children) || [])),
   ]);
 }
@@ -267,21 +267,43 @@ function renderStep1() {
     })));
   }
 
+  // The primary authority is chosen from the covered markets ticked above, so
+  // its group re-renders in place when the markets change (focus stays put).
+  const primaryBox = h("div", { class: "section" });
+  const fillPrimary = () => {
+    clear(primaryBox);
+    const choices = WizardView.primaryChoices(DATA.authorities, state);
+    primaryBox.appendChild(groupField(n, "primaryAuthority", {
+      legend: "Primary authority",
+      hint: "Results lead with this authority: every room and requirement, pass or fail. The other markets are compared below it.",
+      children: [choices.length
+        ? radioCards("primaryAuthority", choices.map((c) => ({ key: c.key, label: c.label })), state.primaryAuthority, (key) => { state.primaryAuthority = key; fillPrimary(); }, true)
+        : h("p", { class: "field-hint" }, "Select at least one target market above first.")],
+    }));
+  };
+
   panel.appendChild(h("div", { class: "section" }, groupField(n, "targetMarkets", {
     legend: "Target regulatory markets",
-    hint: "India — Schedule M is pre-selected as the home authority. Markets marked “Not covered” have no data in this dataset; results show them as such rather than guessing.",
-    children: [h("div", { class: "market-grid" }, DATA.authorities.map((a) =>
-      checkRow("mkt-" + a.key, state.targetMarkets.includes(a.key), (on) => {
-        if (on) state.targetMarkets.push(a.key);
-        else state.targetMarkets = state.targetMarkets.filter((k) => k !== a.key);
-      }, a.label, {
-        rowClass: a.covered ? "" : "uncovered",
+    hint: "India — Schedule M is pre-selected as the home authority. Markets marked “No data yet” have no data in this dataset, so they can't be chosen yet.",
+    children: [h("div", { class: "market-grid" }, WizardView.marketChoices(DATA.authorities, state).map((m) => {
+      const a = DATA.authorityByKey[m.key];
+      return checkRow("mkt-" + m.key, m.checked, (on) => {
+        if (on && !state.targetMarkets.includes(m.key)) state.targetMarkets.push(m.key);
+        if (!on) state.targetMarkets = state.targetMarkets.filter((k) => k !== m.key);
+        ProjectState.ensurePrimary(state);
+        fillPrimary();
+      }, m.label, {
+        rowClass: m.disabled ? "uncovered" : "",
+        disabled: m.disabled,
         children: [
-          !a.covered ? h("span", { class: "badge uncovered" }, [h("span", { "aria-hidden": "true" }, "⊘"), "Not covered"]) : null,
-          a.shared_note ? h("span", { class: "row-meta" }, a.shared_note) : null,
+          m.note ? h("span", { class: "badge uncovered" }, [h("span", { "aria-hidden": "true" }, "⊘"), m.note]) : null,
+          a && a.shared_note ? h("span", { class: "row-meta" }, a.shared_note) : null,
         ],
-      })))],
+      });
+    }))],
   })));
+  fillPrimary();
+  panel.appendChild(primaryBox);
 
   panel.appendChild(h("div", { class: "section" }, h("fieldset", { class: "field-set", "aria-describedby": "hint-scale" }, [
     h("legend", {}, "Facility scale"),
@@ -684,6 +706,26 @@ function resultLabels() {
   };
 }
 
+// Results lead with one authority (Milestone 3): the project's primary
+// authority, or another chosen market picked with the switcher. The switcher
+// only changes what is shown; it never edits the project.
+let viewingAuthority = null;
+
+function authorityOpts(snapshot) {
+  const choices = WizardView.primaryChoices(DATA.authorities, state).map((c) => ({ key: c.key, label: c.label }));
+  const current = choices.some((c) => c.key === viewingAuthority) ? viewingAuthority : state.primaryAuthority;
+  return {
+    view: current ? ResultsModel.forAuthority(snapshot, current, resultLabels()) : null,
+    choices,
+    onSwitch: (key) => {
+      viewingAuthority = key;
+      renderStep4();
+      const pressed = document.querySelector('#step-4 .auth-choice[aria-pressed="true"]');
+      if (pressed && pressed.focus) pressed.focus();
+    },
+  };
+}
+
 function renderStep4() {
   const root = document.getElementById("step-4");
   clear(root);
@@ -692,7 +734,7 @@ function renderStep4() {
   // read-only, until the user re-evaluates (banner in the project bar). It
   // renders through the same ResultsModel/ResultsView as the live page.
   if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
-    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels()));
+    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels(), authorityOpts(CURRENT.results.snapshot)));
     return;
   }
 
@@ -711,8 +753,9 @@ function renderStep4() {
     h("div", { class: "advisory-note" }, "Advisory only — not a regulatory sign-off. Mandatory/Recommended labels marked “draft” and sources marked “pending” are awaiting domain-expert review. “International/industry standard (fallback)” is shown where an authority gives no number, and never counts toward that authority's verdict.")
   );
 
-  const model = ResultsModel.build(ResultsSnapshot.compact(all, state), labels);
-  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, state.targetMarkets, labels), labels }));
+  const compact = ResultsSnapshot.compact(all, state);
+  const model = ResultsModel.build(compact, labels);
+  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, state.targetMarkets, labels), labels, authority: authorityOpts(compact) }));
 
   // The full tables, recommendation text and sources stay available, collapsed.
   const detail = h("div", { class: "full-detail-body" });
@@ -923,7 +966,7 @@ function wireNav() {
     // In a saved project "Start Over" opens a new project rather than
     // blanking this one (a later Save would overwrite it).
     if (CURRENT) return go("#/projects/new");
-    categoryMemory = {};
+    categoryMemory = {}; viewingAuthority = null;
     ProjectState.resetState(state);
     showStep(1, { focus: true });
   });
@@ -1232,7 +1275,7 @@ async function renderProjects(announcement) {
 }
 
 function startNewProject() {
-  categoryMemory = {};
+  categoryMemory = {}; viewingAuthority = null;
   ProjectState.resetState(state);
   roomFilter = "";
   stepErrors = null;
@@ -1253,7 +1296,7 @@ async function openProject(id) {
   }
   if (token !== renderToken) return;
   if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
-  categoryMemory = {};
+  categoryMemory = {}; viewingAuthority = null;
   ProjectState.resetState(state, p.inputs);
   roomFilter = "";
   stepErrors = null;

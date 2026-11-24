@@ -159,3 +159,17 @@ test("retentionInfo: ok → warning 30 days before flagging → flagged with del
   assert.equal(f.deletionDate.toISOString(), "2026-08-15T02:15:00.000Z");
   assert.equal(f.daysLeft, 20);
 });
+
+// A project saved before primary authorities existed, with an authority that
+// has no data among its markets, opens cleanly: the market is dropped, the
+// primary defaults, and the results read as current (not "inconsistent").
+test("get: a legacy save with an authority without data opens as current with a default primary", async () => {
+  const legacyInputs = ProjectState.serializeInputs(filled());
+  legacyInputs.targetMarkets = ["schedule_m", "eu_gmp", "uk_mhra"];
+  delete legacyInputs.primaryAuthority;
+  const row = savedRow({ inputs: legacyInputs, results_snapshot: ResultsSnapshot.buildSnapshot(DATA, legacyInputs, VERSIONS) });
+  const p = await store(fakeClient(() => ({ data: JSON.parse(JSON.stringify(row)), error: null }))).get(row.id);
+  assert.deepEqual(p.inputs.targetMarkets, ["schedule_m", "eu_gmp"]);
+  assert.equal(p.inputs.primaryAuthority, "schedule_m");
+  assert.equal(p.results.status, "current", p.results.reasons.join());
+});

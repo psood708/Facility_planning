@@ -267,3 +267,69 @@ test("switchCategory to the current category changes nothing; restored lists are
   ps.switchCategory(s, "osd_rnd_pilot", memory);
   assert.ok(s.specificForms.includes("Capsule (x)"), "latest choices are what gets remembered");
 });
+
+// ---------------------------------------------------------------- primary authority (Milestone 3)
+
+test("primaryAuthority is a saved input and round-trips", () => {
+  const s = filledState();
+  s.primaryAuthority = "us_fda";
+  const r = ps.validateInputs(JSON.parse(JSON.stringify(ps.serializeInputs(s))), DATA);
+  assert.equal(r.ok, true, r.errors && r.errors.join("\n"));
+  assert.equal(r.inputs.primaryAuthority, "us_fda");
+  assert.equal(ps.defaultState().primaryAuthority, "schedule_m");
+});
+
+test("primaryAuthority must be a known, covered authority that is one of the target markets", () => {
+  assert.match(errorsFor({ ...validInputs(), primaryAuthority: "mars" }), /primaryAuthority/);
+  assert.match(errorsFor({ ...validInputs(), primaryAuthority: "uk_mhra" }), /primaryAuthority/);
+  assert.match(errorsFor({ ...validInputs(), primaryAuthority: "eu_gmp" }), /primaryAuthority/); // not a target market here
+});
+
+test("older saves without primaryAuthority default to the first covered target market", () => {
+  const raw = validInputs();
+  delete raw.primaryAuthority;
+  assert.equal(ps.validateInputs({ ...raw, targetMarkets: ["us_fda", "schedule_m"] }, DATA).inputs.primaryAuthority, "us_fda");
+  assert.equal(ps.validateInputs({ ...raw, targetMarkets: [] }, DATA).inputs.primaryAuthority, null);
+});
+
+test("authorities without data are dropped from older saves, never rejected; unknown ones still are", () => {
+  const raw = validInputs();
+  delete raw.primaryAuthority;
+  const r = ps.validateInputs({ ...raw, targetMarkets: ["uk_mhra", "schedule_m", "sfda"] }, DATA);
+  assert.equal(r.ok, true, r.errors && r.errors.join("\n"));
+  assert.deepEqual(r.inputs.targetMarkets, ["schedule_m"]);
+  assert.equal(r.inputs.primaryAuthority, "schedule_m");
+  assert.match(errorsFor({ ...validInputs(), targetMarkets: ["mars"] }), /mars/);
+});
+
+test("ensurePrimary keeps a still-selected choice, picks the only market, otherwise asks", () => {
+  const s = filledState(); // markets schedule_m + us_fda, primary schedule_m
+  ps.ensurePrimary(s);
+  assert.equal(s.primaryAuthority, "schedule_m");
+  s.targetMarkets = ["us_fda", "eu_gmp"];
+  ps.ensurePrimary(s);
+  assert.equal(s.primaryAuthority, null, "primary removed and several remain: the planner chooses");
+  s.targetMarkets = ["eu_gmp"];
+  ps.ensurePrimary(s);
+  assert.equal(s.primaryAuthority, "eu_gmp", "a single market is the obvious primary");
+});
+
+test("an explicit null primary (planner hasn't chosen yet) is kept; only a missing key gets the default", () => {
+  const r = ps.validateInputs({ ...validInputs(), targetMarkets: ["schedule_m", "us_fda"], primaryAuthority: null }, DATA);
+  assert.equal(r.ok, true, r.errors && r.errors.join("\n"));
+  assert.equal(r.inputs.primaryAuthority, null);
+});
+
+test("an older save whose markets all lack data loads with no markets and no primary", () => {
+  const raw = validInputs();
+  delete raw.primaryAuthority;
+  const r = ps.validateInputs({ ...raw, targetMarkets: ["uk_mhra", "sahpra"] }, DATA);
+  assert.equal(r.ok, true, r.errors && r.errors.join("\n"));
+  assert.deepEqual([r.inputs.targetMarkets, r.inputs.primaryAuthority], [[], null]);
+});
+
+test("non-string market entries are errors, never silently dropped; long bad values are not echoed in full", () => {
+  assert.match(errorsFor({ ...validInputs(), targetMarkets: [["uk_mhra"], "schedule_m"] }), /targetMarkets/);
+  const msg = errorsFor({ ...validInputs(), primaryAuthority: "x".repeat(500) });
+  assert.ok(msg.length < 200, `error message is ${msg.length} chars`);
+});

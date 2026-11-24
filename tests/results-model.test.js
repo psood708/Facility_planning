@@ -195,3 +195,61 @@ test("numericGaps: fallback-only miss is 'advisory', not a failure", () => {
   const temp = model.numericGaps(rows, s.targetMarkets, LABELS).find((x) => x.id === "THR-001-Z-29");
   assert.equal(temp.state, "advisory");
 });
+
+// ---------------------------------------------------------------- one authority (Milestone 3)
+
+const STATUSES = ["pass", "fail", "not_covered", "no_value"];
+
+test("forAuthority: per room, per requirement status against one authority only", () => {
+  const a = model.forAuthority(compactOf(demo()), "schedule_m", LABELS);
+  assert.equal(a.key, "schedule_m");
+  assert.equal(a.label, LABELS.market("schedule_m"));
+  assert.equal(a.rooms[0].room, null, "facility-level requirements come first");
+  assert.equal(a.rooms[0].label, "Facility");
+  const rows = a.rooms.flatMap((r) => r.rows);
+  for (const r of rows) assert.ok(STATUSES.includes(r.status), r.status);
+  assert.equal(rows.length, STATUSES.reduce((n, k) => n + a.counts[k], 0));
+  const area = a.rooms.find((r) => r.room === "Z-29").rows.find((r) => /Area/i.test(r.label));
+  assert.equal(area.status, "fail", "120 m² is below Schedule M's 150 m²");
+});
+
+test("forAuthority: each status appears with real engine output", () => {
+  const failing = model.forAuthority(compactOf(demo()), "schedule_m", LABELS).counts;
+  assert.ok(failing.fail > 0 && failing.not_covered > 0 && failing.no_value > 0, JSON.stringify(failing));
+  const passing = model.forAuthority(compactOf(demo({ roomValues: { "Z-29": { "DIM-001": 200, "HVAC-001": "Grade A (ISO 5)" } } })), "schedule_m", LABELS).counts;
+  assert.ok(passing.pass > 0, JSON.stringify(passing));
+});
+
+test("forAuthority: 'sets no figure' and 'no data' both read Not covered, with the reason kept", () => {
+  const snapshot = {
+    rollup: { schedule_m: "Partial" },
+    evaluations: [
+      { room: null, param: "UTIL-001", threshold: "T1", markets: { schedule_m: { status: "not_regulated", fallback: "non_compliant" } } },
+      { room: null, param: "UTIL-002", threshold: "T2", markets: { schedule_m: { status: "not_covered", fallback: null } } },
+    ],
+    checklist: [{ room: null, threshold: "THR-B03", status: "compliant" }],
+  };
+  const rows = model.forAuthority(snapshot, "schedule_m", LABELS).rooms[0].rows;
+  // Passes sort before gaps in the data; the two Not covered rows keep their order and reasons.
+  assert.deepEqual(rows.map((r) => [r.status, r.reason]), [["pass", null], ["not_covered", "no_figure"], ["not_covered", "no_data"]]);
+  assert.equal(rows[1].advisory, "fail", "the international standard is kept as advisory, never as the status");
+});
+
+test("forAuthority: an authority outside the results gives null; the saved view gives the same answer", () => {
+  const c = compactOf(demo());
+  assert.equal(model.forAuthority(c, "japan_pmda", LABELS), null);
+  assert.deepEqual(model.forAuthority(JSON.parse(JSON.stringify(c)), "us_fda", LABELS), model.forAuthority(c, "us_fda", LABELS));
+});
+
+test("forAuthority: within each room, failures come first, then passes, then no value, then not covered", () => {
+  const rank = { fail: 0, pass: 1, no_value: 2, not_covered: 3 };
+  for (const room of model.forAuthority(compactOf(demo()), "schedule_m", LABELS).rooms) {
+    const ranks = room.rows.map((r) => rank[r.status]);
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b), room.label);
+  }
+});
+
+test("forAuthority: an unexpected saved fallback value never shows as advisory", () => {
+  const snapshot = { rollup: { schedule_m: "Partial" }, evaluations: [{ room: null, param: "UTIL-001", threshold: "T1", markets: { schedule_m: { status: "not_regulated", fallback: "constructor" } } }] };
+  assert.equal(model.forAuthority(snapshot, "schedule_m", LABELS).rooms[0].rows[0].advisory, null);
+});

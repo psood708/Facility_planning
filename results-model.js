@@ -211,5 +211,34 @@
     return out;
   }
 
-  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps };
+  // One authority (Milestone 3): every requirement, room by room, with that
+  // authority's status as Pass / Fail / Not covered / No value. "Not covered"
+  // keeps its reason: the authority sets no figure, or the dataset has no data.
+  // An international-standard (fallback) result is kept as advisory only.
+  const ONE = { compliant: ["pass", null], non_compliant: ["fail", null], not_regulated: ["not_covered", "no_figure"], not_covered: ["not_covered", "no_data"], no_value: ["no_value", null] };
+  const ADVISORY = { compliant: "pass", non_compliant: "fail" };
+  const hasKey = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+
+  function forAuthority(snapshot, mk, labels) {
+    const sn = snapshot || {};
+    const inResults = hasKey(sn.rollup, mk) || (sn.evaluations || []).some((e) => e.markets && hasKey(e.markets, mk));
+    if (!inResults) return null;
+    const L = { market: label(labels, "market"), room: label(labels, "room"), param: label(labels, "param"), threshold: label(labels, "threshold") };
+    const counts = { pass: 0, fail: 0, not_covered: 0, no_value: 0 };
+    const groups = new Map([[null, []]]);
+    for (const c of checksOf(sn, [mk], L)) {
+      const [status, reason] = ONE[c.status[mk]] || ONE.no_value;
+      counts[status] += 1;
+      if (!groups.has(c.room)) groups.set(c.room, []);
+      groups.get(c.room).push({ id: c.id, label: c.label, status, reason, advisory: hasKey(ADVISORY, c.fallback[mk]) ? ADVISORY[c.fallback[mk]] : null });
+    }
+    // What needs action first: failures, then passes, then gaps in the data.
+    const RANK = { fail: 0, pass: 1, no_value: 2, not_covered: 3 };
+    const byStatus = (rows) => rows.map((r, i) => [r, i]).sort((x, y) => RANK[x[0].status] - RANK[y[0].status] || x[1] - y[1]).map(([r]) => r);
+    const rooms = [...groups].filter(([, rows]) => rows.length).map(([room, rows]) => ({ room, label: room === null ? "Facility" : L.room(room), rows: byStatus(rows) }));
+    const verdict = (sn.rollup || {})[mk] || null;
+    return { key: mk, label: L.market(mk), verdict, verdictKey: verdict ? VERDICT_KEY[verdict] || "insufficient" : null, counts, rooms };
+  }
+
+  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps, forAuthority };
 });

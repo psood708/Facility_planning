@@ -140,3 +140,32 @@ test("selection and filter texts", () => {
   assert.equal(wv.filterText(4, 36), "Showing 4 of 36 rooms");
   assert.equal(wv.filterText(0, 36), "No rooms match this filter");
 });
+
+// ---------------------------------------------------------------- primary authority (Milestone 3)
+
+const AUTHS = [
+  { key: "schedule_m", label: "India — Schedule M", covered: true },
+  { key: "us_fda", label: "US FDA", covered: true },
+  { key: "uk_mhra", label: "UK MHRA", covered: false },
+];
+
+test("stepIssues: with markets chosen, step 1 needs a primary authority among them", () => {
+  const base = { category: "sterile", specificForms: ["Implant"], targetMarkets: ["schedule_m", "us_fda"] };
+  const missing = wv.stepIssues(1, makeState({ ...base, primaryAuthority: null }));
+  assert.deepEqual(missing.map((i) => i.field), ["primaryAuthority"]);
+  assert.match(missing[0].message, /primary authority/i);
+  assert.deepEqual(wv.stepIssues(1, makeState({ ...base, primaryAuthority: "eu_gmp" })).map((i) => i.field), ["primaryAuthority"]);
+  assert.deepEqual(wv.stepIssues(1, makeState({ ...base, primaryAuthority: "us_fda" })), []);
+  assert.deepEqual(wv.stepIssues(1, makeState({ ...base, targetMarkets: [], primaryAuthority: null })).map((i) => i.field), ["targetMarkets"]);
+});
+
+test("marketChoices: authorities without data are listed but disabled with 'No data yet'", () => {
+  const c = wv.marketChoices(AUTHS, makeState({ targetMarkets: ["schedule_m"] }));
+  assert.deepEqual(c.map((x) => [x.key, x.checked, x.disabled]), [["schedule_m", true, false], ["us_fda", false, false], ["uk_mhra", false, true]]);
+  assert.equal(c[2].note, "No data yet");
+});
+
+test("primaryChoices: only covered target markets can be the primary authority", () => {
+  const c = wv.primaryChoices(AUTHS, makeState({ targetMarkets: ["us_fda", "uk_mhra", "schedule_m"], primaryAuthority: "us_fda" }));
+  assert.deepEqual(c.map((x) => [x.key, x.checked]), [["schedule_m", false], ["us_fda", true]]);
+});
