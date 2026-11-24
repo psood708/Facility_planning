@@ -66,6 +66,28 @@ function h(tag, attrs = {}, children = []) {
   return el;
 }
 
+// SVG counterpart of h() for the results charts. Same rules: no "html", no
+// string event handlers, and no inline "style" (blocked by the CSP — colour
+// comes from CSS classes; geometry from SVG attributes).
+const SVG_NS = "http://www.w3.org/2000/svg";
+function s(tag, attrs = {}, children = []) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined) continue;
+    if (k === "html") throw new Error('s(): "html" is not supported; pass text or elements as children');
+    if (k === "style") throw new Error('s(): inline "style" is blocked by the CSP; use a class');
+    if (k.startsWith("on")) {
+      if (typeof v !== "function") throw new Error(`s(): ${k} must be a function, not a string`);
+      el.addEventListener(k.slice(2), v);
+    } else el.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach((c) => {
+    if (c === null || c === undefined || c === false) return;
+    el.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+
 function clear(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
@@ -655,46 +677,57 @@ function fallbackBlock(fallback) {
   ]);
 }
 
+// Labels for ResultsModel: ids in the compact snapshot -> display names.
+function resultLabels() {
+  return {
+    market: marketLabel,
+    room: (id) => (DATA.roomById[id] || {}).name || id,
+    param: (id) => (DATA.paramById[id] || {}).name || (id === "DIM-001-area" ? "Room Net Area" : id),
+    threshold: (id) => (DATA.boolean_thresholds.find((b) => b.id === id) || {}).parameter_name || id,
+  };
+}
+
 function renderStep4() {
   const root = document.getElementById("step-4");
   clear(root);
 
   // A saved project whose data/engine changed shows its results as saved,
-  // read-only, until the user re-evaluates (banner in the project bar).
+  // read-only, until the user re-evaluates (banner in the project bar). It
+  // renders through the same ResultsModel/ResultsView as the live page.
   if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
-    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, CURRENT.results.snapshot, marketLabel));
+    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels()));
     return;
   }
 
-  const { rows, booleanRows, rollup, recommendations: recs, structural } = FacilityEngine.evaluateAll(DATA, state);
+  const all = FacilityEngine.evaluateAll(DATA, state);
+  const { rows, booleanRows, recommendations: recs, structural } = all;
+  const labels = resultLabels();
 
-  const panel = h("div", { class: "panel" });
+  const panel = h("div", { class: "panel results-panel" });
   panel.appendChild(h("h2", {}, "Step 4 — Compliance Results"));
 
   structural.forEach((f) => {
     panel.appendChild(h("div", { class: "structural-banner" }, [h("strong", {}, "Regulatory vacuum flagged"), f.message]));
   });
 
-  panel.appendChild(h("h3", {}, "Which frameworks does this facility qualify under?"));
-  const marketGrid = h("div", { class: "market-summary-grid" });
-  state.targetMarkets.forEach((mk) => {
-    const status = rollup[mk];
-    const cls = { Compliant: "overall-compliant", Partial: "overall-partial", "Non-Compliant": "overall-noncompliant", "Insufficient Data": "overall-insufficient", "Not Covered by Dataset": "overall-notcovered" }[status];
-    marketGrid.appendChild(h("div", { class: "market-summary-card " + cls }, [h("div", { class: "market-name" }, marketLabel(mk)), h("div", {}, status)]));
-  });
-  panel.appendChild(marketGrid);
-
   panel.appendChild(
     h("div", { class: "advisory-note" }, "Advisory only — not a regulatory sign-off. Mandatory/Recommended labels marked “draft” and sources marked “pending” are awaiting domain-expert review. “International/industry standard (fallback)” is shown where an authority gives no number, and never counts toward that authority's verdict.")
   );
 
-  panel.appendChild(h("h3", {}, "Recommended Modifications"));
+  const model = ResultsModel.build(ResultsSnapshot.compact(all, state), labels);
+  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, state.targetMarkets, labels), labels }));
+
+  // The full tables, recommendation text and sources stay available, collapsed.
+  const detail = h("div", { class: "full-detail-body" });
+  panel.appendChild(h("details", { class: "full-detail" }, [h("summary", {}, "Full detail — every check, recommendation text and source"), detail]));
+
+  detail.appendChild(h("h3", {}, "Recommended Modifications"));
   if (!recs.length) {
-    panel.appendChild(h("p", { class: "empty-hint" }, "No non-compliant parameters found among selected markets — either everything entered checks out, or no values have been entered yet."));
+    detail.appendChild(h("p", { class: "empty-hint" }, "No non-compliant parameters found among selected markets — either everything entered checks out, or no values have been entered yet."));
   } else {
     recs.forEach((r) => {
       const isFallback = r.basis === "fallback";
-      panel.appendChild(
+      detail.appendChild(
         h("div", { class: "recommendation rec-" + r.severity.toLowerCase() + (isFallback ? " rec-fallback" : "") }, [
           h("div", { class: "rec-title" }, [
             h("span", { class: "severity-tag " + severityTagClass(r.severity) }, r.severity),
@@ -708,7 +741,7 @@ function renderStep4() {
     });
   }
 
-  panel.appendChild(h("h3", {}, "Detailed Parameter Status"));
+  detail.appendChild(h("h3", {}, "Detailed Parameter Status"));
   const tableScroll = h("div", { class: "table-scroll" });
   const table = h("table", { class: "results-table" });
   const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(state.targetMarkets.map((mk) => h("th", {}, marketLabel(mk)))));
@@ -746,10 +779,10 @@ function renderStep4() {
   });
   table.appendChild(tbody);
   tableScroll.appendChild(table);
-  panel.appendChild(tableScroll);
+  detail.appendChild(tableScroll);
 
   if (booleanRows.length) {
-    panel.appendChild(h("h3", {}, "Required-Feature Checklist"));
+    detail.appendChild(h("h3", {}, "Required-Feature Checklist"));
     const btable = h("table", { class: "results-table" });
     btable.appendChild(h("thead", {}, h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Feature"), h("th", {}, "Entered"), h("th", {}, "Severity"), h("th", {}, "Status"), h("th", {}, "Requirement & source")])));
     const btbody = h("tbody");
@@ -766,7 +799,7 @@ function renderStep4() {
       );
     });
     btable.appendChild(btbody);
-    panel.appendChild(h("div", { class: "table-scroll" }, btable));
+    detail.appendChild(h("div", { class: "table-scroll" }, btable));
   }
 
   const scoredIds = new Set(
@@ -776,11 +809,11 @@ function renderStep4() {
   );
   const infoParams = relevantParams().filter((p) => !scoredIds.has(p.id));
   if (infoParams.length) {
-    panel.appendChild(h("h3", {}, "Captured, Not Auto-Checked (free text / no comparable regulatory value in this dataset)"));
+    detail.appendChild(h("h3", {}, "Captured, Not Auto-Checked (free text / no comparable regulatory value in this dataset)"));
     const selectedRoomsForInfo = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
     infoParams.forEach((p) => {
       const renderCard = (label, val) =>
-        panel.appendChild(
+        detail.appendChild(
           h("div", { class: "info-card" }, [
             h("span", { class: "info-label" }, label + ": "),
             h("span", {}, val === null || val === undefined || val === "" ? "(not entered)" : typeof val === "object" ? JSON.stringify(val) : String(val)),

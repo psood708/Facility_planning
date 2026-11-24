@@ -175,17 +175,27 @@ test("resultsNotice: inconsistent → explains that current results are shown", 
 
 // ---------------------------------------------------------------- read-only snapshot
 
-test("snapshotSummary: per-market verdicts and findings by severity, read-only", () => {
+test("snapshotSummary: the saved snapshot renders through the same charts, read-only", () => {
   const snap = {
     rollup: { schedule_m: "Partial", eu_gmp: "Non-Compliant" },
-    recommendations: [{ id: "a", severity: "Critical" }, { id: "b", severity: "Significant" }, { id: "c", severity: "Significant" }],
-    evaluations: [], checklist: [], structural: [],
+    evaluations: [
+      { room: "Z-29", param: "HVAC-001", threshold: "GRADE-Z-29", markets: { schedule_m: { status: "non_compliant", fallback: null }, eu_gmp: { status: "non_compliant", fallback: null } } },
+      { room: null, param: "UTIL-001", threshold: "THR-018", markets: { schedule_m: { status: "not_regulated", fallback: "non_compliant" }, eu_gmp: { status: "non_compliant", fallback: null } } },
+    ],
+    checklist: [],
+    recommendations: [{ id: "GRADE-Z-29-Z-29", severity: "Significant" }, { id: "THR-018", severity: "Critical" }],
+    structural: [],
   };
-  const n = view.snapshotSummary(h, snap, (mk) => ({ schedule_m: "India — Schedule M", eu_gmp: "EU GMP" })[mk]);
+  const labels = { market: (mk) => ({ schedule_m: "India — Schedule M", eu_gmp: "EU GMP" })[mk], room: () => "Filling", param: (id) => id };
+  const n = view.snapshotSummary(h, h, snap, labels);
   const t = text(n);
-  assert.match(t, /India — Schedule M\s+Partial/);
-  assert.match(t, /EU GMP\s+Non-Compliant/);
-  assert.match(t, /Critical\s+1/);
-  assert.match(t, /Significant\s+2/);
+  assert.match(t, /Results as saved/);
+  assert.match(t, /India — Schedule M/);
+  assert.match(t, /Partial/);
+  assert.match(t, /EU GMP/);
+  assert.match(t, /Non-compliant/);
+  assert.match(t, /1 critical/);
+  assert.match(t, /Detailed numeric comparison is available after re-evaluating/);
+  assert.equal(all(n, byClass("scorecard")).length, 2);
   assert.equal(find(n, (x) => x.tag === "input" || x.tag === "select"), null);
 });

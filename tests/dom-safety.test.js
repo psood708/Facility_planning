@@ -11,7 +11,7 @@ const vm = require("node:vm");
 const ROOT = path.join(__dirname, "..");
 // Load order matches index.html (minus the vendored client and config.js:
 // without them the app runs wizard-only, which is what this harness renders).
-const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "store.js", "router.js", "auth.js", "projects-view.js", "app.js"];
+const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "results-model.js", "results-view.js", "store.js", "router.js", "auth.js", "projects-view.js", "app.js"];
 
 test("browser scripts contain no HTML-parsing sinks (R8)", () => {
   const sinks = /\b(innerHTML|outerHTML|insertAdjacentHTML|document\.write|createContextualFragment|srcdoc)\b|\beval\s*\(|\bnew Function\s*\(/;
@@ -40,6 +40,7 @@ function loadApp() {
   const els = {};
   const document = {
     createElement: (t) => new El(t),
+    createElementNS: (ns, t) => Object.assign(new El(t), { namespaceURI: ns }),
     createTextNode: (t) => new Text_(t),
     getElementById: (id) => (els[id] = els[id] || new El("div")),
     querySelectorAll: () => [],
@@ -50,7 +51,7 @@ function loadApp() {
   ctx.self = ctx;
   vm.createContext(ctx);
   for (const f of BROWSER_SCRIPTS) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
-  return vm.runInContext("({ h })", ctx);
+  return vm.runInContext("({ h, s })", ctx);
 }
 
 const XSS = '<img src=x onerror="alert(1)">';
@@ -73,4 +74,21 @@ test("h() has no html attribute: passing one is an error, not markup", () => {
 test("h() refuses event-handler attributes given as strings", () => {
   const { h } = loadApp();
   assert.throws(() => h("img", { onerror: "alert(1)" }), /onerror/);
+});
+
+test("s() builds SVG elements in the SVG namespace with text as text nodes", () => {
+  const { s } = loadApp();
+  const el = s("text", { x: 4, y: 10, class: "lbl" }, XSS);
+  assert.equal(el.namespaceURI, "http://www.w3.org/2000/svg");
+  assert.equal(el.attrs.x, "4");
+  assert.equal(el.attrs.class, "lbl");
+  assert.equal(el.children[0].nodeType, 3);
+  assert.equal(el.children[0].data, XSS);
+});
+
+test("s() refuses html, inline style and string event handlers (CSP / R8)", () => {
+  const { s } = loadApp();
+  assert.throws(() => s("g", { html: XSS }), /html/);
+  assert.throws(() => s("rect", { style: "fill:red" }), /style/);
+  assert.throws(() => s("rect", { onclick: "alert(1)" }), /onclick/);
 });

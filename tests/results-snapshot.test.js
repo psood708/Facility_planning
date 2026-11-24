@@ -84,3 +84,11 @@ test("no stored snapshot: current versions recompute; old versions need re-evalu
   assert.equal(old.status, "stale");
   assert.equal(old.snapshot, null);
 });
+
+test("compact(all, state) is the snapshot body without version fields (shared by the results page)", () => {
+  const s = state();
+  const sn = snap.buildSnapshot(DATA, s, VERSIONS);
+  const body = snap.compact(engine.evaluateAll(DATA, s), s);
+  const { snapshot_version, data_hash, engine_version, ...rest } = sn;
+  assert.deepEqual(body, rest);
+});
