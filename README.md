@@ -63,7 +63,8 @@ For the browser tests, set `CHROME_PATH`, or run `npx playwright install chromiu
 
 ## Reading the results page
 
-- **Summary first:** how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
+- **Your primary authority first:** chosen in Step 1 from the covered markets you selected. One table per room lists every requirement as ✓ Pass, ✗ Fail, ⊘ Not covered (the authority sets no figure, or the dataset has no data) or ? No value, failures first. Buttons switch to another chosen authority without changing the project. Authorities without data (UK MHRA, TGA, SAHPRA, SFDA) are shown in Step 1 as "No data yet" and can't be chosen.
+- **Then the comparison with other authorities.** Summary: how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
 - **One strip per authority:** verdict (icon and word), a bar of check counts (met, not met, no value, not regulated) and gaps by severity. The verdict comes from the worst gap, not from the bar.
 - **What to fix first:** fixes ranked by how many authorities each one satisfies, then by severity. International-standard (advisory) fixes are listed separately and never count toward a verdict.
 - **Room by authority:** where the gaps are, rooms sorted by number of gaps.
