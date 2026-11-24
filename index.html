@@ -4,12 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Facility Compliance Interface — Prototype</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div id="app">
   <header class="app-header">
-    <h1>Facility Compliance Interface <span class="version-tag">prototype v1</span></h1>
+    <div class="header-top">
+      <h1>Facility Compliance Interface <span class="version-tag">prototype v1</span></h1>
+      <nav id="account-bar" class="account-bar" hidden></nav>
+    </div>
     <p class="subtitle">Enter your facility's design parameters and see which regulatory frameworks it satisfies — and exactly what to change where it doesn't.</p>
     <ol class="step-indicator" id="step-indicator">
       <li data-step="1">1. Classification</li>
@@ -20,25 +24,35 @@
   </header>
 
   <main id="main">
+    <section id="view-signin" class="view" hidden></section>
+    <section id="view-projects" class="view" hidden></section>
+    <section id="view-message" class="view" hidden></section>
+    <div id="view-wizard">
+    <div id="project-bar" hidden></div>
     <section id="step-1" class="step"></section>
     <section id="step-2" class="step" hidden></section>
     <section id="step-3" class="step" hidden></section>
     <section id="step-4" class="step" hidden></section>
+    </div>
   </main>
 
   <footer class="app-footer">
     <div class="footer-note">Data source: <em>Facility_Compliance_Parameter_Schema.xlsx</em> — a prototype rules engine, not a validated regulatory tool.</div>
-    <div class="nav-buttons">
+    <div class="nav-buttons" id="wizard-nav">
       <button id="btn-back" type="button">Back</button>
       <button id="btn-next" type="button">Next</button>
       <button id="btn-restart" type="button" class="secondary" hidden>Start Over</button>
     </div>
   </footer>
 </div>
+<script src="vendor/supabase-js-2.119.0.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O"></script>
+<script src="config.js"></script>
 <script src="engine.js"></script>
 <script src="project-state.js"></script>
 <script src="results-snapshot.js"></script>
 <script src="store.js"></script>
+<script src="router.js"></script>
+<script src="auth.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

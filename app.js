@@ -705,13 +705,189 @@ function wireNav() {
 }
 
 // ---------------------------------------------------------------------
+// Accounts, routing and views
+// ---------------------------------------------------------------------
+
+let SB = null; // supabase-js client; null when config.js is absent (wizard only, no saving)
+let AUTH = null;
+let SESSION = null;
+let AUTH_LINK_ERROR = false; // the email link that opened the app was invalid or expired
+let currentView = null;
+
+const VIEWS = ["view-signin", "view-projects", "view-message", "view-wizard"];
+
+function showView(id) {
+  currentView = id;
+  VIEWS.forEach((v) => (document.getElementById(v).hidden = v !== id));
+  const wizard = id === "view-wizard";
+  document.getElementById("step-indicator").hidden = !wizard;
+  document.getElementById("wizard-nav").hidden = !wizard;
+}
+
+function go(hash) {
+  if (window.location.hash === hash) render();
+  else window.location.hash = hash; // triggers render via hashchange
+}
+
+function setNotice(el, text, isError) {
+  clear(el);
+  el.appendChild(document.createTextNode(text));
+  el.className = "notice" + (isError ? " notice-error" : " notice-ok");
+  el.hidden = false;
+}
+
+function render() {
+  const route = Router.routeFor(window.location.hash, { configured: !!SB, signedIn: !!SESSION });
+  renderAccountBar();
+  switch (route.name) {
+    case "wizard-only":
+      if (currentView !== "view-wizard") { showView("view-wizard"); showStep(state.step); }
+      return;
+    case "signin":
+      return renderSignIn();
+    case "projects":
+      return renderProjects();
+    case "new":
+      ProjectState.resetState(state);
+      showView("view-wizard");
+      return showStep(1);
+    case "project":
+      return openProject(route.id);
+    default:
+      return renderMessage("Page not found", "That address doesn't match anything in the app.");
+  }
+}
+
+function renderAccountBar() {
+  const bar = document.getElementById("account-bar");
+  clear(bar);
+  if (!SB) {
+    bar.appendChild(h("span", { class: "account-note" }, "Saving is off — no account service configured"));
+    bar.hidden = false;
+    return;
+  }
+  if (!SESSION) { bar.hidden = true; return; }
+  bar.appendChild(h("a", { href: "#/projects" }, "My projects"));
+  bar.appendChild(h("span", { class: "account-email" }, SESSION.user.email || ""));
+  bar.appendChild(
+    h("button", {
+      type: "button",
+      class: "secondary small",
+      onclick: async () => {
+        await AUTH.signOut().catch(() => {});
+        SESSION = null;
+        go("#/signin");
+      },
+    }, "Sign out")
+  );
+  bar.hidden = false;
+}
+
+const SIGNIN_MESSAGES = {
+  ok: "Check your inbox — a sign-in link is on its way. It works once and expires after 1 hour.",
+  invalid_email: "Enter a valid email address.",
+  rate_limited: "Too many requests. Wait a minute, then try again.",
+  network: "Couldn't reach the server. Check your connection and try again.",
+};
+
+function renderSignIn() {
+  const root = document.getElementById("view-signin");
+  clear(root);
+  showView("view-signin");
+  const panel = h("div", { class: "panel narrow-panel" });
+  panel.appendChild(h("h2", {}, "Sign in"));
+  panel.appendChild(h("p", { class: "field-hint" }, "We'll email you a one-time sign-in link — no password needed. Your saved projects are private to your account."));
+  if (AUTH_LINK_ERROR) {
+    panel.appendChild(h("div", { class: "notice notice-error", role: "alert" }, "That sign-in link has expired or was already used. Request a new one below."));
+  }
+  const status = h("div", { class: "notice", role: "status", hidden: "hidden" });
+  const input = h("input", { type: "email", id: "signin-email", name: "email", autocomplete: "email", required: "required", maxlength: "254", placeholder: "you@company.com" });
+  const button = h("button", { type: "submit" }, "Email me a sign-in link");
+  const form = h(
+    "form",
+    {
+      class: "signin-form",
+      novalidate: "novalidate",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        button.disabled = true;
+        const r = await AUTH.sendLink(input.value).catch(() => ({ ok: false, reason: "network" }));
+        button.disabled = false;
+        setNotice(status, SIGNIN_MESSAGES[r.ok ? "ok" : r.reason] || SIGNIN_MESSAGES.network, !r.ok);
+      },
+    },
+    [h("div", { class: "field-block" }, [h("label", { for: "signin-email" }, "Work email"), input]), button]
+  );
+  panel.appendChild(form);
+  panel.appendChild(status);
+  root.appendChild(panel);
+  input.focus && input.focus();
+}
+
+function renderMessage(title, text) {
+  const root = document.getElementById("view-message");
+  clear(root);
+  showView("view-message");
+  root.appendChild(
+    h("div", { class: "panel narrow-panel" }, [
+      h("h2", {}, title),
+      h("p", {}, text),
+      SB && SESSION ? h("a", { href: "#/projects" }, "Back to my projects") : null,
+    ])
+  );
+}
+
+function renderProjects() {
+  const root = document.getElementById("view-projects");
+  clear(root);
+  showView("view-projects");
+  root.appendChild(
+    h("div", { class: "panel" }, [
+      h("h2", {}, "Your projects"),
+      h("button", { type: "button", onclick: () => go("#/projects/new") }, "New project"),
+    ])
+  );
+}
+
+function openProject(id) {
+  renderMessage("Opening project…", `Project ${id}`);
+}
+
+async function initAccounts() {
+  const cfg = window.APP_CONFIG;
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase) return;
+  const href = window.location.href;
+  AUTH_LINK_ERROR = /[?&#]error(_code)?=/.test(href);
+  SB = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+    // PKCE: the email link comes back with a one-time ?code=, never tokens in the URL.
+    auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+  });
+  AUTH = Auth.createAuth({ client: SB, location: window.location });
+  try {
+    const { data, error } = await SB.auth.getSession(); // completes an email-link sign-in if ?code= is present
+    if (error) AUTH_LINK_ERROR = true;
+    SESSION = (data && data.session) || null;
+  } finally {
+    const clean = Router.scrubAuthParams(href); // R15: no codes or tokens left in the address bar
+    if (clean !== href) window.history.replaceState(null, "", clean);
+  }
+  SB.auth.onAuthStateChange((_event, session) => {
+    const changed = !!session !== !!SESSION;
+    SESSION = session;
+    if (changed) setTimeout(render, 0); // never call back into supabase-js inside this callback
+  });
+}
+
+// ---------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------
 
 async function init() {
   DATA = await loadData();
   wireNav();
-  showStep(1);
+  await initAccounts();
+  window.addEventListener("hashchange", render);
+  render();
 }
 
 init();

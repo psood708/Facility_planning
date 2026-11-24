@@ -385,3 +385,20 @@ details.threshold-detail { margin-top: 4px; }
 .conflict-note { margin-top: 4px; font-size: 0.74rem; color: var(--significant); }
 .recommendation.rec-fallback { border-style: dashed; background: var(--panel); }
 .advisory-note { margin: 10px 0 4px; padding: 8px 10px; font-size: 0.8rem; color: var(--ink-soft); background: var(--neutral-bg); border-radius: var(--radius); }
+
+/* ---------------------------------------------------------------- accounts */
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.account-bar { display: flex; align-items: center; gap: 12px; font-size: 0.86rem; }
+.account-bar a { color: var(--accent-dark); font-weight: 600; }
+.account-email { color: var(--ink-soft); overflow-wrap: anywhere; }
+.account-note { color: var(--ink-soft); font-style: italic; }
+button.small { padding: 4px 10px; font-size: 0.8rem; }
+.narrow-panel { max-width: 520px; margin-left: auto; margin-right: auto; }
+.signin-form { display: flex; flex-direction: column; gap: 12px; margin: 12px 0; }
+.signin-form input[type="email"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.notice { padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; background: var(--neutral-bg); }
+.notice-ok { background: var(--aligned-bg); color: var(--aligned); }
+.notice-error { background: var(--critical-bg); color: var(--critical); }
+
+/* The hidden attribute must win over component display rules (views, nav, step bar). */
+[hidden] { display: none !important; }

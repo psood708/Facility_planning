@@ -9,7 +9,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const ROOT = path.join(__dirname, "..");
-const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "store.js", "app.js"];
+// Load order matches index.html (minus the vendored client and config.js:
+// without them the app runs wizard-only, which is what this harness renders).
+const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "store.js", "router.js", "auth.js", "app.js"];
 
 test("browser scripts contain no HTML-parsing sinks (R8)", () => {
   const sinks = /\b(innerHTML|outerHTML|insertAdjacentHTML|document\.write|createContextualFragment|srcdoc)\b|\beval\s*\(|\bnew Function\s*\(/;
@@ -43,7 +45,8 @@ function loadApp() {
     querySelectorAll: () => [],
   };
   const fetch = async (url) => ({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(ROOT, url), "utf8")) });
-  const ctx = { document, fetch, window: { scrollTo() {} }, alert() {}, console, setTimeout };
+  const window = { scrollTo() {}, addEventListener() {}, location: { hash: "", href: "http://127.0.0.1:8000/" }, history: { replaceState() {} } };
+  const ctx = { document, fetch, window, alert() {}, console, setTimeout };
   ctx.self = ctx;
   vm.createContext(ctx);
   for (const f of BROWSER_SCRIPTS) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
