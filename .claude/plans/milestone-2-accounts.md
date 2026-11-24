@@ -26,7 +26,7 @@ PRD: `.claude/prds/pharma-facility-compliance-platform.prd.md#step-2` · Branch:
 | T9 | Auth UI (magic link) + router, vendored supabase-js + SRI, `config.js` (public URL + anon key only) | routeFor(); no tokens in URLs (R15) | no | done |
 | T10 | Projects UI: list/new/open/save, stale banner, deletion highlighting | DB round trip; pure render tests for each retention state | partly | done |
 | T11 | `.env.example`, `.gitignore`, `vercel.json` headers | secret scan (R20); CSP checks (R13) | no | done |
-| T12 | README + PRD update (retention rule, email limitation) | — | — | pending |
+| T12 | README + PRD update (retention rule, email limitation) | — | — | done |
 
 ## Out of scope
 Team collaboration; warning emails; report export; server-side engine; SSO/MFA; auto-recompute of old snapshots.

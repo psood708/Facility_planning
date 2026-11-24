@@ -2,7 +2,7 @@
 // Secret scan (R20). Looks for secret *values*, not just words:
 //   - JWTs whose payload has role "service_role"
 //   - Supabase secret keys (sb_secret_<value>)
-//   - database URLs with a password (postgres://user:pass@host)
+//   - Postgres connection URLs that include a password
 //   - PEM private key blocks
 // With --shipped (files deployed to browsers) the bare word "service_role" is
 // also forbidden.

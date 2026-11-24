@@ -33,8 +33,8 @@ We'll know we're right when **a planner can go from entering a facility to a cro
 - Check against one authority the user picks, showing pass, fail or not covered for each requirement, with the source of each benchmark cited.
 - Comparison across all authorities that have data: India Schedule M, US FDA, EU-GMP/PIC/S, WHO GMP, China NMPA, Japan PMDA.
 - A gap report that clearly separates **mandatory requirements** from **recommendations**, and gives a specific suggested change for each gap, ranked by how many authorities the change satisfies.
-- When the benchmark data changes, users are notified and their saved projects are re-checked.
-- User project data is kept for 6 months.
+- When the benchmark data changes, users are notified and their saved projects are re-checked. *(Milestone 2 delivers detection on reopen: a stale project shows its saved results read-only with "Re-evaluate with current data". Proactive notification and automatic re-checks are not built yet.)*
+- User project data is kept until 6 months after its last edit, then flagged with in-app warnings and permanently deleted 30 days later (see Decisions).
 - Export the gap report as a shareable document.
 - Subscription access to the platform; billing details TBD.
 
@@ -52,7 +52,7 @@ We'll know we're right when **a planner can go from entering a facility to a cro
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
 | 1 | Trusted benchmark engine | The existing prototype's checks are verified against the domain expert's reference cases, and each result cites its source and is marked mandatory or recommended | pending | — |
-| 2 | Accounts & saved projects | A planner can sign up, create a facility project, save it and come back to it | pending | — |
+| 2 | Accounts & saved projects | A planner can sign up, create a facility project, save it and come back to it | in-progress — built and tested against a local stack (2026-11-24); goes to complete once the hosted Supabase (Mumbai) + Vercel project is live with custom SMTP | [plan](../plans/milestone-2-accounts.md) |
 | 3 | Single-authority compliance check | A planner picks an authority and sees pass, fail or not covered for each room and requirement | pending | — |
 | 4 | Cross-authority gap report + suggestions | A planner sees how the facility performs across all covered authorities, with a specific suggested change for each gap | pending | — |
 | 5 | Report export | A planner can export and share the gap report | pending | — |
@@ -65,8 +65,16 @@ We'll know we're right when **a planner can go from entering a facility to a cro
 - **Conflicting or missing benchmarks:** when authorities conflict, or one gives no number (for example, Schedule M often gives no area in m²), the report falls back to international standards (e.g. ISO 14644, WHO GMP) and labels the fallback as such.
 - **Ranking suggestions:** suggested changes are ranked by how many authorities they satisfy.
 
+## Decisions (resolved 2026-11-24, Milestone 2)
+- **Retention rule:** the clock is the project's last *edit* (opening doesn't count). 6 months after the last edit the project is flagged; 30 days later it is permanently deleted. An amber hint shows in the 30 days before flagging; a flagged project gets a red badge (date + days left), is sorted to the top, and shows a full-width banner when opened. "Keep this project" (or any save) restarts the clock.
+- **Warning emails: not in Milestone 2.** Warnings are in-app only, so a user who doesn't sign in during the grace period loses the project without notice. This limitation is stated in the README.
+- **Sign-in:** one-time email link only (no passwords); same response whether or not an account exists.
+- **Hosting:** Supabase (Postgres + Auth, row level security) in Mumbai `ap-south-1`; static site on Vercel. Production needs custom SMTP: Supabase's built-in sender only reaches the organization's own team.
+- **Saved results:** a project stores inputs, a compact results snapshot (ids + statuses), and the data hash and engine version. If either changed, reopening shows the saved results read-only with a Re-evaluate button.
+
 ## Open Questions
-- [ ] Retention detail: are projects kept for 6 months from creation or from last activity? Are users warned before deletion, and can they export or extend?
+- [x] Retention detail: 6 months from the last edit; in-app warnings before and after flagging; "Keep this project" extends; deleted 30 days after flagging (2026-11-24). Export arrives with Milestone 5; warning emails are still open (see next item).
+- [ ] Warning emails before deletion: which sender (Supabase Edge Function on a cron, or a mail provider) and how many reminders?
 - [ ] Who maintains the benchmark data, and how often is it refreshed? TBD — needs validation with the domain expert.
 - [ ] Which international standards are the fallback, and in what order? TBD — needs validation with the domain expert.
 - [ ] Subscription details: tiers, pricing, per-seat or per-organization, trial or pilot terms. TBD — needs validation via pilot pricing conversations.
@@ -76,7 +84,7 @@ We'll know we're right when **a planner can go from entering a facility to a cro
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Benchmark data is wrong or out of date, so users get wrong gap findings | Medium | High | Cite the source on every result; expert reviews every data update; show the data date on reports; notify users and re-check saved projects on update |
-| Users lose project data at the 6-month retention limit | Medium | Medium | Warn before deletion; allow export (details in Open Questions) |
+| Users lose project data at the 6-month retention limit | Medium | Medium | In-app hint 30 days before flagging, red badge + banner during the 30-day grace, "Keep this project". Gap: no warning emails yet, so users who don't sign in aren't told; export comes with Milestone 5 |
 | Users treat advisory output as regulatory sign-off | Medium | High | Clear advisory disclaimer on the platform and on exported reports |
 | Validation relies on one expert's view of the problem | Medium | Medium | Milestone 7 pilot with 3+ outside users before scaling |
 | Overlap with existing patents on rule checking that varies by jurisdiction (e.g. US11797733, US12462080, US12197829, from the preliminary USPTO scan on 2026-11-23) | Low–Medium | Medium | Patent attorney review before commercial launch |
