@@ -18,8 +18,8 @@ PRD: `.claude/prds/pharma-facility-compliance-platform.prd.md#step-2` · Branch:
 | T1 | `data/manifest.json` (sha256 per data file + content_hash); `ENGINE_VERSION` | manifest matches files; engine version = package version | no | done |
 | T2 | `project-state.js`: serializeInputs / validateInputs / resetState | round trip; R6 rejections | no | done |
 | T3 | Remove `h()` html branch | static innerHTML scan (R8); `<img onerror>` stays text (R7) | no | done |
-| T4 | `supabase/` config (magic link), migration (tables, CHECKs, trigger, indexes, RLS enable+force), seed | RLS coverage; trigger blocks owner/created/retention edits (R4/R5) | yes | written; DB run pending |
-| T5 | Two-user isolation tests | R1 404-equivalent, R2 list, R3 anon, R4 forged owner → acceptance 1 | yes | written; DB run pending |
+| T4 | `supabase/` config (magic link), migration (tables, CHECKs, trigger, indexes, RLS enable+force), seed | RLS coverage; trigger blocks owner/created/retention edits (R4/R5) | yes | done |
+| T5 | Two-user isolation tests | R1 404-equivalent, R2 list, R3 anon, R4 forged owner → acceptance 1 | yes | done |
 | T6 | `flag_expired_projects(p_now)` + `purge_flagged_projects(p_now)` + edit un-flags; pg_cron | 6mo±1d; idempotent; edit un-flags; delete day 30 not 29 → acceptance 3 | yes | pending |
 | T7 | `store.js` (injectable client) | fake client: missing/RLS-empty → null; validate before send | no | pending |
 | T8 | `results-snapshot.js` buildSnapshot / reconcile | save→reopen→recompute equals snapshot → acceptance 2 | no | pending |
