@@ -203,12 +203,16 @@ test("partial data: no-value count is shown with a note", () => {
   const page = live();
   assert.match(text(page), /no value entered/i);
   assert.match(text(page), /not counted as met or not met/i);
+  assert.match(text(find(page, cls("results-hero"))), /Based on \d+ checked values?; \d+ checks? have no value entered/);
 });
 
 test("everything not covered: never green, says nothing was checked", () => {
   const page = live(demo({ targetMarkets: ["uk_mhra", "sfda"] }));
   assert.equal(find(page, cls("verdict-compliant")), null);
   assert.match(text(find(page, cls("results-hero"))), /not covered/i);
+  assert.doesNotMatch(text(page), /within each authority's range/, "no false all-clear");
+  assert.match(text(find(page, cls("numeric-section"))), /no number to compare/i);
+  assert.match(text(find(page, cls("fix-list"))), /Nothing was checked/i);
 });
 
 test("no markets / empty model: a message only", () => {

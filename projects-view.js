@@ -89,20 +89,15 @@
     ]);
   }
 
-  // Read-only view of a stored snapshot (used while results are stale).
-  function snapshotSummary(h, snapshot, marketLabel) {
-    const counts = {};
-    (snapshot.recommendations || []).forEach((r) => (counts[r.severity] = (counts[r.severity] || 0) + 1));
+  // Read-only view of a stored snapshot (used while results are stale). It
+  // renders through the same ResultsModel/ResultsView as the live page, minus
+  // the numeric comparison (snapshots hold statuses only).
+  function snapshotSummary(h, s, snapshot, labels) {
+    const RM = typeof ResultsModel !== "undefined" ? ResultsModel : require("./results-model.js");
+    const RV = typeof ResultsView !== "undefined" ? ResultsView : require("./results-view.js");
     return h("div", { class: "panel snapshot-summary" }, [
       h("h2", {}, "Results as saved"),
-      h("table", { class: "results-table" }, [
-        h("thead", {}, h("tr", {}, [h("th", {}, "Framework"), h("th", {}, "Verdict")])),
-        h("tbody", {}, Object.keys(snapshot.rollup || {}).map((mk) => h("tr", {}, [h("td", {}, marketLabel(mk)), h("td", {}, String(snapshot.rollup[mk]))]))),
-      ]),
-      h("h3", {}, "Findings by severity"),
-      h("table", { class: "results-table" }, [
-        h("tbody", {}, SEVERITIES.filter((s) => counts[s]).map((s) => h("tr", {}, [h("td", {}, s), h("td", {}, String(counts[s]))]))),
-      ]),
+      RV.resultsPage(h, s, RM.build(snapshot, labels), { stale: true, labels }),
     ]);
   }
 

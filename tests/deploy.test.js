@@ -67,7 +67,10 @@ test("R13: no inline scripts or styles, and every script is local", () => {
     assert.match(tag, /^<script src="[a-z0-9./_-]+\.js"( integrity="sha384-[^"]+")?><\/script>$/i, tag);
   }
   assert.doesNotMatch(html, /\sstyle=|\son[a-z]+=|<style/i);
-  for (const f of ["app.js", "projects-view.js"]) {
+  for (const tag of html.match(/<link\b[^>]*rel="stylesheet"[^>]*>/g)) {
+    assert.match(tag, /^<link rel="stylesheet" href="[a-z0-9._-]+\.css">$/i, tag);
+  }
+  for (const f of ["app.js", "projects-view.js", "results-model.js", "results-view.js"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(ROOT, f), "utf8"), /\bstyle:\s*["'`]/, `${f} sets an inline style attribute (blocked by CSP)`);
   }
 });
@@ -80,8 +83,10 @@ test("build ships exactly the files the page loads, plus generated config", () =
   const files = listFiles(r.out);
   const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  const styles = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(styles.includes("styles.css"));
   const data = fs.readdirSync(path.join(ROOT, "data")).filter((f) => f.endsWith(".json")).map((f) => "data/" + f);
-  assert.deepEqual(files, [...new Set(["index.html", "styles.css", ...scripts, ...data])].sort());
+  assert.deepEqual(files, [...new Set(["index.html", ...styles, ...scripts, ...data])].sort());
   for (const f of files) assert.doesNotMatch(f, /^(tests|db-tests|e2e|supabase|scripts|expert-review|node_modules|\.claude)\/|package|\.env/);
 });
 

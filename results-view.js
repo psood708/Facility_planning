@@ -69,6 +69,8 @@
 
   const glyph = (h, g, extra) => h("span", { class: "glyph" + (extra ? " " + extra : ""), "aria-hidden": "true" }, g);
   const srOnly = (h, t) => h("span", { class: "sr-only" }, t);
+  // Long room names ("Filling (Vials/Ampoules/PFS)") may wrap after a slash.
+  const breakable = (h, t) => String(t).split("/").flatMap((part, i) => (i ? [h("wbr", {}), "/" + part] : [part]));
 
   function legendItem(h, swatchClass, g, label) {
     return h("li", { class: "legend-item" }, [h("span", { class: "swatch " + swatchClass, "aria-hidden": "true" }), glyph(h, g), h("span", { class: "legend-text" }, label)]);
@@ -167,10 +169,12 @@
   function hero(h, s, model, { stale }) {
     const noValue = model.markets.filter((m) => m.verdictKey !== "not_covered").reduce((a, m) => Math.max(a, m.counts.no_value), 0);
     const met = model.markets.filter((m) => m.verdictKey === "compliant").length;
+    const checked = model.markets.reduce((a, m) => Math.max(a, m.checked), 0);
     const stat = (label, value, extra) => h("div", { class: "stat" + (extra ? " " + extra : "") }, [h("dt", {}, label), h("dd", {}, String(value))]);
     return h("section", { class: "results-hero", "aria-label": "Summary" }, [
-      h("p", { class: "hero-kicker" }, stale ? "Results as saved · read-only" : "Summary"),
+      h("p", { class: "hero-kicker" }, stale ? "Read-only · as saved" : "Summary"),
       h("p", { class: "hero-sentence" }, heroSentence(model)),
+      noValue ? h("p", { class: "hero-note" }, `Based on ${plural(checked, "checked value")}; ${plural(noValue, "check")} ${noValue === 1 ? "has" : "have"} no value entered, so this is not a full assessment.`) : null,
       h("dl", { class: "hero-stats" }, [
         stat("Frameworks met", `${met} of ${model.markets.length}`),
         stat("Gaps", model.severity.total),
@@ -208,7 +212,7 @@
       h("p", { class: "sc-met" }, [h("strong", {}, `${m.met} of ${plural(m.checked, "check")} met`)]),
       h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + k, GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))),
       h("p", { class: "sc-gaps" }, gaps.length
-        ? ["Gaps: "].concat(gaps.map((k, i) => h("span", { class: "sc-gap" }, [h("span", { class: "swatch sw-sev-" + k.toLowerCase(), "aria-hidden": "true" }), `${m.gapsBySeverity[k]} ${k.toLowerCase()}${i < gaps.length - 1 ? " · " : ""}`])))
+        ? [h("span", {}, "Gaps:")].concat(gaps.map((k, i) => h("span", { class: "sc-gap" }, [h("span", { class: "swatch sw-sev-" + k.toLowerCase(), "aria-hidden": "true" }), `${m.gapsBySeverity[k]} ${k.toLowerCase()}${i < gaps.length - 1 ? "," : ""}`])))
         : m.checked ? "No gaps against this authority." : "No checks with a value yet."),
     ]);
   }
@@ -255,7 +259,9 @@
     const auth = model.fixes.filter((f) => f.basis === "authority");
     const adv = model.fixes.filter((f) => f.basis === "fallback");
     const body = [h("h3", {}, "What to fix first")];
-    if (!auth.length) {
+    if (!auth.length && model.markets.every((m) => !m.checked)) {
+      body.push(h("p", { class: "section-lede" }, "Nothing was checked yet, so there is nothing to fix. Enter values, or choose authorities this dataset covers."));
+    } else if (!auth.length) {
       const noValue = model.markets.some((m) => m.counts.no_value);
       body.push(h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), "Nothing to fix against any selected authority among the values checked." + (noValue ? " Some checks have no value entered yet." : "")]));
     } else {
@@ -283,7 +289,7 @@
   function roomGrid(h, model) {
     const markets = model.markets;
     const rows = model.rooms.map((r, i) => h("tr", { class: i >= ROOM_LIMIT ? "row-extra" : null, hidden: i >= ROOM_LIMIT ? "hidden" : null }, [
-      h("th", { scope: "row" }, r.label),
+      h("th", { scope: "row" }, breakable(h, r.label)),
     ].concat(markets.map((m) => {
       const c = r.cells[m.key] || { state: "na", fails: 0 };
       const k = CELL[c.state] || CELL.na;
@@ -310,7 +316,7 @@
         h("ul", { class: "legend grid-legend" }, ["fail", "pass", "empty", "na"].map((k) => legendItem(h, "sw-cell-" + k, CELL[k].glyph, k === "fail" ? "not met (count of gaps)" : CELL[k].word))),
         h("div", { class: "grid-scroll", role: "region", tabindex: "0", "aria-label": "Room by authority grid — scrolls sideways on small screens" },
           h("table", { class: "room-table" }, [
-            h("caption", {}, "Gaps by room and authority, rooms with most gaps first"),
+            h("caption", {}, "Gaps by room and authority"),
             h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col", title: m.label }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.label)]))))),
             h("tbody", {}, rows),
           ])),
@@ -333,8 +339,13 @@
     const span = bmax - bmin || Math.abs(bmax) * 0.5 || 1;
     let lo = bmin - span * 0.5, hi = bmax + span * 0.5;
     const near = (v) => v >= bmin - span * 2 && v <= bmax + span * 2;
-    vals.filter(near).forEach((v) => { if (v < lo) lo = v - span * 0.1; if (v > hi) hi = v + span * 0.1; });
+    // Keep in-range entered values off the very edge so their marker stays visible.
+    vals.filter(near).forEach((v) => { if (v < lo + span * 0.1) lo = v - span * 0.2; if (v > hi - span * 0.1) hi = v + span * 0.2; });
     if (bmin >= 0 && vals.every((v) => v >= 0)) lo = Math.max(lo, 0);
+    // Round the axis ends to a readable step (e.g. 16–25 rather than 16–24.8).
+    const step = Math.pow(10, Math.floor(Math.log10(hi - lo)) - 1) * 5;
+    lo = Math.floor(lo / step) * step;
+    hi = Math.ceil(hi / step) * step;
     return { lo, hi, x: (v) => ((v - lo) / (hi - lo)) * 100, offScale: vals.filter((v) => v < lo || v > hi) };
   }
 
@@ -409,9 +420,12 @@
     const failing = (gaps || []).filter((g) => g.state === "fail" || g.state === "advisory");
     failing.sort((a, b) => (a.state === "advisory") - (b.state === "advisory"));
     if (!failing.length) {
-      body.push(h("p", { class: "positive-note" }, (gaps || []).length
-        ? [glyph(h, "✓", "glyph-ok"), "Every entered numeric value is within each authority's range."]
-        : "No numeric values entered yet."));
+      const list = gaps || [];
+      body.push(h("p", { class: "positive-note" }, !list.length
+        ? "No numeric values entered yet."
+        : list.some((g) => g.state === "pass")
+          ? [glyph(h, "✓", "glyph-ok"), "Every entered numeric value is within each authority's range."]
+          : "The selected authorities give no number to compare the entered values against."));
       return h("section", { class: "numeric-section" }, body);
     }
     const shown = failing.slice(0, NUMERIC_LIMIT);
