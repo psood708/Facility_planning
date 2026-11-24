@@ -33,8 +33,9 @@
     return 0;
   };
 
-  function buildSnapshot(DATA, state, { dataHash, engineVersion }) {
-    const all = engine.evaluateAll(DATA, state);
+  // The snapshot body (ids + statuses) from an evaluateAll() result. The
+  // results page renders from this same shape, live or as saved.
+  function compact(all, state) {
     const evaluations = all.rows
       .map((r) => ({
         room: roomId(r.room),
@@ -52,14 +53,20 @@
       .map((b) => ({ room: roomId(b.room), threshold: b.threshold ? b.threshold.id : null, status: b.status }))
       .sort(byKey("room", "threshold"));
     return {
-      snapshot_version: SNAPSHOT_VERSION,
-      data_hash: dataHash,
-      engine_version: engineVersion,
       rollup: Object.fromEntries(state.targetMarkets.map((mk) => [mk, all.rollup[mk]])),
       evaluations,
       checklist,
       recommendations: all.recommendations.map((r) => ({ id: r.id, severity: r.severity })).sort(byKey("id")),
       structural: all.structural.map((f) => f.id).sort(),
+    };
+  }
+
+  function buildSnapshot(DATA, state, { dataHash, engineVersion }) {
+    return {
+      snapshot_version: SNAPSHOT_VERSION,
+      data_hash: dataHash,
+      engine_version: engineVersion,
+      ...compact(engine.evaluateAll(DATA, state), state),
     };
   }
 
@@ -96,5 +103,5 @@
     return { status: "current", reasons: [], snapshot: fresh };
   }
 
-  return { SNAPSHOT_VERSION, buildSnapshot, reconcile, sameSnapshot };
+  return { SNAPSHOT_VERSION, compact, buildSnapshot, reconcile, sameSnapshot };
 });
