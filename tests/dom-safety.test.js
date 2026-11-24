@@ -11,7 +11,7 @@ const vm = require("node:vm");
 const ROOT = path.join(__dirname, "..");
 // Load order matches index.html (minus the vendored client and config.js:
 // without them the app runs wizard-only, which is what this harness renders).
-const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "store.js", "router.js", "auth.js", "app.js"];
+const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "store.js", "router.js", "auth.js", "projects-view.js", "app.js"];
 
 test("browser scripts contain no HTML-parsing sinks (R8)", () => {
   const sinks = /\b(innerHTML|outerHTML|insertAdjacentHTML|document\.write|createContextualFragment|srcdoc)\b|\beval\s*\(|\bnew Function\s*\(/;

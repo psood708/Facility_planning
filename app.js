@@ -511,6 +511,13 @@ function renderStep4() {
   const root = document.getElementById("step-4");
   clear(root);
 
+  // A saved project whose data/engine changed shows its results as saved,
+  // read-only, until the user re-evaluates (banner in the project bar).
+  if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
+    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, CURRENT.results.snapshot, marketLabel));
+    return;
+  }
+
   const { rows, booleanRows, rollup, recommendations: recs, structural } = FacilityEngine.evaluateAll(DATA, state);
 
   const panel = h("div", { class: "panel" });
@@ -673,6 +680,7 @@ function showStep(n) {
   document.getElementById("btn-back").disabled = n === 1;
   document.getElementById("btn-next").hidden = n === 4;
   document.getElementById("btn-restart").hidden = n !== 4;
+  renderProjectBar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -699,6 +707,9 @@ function wireNav() {
     showStep(Math.min(4, state.step + 1));
   });
   document.getElementById("btn-restart").addEventListener("click", () => {
+    // In a saved project "Start Over" opens a new project rather than
+    // blanking this one (a later Save would overwrite it).
+    if (CURRENT) return go("#/projects/new");
     ProjectState.resetState(state);
     showStep(1);
   });
@@ -738,7 +749,9 @@ function setNotice(el, text, isError) {
 
 function render() {
   const route = Router.routeFor(window.location.hash, { configured: !!SB, signedIn: !!SESSION });
+  renderToken++;
   renderAccountBar();
+  if (route.name !== "new" && route.name !== "project") CURRENT = null;
   switch (route.name) {
     case "wizard-only":
       if (currentView !== "view-wizard") { showView("view-wizard"); showStep(state.step); }
@@ -748,10 +761,9 @@ function render() {
     case "projects":
       return renderProjects();
     case "new":
-      ProjectState.resetState(state);
-      showView("view-wizard");
-      return showStep(1);
+      return startNewProject();
     case "project":
+      if (CURRENT && CURRENT.id === route.id && currentView === "view-wizard") return; // already open (e.g. just saved)
       return openProject(route.id);
     default:
       return renderMessage("Page not found", "That address doesn't match anything in the app.");
@@ -837,20 +849,154 @@ function renderMessage(title, text) {
   );
 }
 
-function renderProjects() {
+// ---------------------------------------------------------------------
+// Saved projects
+// ---------------------------------------------------------------------
+
+let STORE = null;
+let CURRENT = null; // open project { id|null, name, notes, results, retention, reevaluated }; null = wizard-only
+let renderToken = 0; // bumps on every route render so slow responses can't paint over a newer view
+let saveMessage = null; // shown once in the project bar after a save
+
+const fmtDate = (d) => ProjectsView.formatDate(d);
+
+function errorText(e) {
+  if (e && e.code === "invalid") return "Can't save yet: " + e.errors.join("; ");
+  if (e && e.code === "invalid_project") return "This saved project couldn't be loaded safely.";
+  if (e && e.serverCode === "PGRST301") return "Your session has expired. Sign in again.";
+  return "Couldn't reach the server. Check your connection and try again.";
+}
+
+async function renderProjects() {
+  const token = renderToken;
+  CURRENT = null;
   const root = document.getElementById("view-projects");
   clear(root);
   showView("view-projects");
+  const body = h("div", {}, h("p", { class: "field-hint" }, "Loading your projects…"));
   root.appendChild(
     h("div", { class: "panel" }, [
-      h("h2", {}, "Your projects"),
-      h("button", { type: "button", onclick: () => go("#/projects/new") }, "New project"),
+      h("div", { class: "projects-head" }, [
+        h("h2", {}, "Your projects"),
+        h("button", { type: "button", onclick: () => go("#/projects/new") }, "New project"),
+      ]),
+      h("p", { class: "field-hint" }, "A project is deleted 6 months after its last edit, with a 30-day warning first. Opening a project doesn't count as an edit."),
+      body,
+    ])
+  );
+  try {
+    const items = await STORE.list();
+    if (token !== renderToken) return;
+    clear(body);
+    body.appendChild(
+      ProjectsView.projectList(h, items, {
+        onKeep: (p) => STORE.keep(p.id).then(() => token === renderToken && renderProjects(), showListError),
+        onDelete: (p) => STORE.remove(p.id).then(() => token === renderToken && renderProjects(), showListError),
+      }, fmtDate)
+    );
+  } catch (e) {
+    if (token === renderToken) showListError(e);
+  }
+  function showListError(e) {
+    clear(body);
+    body.appendChild(h("div", { class: "notice notice-error", role: "alert" }, errorText(e)));
+  }
+}
+
+function startNewProject() {
+  ProjectState.resetState(state);
+  CURRENT = { id: null, name: "", notes: "", results: null, retention: null, reevaluated: false };
+  showView("view-wizard");
+  showStep(1);
+}
+
+async function openProject(id) {
+  const token = renderToken;
+  renderMessage("Opening project…", "");
+  let p;
+  try {
+    p = await STORE.get(id);
+  } catch (e) {
+    if (token === renderToken) renderMessage("Couldn't open this project", errorText(e));
+    return;
+  }
+  if (token !== renderToken) return;
+  if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
+  ProjectState.resetState(state, p.inputs);
+  CURRENT = { id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention, reevaluated: false };
+  showView("view-wizard");
+  // Complete projects open on their results; unfinished ones where they start.
+  showStep(!validateStep(1) && !validateStep(2) ? 4 : 1);
+}
+
+function renderProjectBar() {
+  const bar = document.getElementById("project-bar");
+  clear(bar);
+  if (!CURRENT) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const status = h("span", { class: "save-status", role: "status" }, saveMessage || "");
+  saveMessage = null;
+  const save = h("button", { type: "button", onclick: () => saveCurrent(save, status) }, CURRENT.id ? "Save changes" : "Save project");
+  bar.appendChild(
+    h("div", { class: "panel project-bar" }, [
+      h("div", { class: "project-bar-row" }, [
+        h("a", { href: "#/projects", class: "back-link" }, "← My projects"),
+        h("label", { for: "project-name", class: "visually-hidden" }, "Project name"),
+        h("input", {
+          type: "text", id: "project-name", maxlength: "120", value: CURRENT.name,
+          placeholder: "Project name (e.g. Plant 2 — sterile block)",
+          oninput: (e) => (CURRENT.name = e.target.value),
+        }),
+        save,
+        status,
+      ]),
+      h("details", { class: "project-notes" }, [
+        h("summary", {}, "Notes"),
+        h("textarea", { maxlength: "2000", "aria-label": "Project notes", oninput: (e) => (CURRENT.notes = e.target.value) }, CURRENT.notes || ""),
+      ]),
+      ProjectsView.deletionNotice(h, CURRENT.retention, { onKeep: keepCurrent, fmt: fmtDate }),
+      CURRENT.reevaluated ? null : ProjectsView.resultsNotice(h, CURRENT.results, { onReevaluate: reevaluate }),
     ])
   );
 }
 
-function openProject(id) {
-  renderMessage("Opening project…", `Project ${id}`);
+async function saveCurrent(button, status) {
+  button.disabled = true;
+  setNotice(status, "Saving…", false);
+  try {
+    const payload = { name: CURRENT.name, notes: CURRENT.notes, state };
+    const p = CURRENT.id ? await STORE.update(CURRENT.id, payload) : await STORE.create(payload);
+    if (!p) return renderMessage("Project not found", "It may have been deleted in another tab.");
+    const wasNew = !CURRENT.id;
+    CURRENT = { id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention, reevaluated: false };
+    // Give the new project its own address without re-running the router.
+    if (wasNew) window.history.replaceState(null, "", "#/projects/" + p.id);
+    saveMessage = "Saved";
+    showStep(state.step);
+  } catch (e) {
+    setNotice(status, errorText(e), true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function keepCurrent() {
+  try {
+    const p = await STORE.keep(CURRENT.id);
+    if (!p) return renderMessage("Project not found", "It may have been deleted in another tab.");
+    CURRENT.retention = p.retention;
+    saveMessage = "Kept — the 6-month clock has restarted";
+    renderProjectBar();
+  } catch (e) {
+    renderProjectBar();
+    setNotice(document.querySelector("#project-bar .save-status"), errorText(e), true);
+  }
+}
+
+function reevaluate() {
+  CURRENT.reevaluated = true;
+  saveMessage = "Showing results with the current data — save to update the project";
+  showStep(4);
 }
 
 async function initAccounts() {
@@ -863,6 +1009,14 @@ async function initAccounts() {
     auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
   });
   AUTH = Auth.createAuth({ client: SB, location: window.location });
+  const manifest = await fetch("data/manifest.json").then((r) => r.json());
+  STORE = ProjectStore.createStore({
+    client: SB,
+    DATA,
+    versions: { dataHash: manifest.content_hash, engineVersion: FacilityEngine.ENGINE_VERSION },
+    ProjectState,
+    ResultsSnapshot,
+  });
   try {
     const { data, error } = await SB.auth.getSession(); // completes an email-link sign-in if ?code= is present
     if (error) AUTH_LINK_ERROR = true;

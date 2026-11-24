@@ -402,3 +402,31 @@ button.small { padding: 4px 10px; font-size: 0.8rem; }
 
 /* The hidden attribute must win over component display rules (views, nav, step bar). */
 [hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------- projects */
+.projects-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.project-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.project-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--panel); }
+.project-row.row-flagged { border-color: var(--critical); border-left-width: 5px; background: var(--critical-bg); }
+.project-row.row-warning { border-left: 5px solid var(--significant); }
+.row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.project-name { font-weight: 700; color: var(--accent-dark); overflow-wrap: anywhere; }
+.row-meta { font-size: 0.78rem; color: var(--ink-soft); }
+.row-hint { font-size: 0.8rem; color: var(--significant); font-weight: 600; }
+.badge-danger { align-self: flex-start; background: var(--critical); color: #fff; font-weight: 700; }
+.row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.confirm-delete { display: inline-flex; gap: 6px; }
+button.danger { background: var(--critical); border-color: var(--critical); color: #fff; }
+.empty-state { color: var(--ink-soft); }
+.project-bar { margin-bottom: 14px; }
+.project-bar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.project-bar-row input[type="text"] { flex: 1 1 260px; }
+.back-link { color: var(--accent-dark); font-weight: 600; white-space: nowrap; }
+.save-status { font-size: 0.84rem; }
+.project-notes { margin-top: 10px; }
+.project-notes textarea { width: 100%; margin-top: 6px; }
+.deletion-banner { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: var(--critical); color: #fff; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.deletion-banner .keep-button { background: #fff; color: var(--critical); border-color: #fff; font-weight: 700; }
+.deletion-hint { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--significant-bg); color: var(--significant); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.stale-banner { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-dark); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
