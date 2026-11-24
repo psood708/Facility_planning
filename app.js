@@ -450,14 +450,9 @@ function renderStep3() {
 // Rules engine
 // ---------------------------------------------------------------------
 
-// Evaluation logic lives in engine.js (pure, tested). These wrappers bind it
-// to the wizard's DATA and state.
+// Evaluation logic lives in engine.js (pure, tested); renderStep4 calls
+// FacilityEngine.evaluateAll(DATA, state).
 const marketLabel = (mk) => FacilityEngine.marketLabel(DATA, mk);
-const buildEvaluationRows = () => FacilityEngine.buildEvaluationRows(DATA, state);
-const buildBooleanRows = () => FacilityEngine.buildBooleanRows(DATA, state);
-const computeMarketRollup = (rows) => FacilityEngine.computeMarketRollup(DATA, state, rows);
-const buildRecommendations = (rows) => FacilityEngine.buildRecommendations(DATA, state, rows);
-const checkStructuralFlags = () => FacilityEngine.checkStructuralFlags(DATA, state);
 
 function statusPillClass(status) {
   return {
@@ -516,11 +511,7 @@ function renderStep4() {
   const root = document.getElementById("step-4");
   clear(root);
 
-  const rows = buildEvaluationRows();
-  const booleanRows = buildBooleanRows();
-  const rollup = computeMarketRollup(rows.concat(booleanRows.map((br) => ({ threshold: br.threshold, evalResult: { perMarket: Object.fromEntries(state.targetMarkets.map((mk) => [mk, { status: br.status }])) }, param: br.param }))));
-  const recs = buildRecommendations(rows);
-  const structural = checkStructuralFlags();
+  const { rows, booleanRows, rollup, recommendations: recs, structural } = FacilityEngine.evaluateAll(DATA, state);
 
   const panel = h("div", { class: "panel" });
   panel.appendChild(h("h2", {}, "Step 4 — Compliance Results"));

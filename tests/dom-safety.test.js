@@ -9,7 +9,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const ROOT = path.join(__dirname, "..");
-const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "app.js"];
+const BROWSER_SCRIPTS = ["engine.js", "project-state.js", "results-snapshot.js", "app.js"];
 
 test("browser scripts contain no HTML-parsing sinks (R8)", () => {
   const sinks = /\b(innerHTML|outerHTML|insertAdjacentHTML|document\.write|createContextualFragment|srcdoc)\b|\beval\s*\(|\bnew Function\s*\(/;

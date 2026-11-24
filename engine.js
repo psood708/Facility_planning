@@ -542,8 +542,28 @@
     return active;
   }
 
+  // Everything the results page shows, computed once. Checklist (boolean)
+  // rows count towards each market's rollup with the same status everywhere.
+  function evaluateAll(DATA, state) {
+    const rows = buildEvaluationRows(DATA, state);
+    const booleanRows = buildBooleanRows(DATA, state);
+    const booleanAsRows = booleanRows.map((br) => ({
+      threshold: br.threshold,
+      param: br.param,
+      evalResult: { perMarket: Object.fromEntries(state.targetMarkets.map((mk) => [mk, { status: br.status }])) },
+    }));
+    return {
+      rows,
+      booleanRows,
+      rollup: computeMarketRollup(DATA, state, rows.concat(booleanAsRows)),
+      recommendations: buildRecommendations(DATA, state, rows),
+      structural: checkStructuralFlags(DATA, state),
+    };
+  }
+
   return {
     ENGINE_VERSION,
+    evaluateAll,
     GRADE_HIERARCHY,
     GRADE_TAG_TO_LABEL,
     SEVERITY_RANK,
