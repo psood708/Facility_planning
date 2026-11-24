@@ -8,7 +8,7 @@
     "test:db": "node --test --test-concurrency=1 db-tests/",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
-    "test:e2e": "node e2e/signin.e2e.js && node e2e/projects.e2e.js",
+    "test:e2e": "node e2e/signin.e2e.js && node e2e/projects.e2e.js && node e2e/a11y.e2e.js",
     "build": "node scripts/build.js",
     "scan": "node scripts/secret-scan.js",
     "audit:high": "npm audit --audit-level=high",
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@supabase/supabase-js": "2.119.0",
+    "axe-core": "4.14.0",
     "playwright-core": "1.65.0",
     "supabase": "3.1.0"
   }
