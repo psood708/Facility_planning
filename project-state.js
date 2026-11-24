@@ -203,6 +203,22 @@
     return state;
   }
 
+  // Change the dosage-form category without losing work: the old category's
+  // forms, stage and rooms are set aside in `memory` and restored if the user
+  // comes back (arrow keys move through the category radios one by one).
+  function switchCategory(state, nextKey, memory) {
+    if (state.category === nextKey) return state;
+    if (state.category) {
+      memory[state.category] = clone({ specificForms: state.specificForms, devStage: state.devStage, selectedRooms: state.selectedRooms });
+    }
+    const saved = hasOwn(memory, nextKey) ? clone(memory[nextKey]) : { specificForms: [], devStage: null, selectedRooms: [] };
+    state.category = nextKey;
+    state.specificForms = saved.specificForms;
+    state.devStage = saved.devStage;
+    state.selectedRooms = saved.selectedRooms;
+    return state;
+  }
+
   // Stable string of everything Save would store. Two equal fingerprints mean
   // "nothing to save"; used to warn about unsaved changes.
   function canonical(v) {
@@ -216,6 +232,6 @@
 
   return {
     CATEGORY_DEFS, SPECIFIC_FORMS, DEV_STAGES, SCALE_SIZES, LIMITS,
-    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint,
+    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint, switchCategory,
   };
 });

@@ -236,3 +236,34 @@ test("fingerprint: changes when any input, the name or the notes change", () => 
 test("fingerprint: surrounding spaces in the name don't count as a change (save trims them)", () => {
   assert.equal(ps.fingerprint({ name: "  Plant ", notes: "", state: filledState() }), ps.fingerprint({ name: "Plant", notes: "", state: filledState() }));
 });
+
+// ---------------------------------------------------------------- category switching
+
+test("switchCategory sets aside the old category's choices and restores them on return", () => {
+  const s = filledState(); // osd_rnd_pilot, forms + devStage + rooms chosen
+  const memory = {};
+  const before = { specificForms: [...s.specificForms], devStage: s.devStage, selectedRooms: [...s.selectedRooms] };
+  ps.switchCategory(s, "sterile", memory);
+  assert.equal(s.category, "sterile");
+  assert.deepEqual([s.specificForms, s.devStage, s.selectedRooms], [[], null, []]);
+  s.specificForms.push("Implant");
+  ps.switchCategory(s, "ext_prep", memory);
+  ps.switchCategory(s, "osd_rnd_pilot", memory);
+  assert.deepEqual({ specificForms: s.specificForms, devStage: s.devStage, selectedRooms: s.selectedRooms }, before);
+  ps.switchCategory(s, "sterile", memory);
+  assert.deepEqual(s.specificForms, ["Implant"]);
+});
+
+test("switchCategory to the current category changes nothing; restored lists are copies", () => {
+  const s = filledState();
+  const memory = {};
+  const forms = [...s.specificForms];
+  ps.switchCategory(s, s.category, memory);
+  assert.deepEqual(s.specificForms, forms);
+  ps.switchCategory(s, "sterile", memory);
+  ps.switchCategory(s, "osd_rnd_pilot", memory);
+  s.specificForms.push("Capsule (x)");
+  ps.switchCategory(s, "sterile", memory);
+  ps.switchCategory(s, "osd_rnd_pilot", memory);
+  assert.ok(s.specificForms.includes("Capsule (x)"), "latest choices are what gets remembered");
+});
