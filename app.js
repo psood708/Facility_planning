@@ -50,10 +50,13 @@ function h(tag, attrs = {}, children = []) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === null || v === undefined) continue;
+    // No "html" option on purpose: every string reaches the page as text (R7/R8).
+    if (k === "html") throw new Error('h(): "html" is not supported; pass text or elements as children');
     if (k === "class") el.className = v;
-    else if (k === "html") el.innerHTML = v;
-    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
-    else el.setAttribute(k, v);
+    else if (k.startsWith("on")) {
+      if (typeof v !== "function") throw new Error(`h(): ${k} must be a function, not a string`);
+      el.addEventListener(k.slice(2), v);
+    } else el.setAttribute(k, v);
   }
   (Array.isArray(children) ? children : [children]).forEach((c) => {
     if (c === null || c === undefined || c === false) return;
@@ -705,10 +708,7 @@ function wireNav() {
     showStep(Math.min(4, state.step + 1));
   });
   document.getElementById("btn-restart").addEventListener("click", () => {
-    Object.assign(state, {
-      step: 1, category: null, devStage: null, specificForms: [], targetMarkets: ["schedule_m"],
-      scaleSize: "Medium", batchSize: "", selectedRooms: [], facilityValues: {}, roomValues: {},
-    });
+    ProjectState.resetState(state);
     showStep(1);
   });
 }
