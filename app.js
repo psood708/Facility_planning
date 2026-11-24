@@ -65,6 +65,28 @@ function h(tag, attrs = {}, children = []) {
   return el;
 }
 
+// SVG counterpart of h() for the results charts. Same rules: no "html", no
+// string event handlers, and no inline "style" (blocked by the CSP — colour
+// comes from CSS classes; geometry from SVG attributes).
+const SVG_NS = "http://www.w3.org/2000/svg";
+function s(tag, attrs = {}, children = []) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined) continue;
+    if (k === "html") throw new Error('s(): "html" is not supported; pass text or elements as children');
+    if (k === "style") throw new Error('s(): inline "style" is blocked by the CSP; use a class');
+    if (k.startsWith("on")) {
+      if (typeof v !== "function") throw new Error(`s(): ${k} must be a function, not a string`);
+      el.addEventListener(k.slice(2), v);
+    } else el.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach((c) => {
+    if (c === null || c === undefined || c === false) return;
+    el.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+
 function clear(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
