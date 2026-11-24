@@ -101,6 +101,36 @@ async function scenes(page, viewport, projectId) {
   await page.waitForFunction(() => state.category === "sterile");
   check("arrowing away from a category and back keeps its chosen forms", JSON.stringify(await page.evaluate(() => state.specificForms)) === JSON.stringify(chosen) && chosen.length === 1, JSON.stringify(chosen));
 
+  // Busiest real case: every sterile room selected, each with too small an area.
+  await page.evaluate(() => { if (CURRENT) CURRENT.savedFingerprint = currentFingerprint(); });
+  await page.goto("about:blank");
+  await page.goto(APP + "#/projects/new");
+  await page.waitForSelector("#step-1:not([hidden])");
+  await page.setViewportSize(VIEWPORTS[0]);
+  const roomCount = await page.evaluate(() => {
+    const rooms = DATA.rooms.filter((r) => r.applies_to.sterile).map((r) => r.id);
+    Object.assign(state, {
+      category: "sterile", specificForms: ["Sterile Liquid (Vial)"], targetMarkets: ["schedule_m", "us_fda", "eu_gmp", "who_gmp", "china_nmpa", "japan_pmda"],
+      selectedRooms: rooms, roomValues: Object.fromEntries(rooms.map((id) => [id, { "DIM-001": 1 }])),
+    });
+    showStep(2);
+    return rooms.length;
+  });
+  await page.fill("#room-filter", "filling");
+  await page.waitForFunction(() => /\d/.test(document.getElementById("room-filter-count").textContent));
+  await audit(page, `step 2, ${roomCount} rooms, filter in use`);
+  check("filter keeps hidden rooms selected", (await page.evaluate(() => state.selectedRooms.length)) === roomCount);
+  await page.fill("#room-filter", "");
+  await page.evaluate(() => showStep(4));
+  await page.waitForSelector("#step-4 .grid-scroll");
+  const shown = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
+  check(`results grid starts capped (${shown} rows shown)`, shown <= 16, `${shown} rows`);
+  await audit(page, `step 4 results, ${roomCount} rooms`);
+  await page.locator("#step-4 button:has-text('Show all')").first().click();
+  const after = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
+  check(`"Show all" reveals every room row (${after})`, after > shown, `${shown} → ${after}`);
+  await audit(page, `step 4 results, ${roomCount} rooms, all rows shown`);
+
   // A saved project whose benchmark data has since changed (stale results).
   await page.evaluate(() => { if (CURRENT) CURRENT.savedFingerprint = currentFingerprint(); });
   await page.goto("about:blank");

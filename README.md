@@ -10,13 +10,14 @@ A static site, with no server of its own. The browser talks directly to Supabase
 
 | File | Role |
 |---|---|
-| `index.html`, `styles.css`, `app.js` | The page: wizard, sign-in, projects list, project bar |
+| `index.html`, `styles.css`, `app.js` | The page: design tokens and components, wizard, sign-in, projects list, project bar; `h()` builds HTML and `s()` builds SVG (neither can set inline styles or parse HTML) |
 | `engine.js` | Rules engine (pure; `ENGINE_VERSION`) |
 | `project-state.js` | Saving and loading wizard inputs; validates every saved payload before use |
 | `results-snapshot.js` | Compact saved results; detects when data or the engine changed since saving |
+| `results-model.js`, `results-view.js`, `results.css` | Step 4 charts: a pure model built from the compact snapshot (so live and saved results share one path), and the views: summary, a scorecard per authority, ranked fixes, room × authority grid, numeric range charts |
 | `store.js` | The only code that reads/writes projects in Supabase |
 | `router.js`, `auth.js` | Hash routes, sign-in guard, email-link sign-in |
-| `projects-view.js` | Projects list and banners (pure, unit-tested) |
+| `projects-view.js` | Projects list, banners, wizard validation/stepper helpers (pure, unit-tested) |
 | `config.js` | Public Supabase URL + anon key (local stack values; the build replaces it) |
 | `vendor/supabase-js-<version>.js` | Vendored client, loaded with an integrity hash |
 | `data/*.json`, `data/manifest.json` | Benchmark data and its content hash |
@@ -54,11 +55,22 @@ Without `config.js` (or without Supabase reachable at startup) the app runs as t
 |---|---|---|
 | `npm test` | nothing | Engine, validation, snapshots, store (fake client), routing, auth, views, DOM safety, build/headers/secret scan |
 | `npm run test:db` | `npx supabase start` | Row level security with two real users, protected columns, CHECK constraints, retention jobs, store round trip |
-| `npm run test:e2e` | stack + app on :8000 + Chromium | Real email-link sign-in, saving, deletion warnings, stale results, unsaved-changes prompt, isolation |
+| `npm run test:e2e` | stack + app on :8000 + Chromium | Real email-link sign-in, saving, deletion warnings, stale results, unsaved-changes prompt, isolation; plus an axe-core accessibility pass (WCAG 2.2 AA) and a no-sideways-scroll check on every screen at 390 and 1440 px |
 | `npm run scan` | nothing | Secret scan of every tracked file |
 | `npm run audit:high` | network | `npm audit --audit-level=high` |
 
 For the browser tests, set `CHROME_PATH`, or run `npx playwright install chromium`. CI (`.github/workflows/ci.yml`) runs the unit tests, audit, secret scan, a placeholder production build and the database tests on every push. It does not run the browser tests yet.
+
+## Reading the results page
+
+- **Summary first:** how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
+- **One strip per authority:** verdict (icon and word), a bar of check counts (met, not met, no value, not regulated) and gaps by severity. The verdict comes from the worst gap, not from the bar.
+- **What to fix first:** fixes ranked by how many authorities each one satisfies, then by severity. International-standard (advisory) fixes are listed separately and never count toward a verdict.
+- **Room by authority:** where the gaps are, rooms sorted by number of gaps.
+- **Entered values against each requirement:** each failing numeric value drawn against every authority's range and the advisory international range.
+- **Full detail:** every check, recommendation text and source, collapsed at the bottom.
+
+Every chart has a "View as table" option, and status is always shown by a glyph and a word as well as colour (✓ met, ✗ not met, ? no value, – not regulated, ⊘ not covered).
 
 ## Accounts and data
 
