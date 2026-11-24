@@ -8,19 +8,8 @@
 // Constants not carried in the data files (UI-only groupings)
 // ---------------------------------------------------------------------
 
-const CATEGORY_DEFS = [
-  { key: "ext_prep", label: "External Preparations", desc: "Liquids, creams, ointments, gels, dusting powders" },
-  { key: "osd_production", label: "OSD Production", desc: "Commercial-scale tablets, capsules, oral powders, MDF, buccal film" },
-  { key: "osd_rnd_pilot", label: "OSD R&D / Pilot Plant", desc: "Non-commercial development & pilot-scale OSD work" },
-  { key: "sterile", label: "Sterile", desc: "Parenterals, ophthalmics, dry-powder reconstitution, implants" },
-];
-
-const SPECIFIC_FORMS = {
-  ext_prep: ["Liquid", "Emulsion", "Suspension", "Cream", "Ointment", "Gel", "Dusting Powder"],
-  osd_production: ["Tablet (Uncoated)", "Tablet (Coated)", "Tablet (Extended Release)", "Tablet (Modified Release)", "Capsule", "Oral Powder", "MDF (Mouth Dissolving Film)", "Buccal Film"],
-  osd_rnd_pilot: ["Tablet (Uncoated)", "Tablet (Coated)", "Tablet (Extended Release)", "Tablet (Modified Release)", "Capsule", "Oral Powder", "MDF (Mouth Dissolving Film)", "Buccal Film"],
-  sterile: ["Sterile Liquid (Vial)", "Sterile Liquid (Ampoule)", "Sterile Liquid (PFS)", "Sterile Liquid (Cartridge)", "Ophthalmic Drops", "Ophthalmic Ointment", "Dry Powder Reconstitution", "Implant"],
-};
+// Category and dosage-form lists are shared with saved-project validation.
+const { CATEGORY_DEFS, SPECIFIC_FORMS, resolveInputKind } = ProjectState;
 
 const OPTION_OVERRIDES = {
   "UTIL-001": ["Class 1", "Class 1.2.1", "Class 2"],
@@ -281,17 +270,6 @@ function relevantParams() {
 }
 
 const appliesAtNormalized = FacilityEngine.appliesAtNormalized;
-
-function resolveInputKind(param) {
-  if (param.id === "DFS-003") return "number";
-  const dt = (param.data_type || "").toLowerCase();
-  if (dt.includes("boolean") && (dt.includes("text") || dt.includes("categorical"))) return "boolean-text";
-  if (dt === "boolean") return "boolean";
-  if (dt.startsWith("numeric range")) return "number-range";
-  if (dt === "numeric") return "number";
-  if (dt.includes("categorical")) return "select";
-  return "text";
-}
 
 function optionsFor(param) {
   if (OPTION_OVERRIDES[param.id]) return OPTION_OVERRIDES[param.id];
