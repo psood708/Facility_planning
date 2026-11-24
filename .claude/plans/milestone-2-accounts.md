@@ -21,7 +21,7 @@ PRD: `.claude/prds/pharma-facility-compliance-platform.prd.md#step-2` · Branch:
 | T4 | `supabase/` config (magic link), migration (tables, CHECKs, trigger, indexes, RLS enable+force), seed | RLS coverage; trigger blocks owner/created/retention edits (R4/R5) | yes | done |
 | T5 | Two-user isolation tests | R1 404-equivalent, R2 list, R3 anon, R4 forged owner → acceptance 1 | yes | done |
 | T6 | `flag_expired_projects(p_now)` + `purge_flagged_projects(p_now)` + edit un-flags; pg_cron | 6mo±1d; idempotent; edit un-flags; delete day 30 not 29 → acceptance 3 | yes | done |
-| T7 | `store.js` (injectable client) | fake client: missing/RLS-empty → null; validate before send | no | pending |
+| T7 | `store.js` (injectable client) | fake client: missing/RLS-empty → null; validate before send | no | done |
 | T8 | `results-snapshot.js` buildSnapshot / reconcile | save→reopen→recompute equals snapshot → acceptance 2 | no | done |
 | T9 | Auth UI (magic link) + router, vendored supabase-js + SRI, `config.js` (public URL + anon key only) | routeFor(); no tokens in URLs (R15) | no | pending |
 | T10 | Projects UI: list/new/open/save, stale banner, deletion highlighting | DB round trip; pure render tests for each retention state | partly | pending |
