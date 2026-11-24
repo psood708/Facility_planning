@@ -51,10 +51,10 @@ We'll know we're right when **a planner can go from entering a facility to a cro
 
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
-| 1 | Trusted benchmark engine | The existing prototype's checks are verified against the domain expert's reference cases, and each result cites its source and is marked mandatory or recommended | pending | — |
+| 1 | Trusted benchmark engine | The existing prototype's checks are verified against the domain expert's reference cases, and each result cites its source and is marked mandatory or recommended | in-progress — citations, mandatory/recommended labels and fallback built; blocked on the expert's reference cases and source review (`expert-review/`) | — |
 | 2 | Accounts & saved projects | A planner can sign up, create a facility project, save it and come back to it | in-progress — built and tested against a local stack (2026-11-24); goes to complete once the hosted Supabase (Mumbai) + Vercel project is live with custom SMTP | [plan](../plans/milestone-2-accounts.md) |
-| 3 | Single-authority compliance check | A planner picks an authority and sees pass, fail or not covered for each room and requirement | pending | — |
-| 4 | Cross-authority gap report + suggestions | A planner sees how the facility performs across all covered authorities, with a specific suggested change for each gap | pending | — |
+| 3 | Single-authority compliance check | A planner picks an authority and sees pass, fail or not covered for each room and requirement | in-progress — built (2026-11-24): per-authority scorecards, room × authority grid, full per-check detail; results only as trustworthy as Milestone 1's verified data | — |
+| 4 | Cross-authority gap report + suggestions | A planner sees how the facility performs across all covered authorities, with a specific suggested change for each gap | in-progress — built (2026-11-24): cross-authority summary, fixes ranked by authorities satisfied, numeric range charts, accessible tables; needs pilot feedback and Milestone 1 data | — |
 | 5 | Report export | A planner can export and share the gap report | pending | — |
 | 6 | Subscription access | Access requires an active subscription; the pilot can convert to paid | pending | — |
 | 7 | Pilot validation | The domain expert and 3+ pilot users run real facilities and the success metrics are measured | pending | — |
