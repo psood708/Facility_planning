@@ -117,6 +117,37 @@ test("projectList: delete needs a second, explicit confirmation", () => {
   assert.deepEqual(calls, [ID(1)]);
 });
 
+// ---------------------------------------------------------------- list summary + row accessibility
+
+test("listSummary: total, plus how many need attention", () => {
+  const flagged = item(1, { last_edited_at: "2026-05-01T00:00:00Z", flagged_for_deletion_at: "2026-11-04T02:15:00Z" });
+  const warning = item(2, { last_edited_at: "2026-06-10T00:00:00Z" });
+  assert.equal(view.listSummary([]), "");
+  assert.equal(view.listSummary([item(3)]), "1 project");
+  assert.equal(view.listSummary([item(3), item(4)]), "2 projects");
+  assert.equal(view.listSummary([flagged, warning, item(3)]), "3 projects · 1 marked for deletion · 1 due to be marked soon");
+});
+
+test("projectRow: Keep and Delete buttons name the project for screen readers", () => {
+  const p = item(1, { last_edited_at: "2026-06-10T00:00:00Z" });
+  const n = view.projectList(h, [p], handlers, fmt);
+  const keep = button(n, "Keep");
+  const del = find(n, (x) => x.tag === "button" && text(x).startsWith("Delete") && !text(x).includes("permanently"));
+  const hidden = (b) => find(b, byClass("visually-hidden"));
+  assert.match(text(hidden(keep)), /Plant 1/);
+  assert.match(text(hidden(del)), /Plant 1/);
+});
+
+test("projectRow: the confirm step says what will happen, as a labelled group", () => {
+  const n = view.projectList(h, [item(1)], handlers, fmt);
+  const box = find(n, byClass("confirm-delete"));
+  assert.equal(box.attrs.role, "group");
+  assert.match(box.attrs["aria-label"], /Plant 1/);
+  assert.match(text(box), /can't be undone/i);
+  assert.ok(button(box, "Delete permanently"));
+  assert.ok(button(box, "Cancel"));
+});
+
 // ---------------------------------------------------------------- results notice
 
 test("resultsNotice: nothing when results are current", () => {
