@@ -237,12 +237,9 @@ function renderStep1() {
 
   panel.appendChild(h("div", { class: "section" }, groupField(n, "category", {
     legend: "Dosage form category",
-    hint: "Changing the category clears the specific forms and rooms chosen for the previous one.",
+    hint: "Switching category sets aside the forms and rooms chosen for the previous one; switch back to get them again.",
     children: [radioCards("category", CATEGORY_DEFS, state.category, (key) => {
-      state.category = key;
-      state.specificForms = [];
-      state.devStage = null;
-      state.selectedRooms = [];
+      ProjectState.switchCategory(state, key, categoryMemory);
       renderStep1();
     })],
   })));
@@ -742,7 +739,7 @@ function renderStep4() {
   }
 
   detail.appendChild(h("h3", {}, "Detailed Parameter Status"));
-  const tableScroll = h("div", { class: "table-scroll" });
+  const tableScroll = ResultsView.scrollRegion(h, "Detailed parameter status", null);
   const table = h("table", { class: "results-table" });
   const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(state.targetMarkets.map((mk) => h("th", {}, marketLabel(mk)))));
   table.appendChild(h("thead", {}, headRow));
@@ -799,7 +796,7 @@ function renderStep4() {
       );
     });
     btable.appendChild(btbody);
-    detail.appendChild(h("div", { class: "table-scroll" }, btable));
+    detail.appendChild(ResultsView.scrollRegion(h, "Required-feature checklist", btable));
   }
 
   const scoredIds = new Set(
@@ -926,6 +923,7 @@ function wireNav() {
     // In a saved project "Start Over" opens a new project rather than
     // blanking this one (a later Save would overwrite it).
     if (CURRENT) return go("#/projects/new");
+    categoryMemory = {};
     ProjectState.resetState(state);
     showStep(1, { focus: true });
   });
@@ -1138,6 +1136,7 @@ function renderMessage(title, text) {
 let STORE = null;
 let CURRENT = null; // open project { id|null, name, notes, results, retention, reevaluated }; null = wizard-only
 let renderToken = 0; // bumps on every route render so slow responses can't paint over a newer view
+let categoryMemory = {}; // per-category choices set aside by switchCategory (this wizard session only)
 let saveMessage = null; // shown once in the project bar after a save
 let pendingLeave = null; // navigation waiting on the unsaved-changes prompt
 let lastHash = ""; // hash of the view on screen, restored when leaving is put on hold
@@ -1233,6 +1232,7 @@ async function renderProjects(announcement) {
 }
 
 function startNewProject() {
+  categoryMemory = {};
   ProjectState.resetState(state);
   roomFilter = "";
   stepErrors = null;
@@ -1253,6 +1253,7 @@ async function openProject(id) {
   }
   if (token !== renderToken) return;
   if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
+  categoryMemory = {};
   ProjectState.resetState(state, p.inputs);
   roomFilter = "";
   stepErrors = null;

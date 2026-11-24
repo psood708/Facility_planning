@@ -244,3 +244,21 @@ test("markup-looking labels stay text", () => {
   const page = view.resultsPage(h, s, m, { labels: LABELS });
   assert.ok(all(page, (n) => n.children.includes(evil)).length > 0);
 });
+
+// axe "scrollable-region-focusable" (found by e2e/a11y.e2e.js): anything that
+// can scroll sideways must be reachable by keyboard and named.
+test("every scrolling wrapper is a focusable, labelled region", () => {
+  const page = live();
+  const scrollers = all(page, (n) => cls("table-scroll")(n) || cls("grid-scroll")(n));
+  assert.ok(scrollers.length >= 2, "expected the table views and the room grid to scroll");
+  for (const n of scrollers) {
+    assert.equal(n.attrs.role, "region", JSON.stringify(n.attrs));
+    assert.equal(String(n.attrs.tabindex), "0");
+    assert.ok((n.attrs["aria-label"] || "").trim().length > 0, "region needs a name");
+  }
+});
+
+test("scrollRegion builds the same focusable, labelled wrapper for app.js detail tables", () => {
+  const r = view.scrollRegion(h, "Detailed parameter status", h("table", {}, []));
+  assert.deepEqual([r.attrs.class, r.attrs.role, String(r.attrs.tabindex), r.attrs["aria-label"]], ["table-scroll", "region", "0", "Detailed parameter status"]);
+});

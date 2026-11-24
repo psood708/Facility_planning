@@ -120,10 +120,14 @@
     return chartSvg(s, { title, desc, height, className: "bar " + className }, [defs, s("g", { "clip-path": `url(#${clip})` }, marks)]);
   }
 
+  // A wrapper that may scroll sideways must be keyboard-reachable and named
+  // (WCAG 2.1.1; axe "scrollable-region-focusable").
+  const scrollRegion = (h, label, child) => h("div", { class: "table-scroll", role: "region", tabindex: "0", "aria-label": label }, child);
+
   function tableView(h, caption, head, rows) {
     return h("details", { class: "table-view" }, [
       h("summary", {}, "View as table"),
-      h("div", { class: "table-scroll" }, h("table", { class: "results-table data-table" }, [
+      scrollRegion(h, caption, h("table", { class: "results-table data-table" }, [
         h("caption", {}, caption),
         h("thead", {}, h("tr", {}, head.map((c) => h("th", { scope: "col" }, c)))),
         h("tbody", {}, rows.map((r) => h("tr", {}, [h("th", { scope: "row" }, r[0])].concat(r.slice(1).map((c) => h("td", {}, String(c))))))),
@@ -468,5 +472,5 @@
     ]);
   }
 
-  return { GLYPH, resultsPage, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar };
+  return { GLYPH, resultsPage, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
 });
