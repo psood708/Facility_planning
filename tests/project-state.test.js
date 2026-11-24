@@ -213,3 +213,26 @@ test("validateProject trims the name and keeps an <img onerror> name as plain da
   assert.equal(r.ok, true);
   assert.equal(r.project.name, '<img src=x onerror="alert(1)">');
 });
+
+// ---------------------------------------------------------------- unsaved changes
+
+test("fingerprint: equal for the same saveable content, whatever the key order or step", () => {
+  const a = filledState();
+  const b = JSON.parse(JSON.stringify(a));
+  b.step = 1;
+  b.facilityValues = Object.fromEntries(Object.entries(b.facilityValues).reverse());
+  assert.equal(ps.fingerprint({ name: "Plant", notes: "", state: a }), ps.fingerprint({ name: "Plant", notes: "", state: b }));
+});
+
+test("fingerprint: changes when any input, the name or the notes change", () => {
+  const base = ps.fingerprint({ name: "Plant", notes: "n", state: filledState() });
+  const s = filledState();
+  s.roomValues[ROOM0]["DIM-001"] = 41;
+  assert.notEqual(ps.fingerprint({ name: "Plant", notes: "n", state: s }), base);
+  assert.notEqual(ps.fingerprint({ name: "Plant 2", notes: "n", state: filledState() }), base);
+  assert.notEqual(ps.fingerprint({ name: "Plant", notes: "m", state: filledState() }), base);
+});
+
+test("fingerprint: surrounding spaces in the name don't count as a change (save trims them)", () => {
+  assert.equal(ps.fingerprint({ name: "  Plant ", notes: "", state: filledState() }), ps.fingerprint({ name: "Plant", notes: "", state: filledState() }));
+});

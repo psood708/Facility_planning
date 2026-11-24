@@ -19,7 +19,13 @@ function findChrome() {
   return undefined;
 }
 
-const launch = () => chromium.launch({ executablePath: findChrome() });
+// Reduced motion: no smooth scrolling, so clicks never land mid-scroll.
+async function launch() {
+  const browser = await chromium.launch({ executablePath: findChrome() });
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = (opts = {}) => newContext({ reducedMotion: "reduce", ...opts });
+  return browser;
+}
 
 function check(name, ok, extra = "") {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${extra ? " — " + extra : ""}`);

@@ -70,6 +70,41 @@ async function openList(page) {
   await openList(page);
   check("rename is saved", (await rowFor(page, id).locator("a.project-name").textContent()) === "Renamed plant");
 
+  // ---- unsaved changes
+  await rowFor(page, id).locator("a.project-name").click();
+  await page.waitForSelector("#project-name");
+  check("no unsaved-changes flag right after opening", !(await page.isVisible("#project-bar .unsaved-flag")));
+  await page.fill("#project-name", "Unsaved name");
+  check("editing shows 'Unsaved changes'", await page.isVisible("#project-bar .unsaved-flag"));
+  check("closing/reloading the tab would prompt (beforeunload)", await page.evaluate(() => { const e = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; }));
+  await page.click("#project-bar a.back-link");
+  await page.waitForSelector(".unsaved-guard");
+  check("leaving asks first and keeps the project on screen", (await page.evaluate(() => location.hash)) === `#/projects/${id}` && (await page.isVisible("#view-wizard")));
+  await page.click(".unsaved-guard button:has-text('Stay')");
+  check("Stay keeps the edit", !(await page.isVisible(".unsaved-guard")) && (await page.inputValue("#project-name")) === "Unsaved name");
+  // A change made in the wizard itself (not the name) also counts.
+  await page.fill("#project-name", "Renamed plant");
+  check("undoing the edit clears the flag", !(await page.isVisible("#project-bar .unsaved-flag")));
+  for (let i = 0; i < 3; i++) await page.click("#btn-back");
+  await page.waitForSelector("#step-1:not([hidden]) .market-grid");
+  await page.locator("#step-1 .market-grid input[type=checkbox]:not(:checked)").first().check();
+  await page.waitForSelector("#project-bar .unsaved-flag:not([hidden])");
+  check("changing a wizard field shows 'Unsaved changes'", true);
+  await page.click("#account-bar a:has-text('My projects')");
+  await page.waitForSelector(".unsaved-guard");
+  await page.click(".unsaved-guard button:has-text('Discard changes')");
+  await page.waitForSelector("#view-projects:not([hidden]) .project-list");
+  check("Discard leaves without saving", (await rowFor(page, id).locator("a.project-name").textContent()) === "Renamed plant");
+  await rowFor(page, id).locator("a.project-name").click();
+  await page.waitForSelector("#project-name");
+  await page.fill("#project-name", "Saved on the way out");
+  await page.click("#project-bar a.back-link");
+  await page.waitForSelector(".unsaved-guard");
+  await page.click(".unsaved-guard button:has-text('Save and leave')");
+  await page.waitForSelector("#view-projects:not([hidden]) .project-list");
+  check("Save and leave saves, then leaves", (await rowFor(page, id).locator("a.project-name").textContent()) === "Saved on the way out");
+  check("a clean project does not prompt on unload", await page.evaluate(() => { const e = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(e); return !e.defaultPrevented; }));
+
   // ---- warning: 5 months 20 days since last edit
   await must(admin.from("projects").update({ last_edited_at: ago(172) }).eq("id", id));
   await openList(page);

@@ -681,7 +681,7 @@ function showStep(n) {
   document.getElementById("btn-next").hidden = n === 4;
   document.getElementById("btn-restart").hidden = n !== 4;
   renderProjectBar();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  scrollToTop();
 }
 
 function validateStep(n) {
@@ -725,6 +725,12 @@ let SESSION = null;
 let AUTH_LINK_ERROR = false; // the email link that opened the app was invalid or expired
 let currentView = null;
 
+// Smooth scrolling unless the user asked for reduced motion.
+function scrollToTop() {
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+}
+
 const VIEWS = ["view-signin", "view-projects", "view-message", "view-wizard"];
 
 function showView(id) {
@@ -749,6 +755,14 @@ function setNotice(el, text, isError) {
 
 function render() {
   const route = Router.routeFor(window.location.hash, { configured: !!SB, signedIn: !!SESSION });
+  const stayingOnProject = route.name === "project" && CURRENT && route.id === CURRENT.id;
+  if (currentView === "view-wizard" && !stayingOnProject && hasUnsavedChanges()) {
+    // Put the address back and ask first; navigate only if the user agrees.
+    const target = window.location.hash;
+    window.history.replaceState(null, "", lastHash || "#/projects");
+    return confirmLeave(() => go(target));
+  }
+  lastHash = window.location.hash;
   renderToken++;
   renderAccountBar();
   if (route.name !== "new" && route.name !== "project") CURRENT = null;
@@ -785,11 +799,12 @@ function renderAccountBar() {
     h("button", {
       type: "button",
       class: "secondary small",
-      onclick: async () => {
+      onclick: () => confirmLeave(async () => {
         await AUTH.signOut().catch(() => {});
         SESSION = null;
+        CURRENT = null;
         go("#/signin");
-      },
+      }),
     }, "Sign out")
   );
   bar.hidden = false;
@@ -857,6 +872,38 @@ let STORE = null;
 let CURRENT = null; // open project { id|null, name, notes, results, retention, reevaluated }; null = wizard-only
 let renderToken = 0; // bumps on every route render so slow responses can't paint over a newer view
 let saveMessage = null; // shown once in the project bar after a save
+let pendingLeave = null; // navigation waiting on the unsaved-changes prompt
+let lastHash = ""; // hash of the view on screen, restored when leaving is put on hold
+
+// Unsaved changes: compare what Save would store now with what was last
+// opened or saved.
+const currentFingerprint = () => ProjectState.fingerprint({ name: CURRENT.name, notes: CURRENT.notes, state });
+const hasUnsavedChanges = () => !!(CURRENT && CURRENT.savedFingerprint !== currentFingerprint());
+
+function setCurrent(fields) {
+  CURRENT = { reevaluated: false, ...fields };
+  CURRENT.savedFingerprint = currentFingerprint();
+}
+
+function refreshUnsavedFlag() {
+  const flag = document.querySelector("#project-bar .unsaved-flag");
+  if (flag) flag.hidden = !hasUnsavedChanges();
+}
+
+// Run proceed() now, or after the user answers the unsaved-changes prompt.
+function confirmLeave(proceed) {
+  if (!hasUnsavedChanges()) return proceed();
+  pendingLeave = proceed;
+  renderProjectBar();
+  scrollToTop();
+}
+
+function leaveNow() {
+  const proceed = pendingLeave;
+  pendingLeave = null;
+  if (CURRENT) CURRENT.savedFingerprint = currentFingerprint(); // changes discarded on purpose
+  if (proceed) proceed();
+}
 
 const fmtDate = (d) => ProjectsView.formatDate(d);
 
@@ -905,7 +952,7 @@ async function renderProjects() {
 
 function startNewProject() {
   ProjectState.resetState(state);
-  CURRENT = { id: null, name: "", notes: "", results: null, retention: null, reevaluated: false };
+  setCurrent({ id: null, name: "", notes: "", results: null, retention: null });
   showView("view-wizard");
   showStep(1);
 }
@@ -923,7 +970,7 @@ async function openProject(id) {
   if (token !== renderToken) return;
   if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
   ProjectState.resetState(state, p.inputs);
-  CURRENT = { id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention, reevaluated: false };
+  setCurrent({ id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention });
   showView("view-wizard");
   // Complete projects open on their results; unfinished ones where they start.
   showStep(!validateStep(1) && !validateStep(2) ? 4 : 1);
@@ -945,19 +992,34 @@ function renderProjectBar() {
         h("input", {
           type: "text", id: "project-name", maxlength: "120", value: CURRENT.name,
           placeholder: "Project name (e.g. Plant 2 — sterile block)",
-          oninput: (e) => (CURRENT.name = e.target.value),
+          oninput: (e) => { CURRENT.name = e.target.value; refreshUnsavedFlag(); },
         }),
         save,
+        h("span", { class: "unsaved-flag", hidden: hasUnsavedChanges() ? null : "hidden" }, "Unsaved changes"),
         status,
       ]),
+      pendingLeave ? unsavedGuard() : null,
       h("details", { class: "project-notes" }, [
         h("summary", {}, "Notes"),
-        h("textarea", { maxlength: "2000", "aria-label": "Project notes", oninput: (e) => (CURRENT.notes = e.target.value) }, CURRENT.notes || ""),
+        h("textarea", { maxlength: "2000", "aria-label": "Project notes", oninput: (e) => { CURRENT.notes = e.target.value; refreshUnsavedFlag(); } }, CURRENT.notes || ""),
       ]),
       ProjectsView.deletionNotice(h, CURRENT.retention, { onKeep: keepCurrent, fmt: fmtDate }),
       CURRENT.reevaluated ? null : ProjectsView.resultsNotice(h, CURRENT.results, { onReevaluate: reevaluate }),
     ])
   );
+}
+
+function unsavedGuard() {
+  const status = h("span", { class: "save-status", role: "status" });
+  const save = h("button", { type: "button", onclick: async () => { if (await saveCurrent(save, status)) leaveNow(); } }, "Save and leave");
+  return h("div", { class: "unsaved-guard", role: "alertdialog", "aria-label": "Unsaved changes" }, [
+    h("strong", {}, "You have unsaved changes."),
+    h("span", {}, " Save them before leaving this project?"),
+    save,
+    h("button", { type: "button", class: "secondary", onclick: leaveNow }, "Discard changes"),
+    h("button", { type: "button", class: "secondary", onclick: () => { pendingLeave = null; renderProjectBar(); } }, "Stay"),
+    status,
+  ]);
 }
 
 async function saveCurrent(button, status) {
@@ -966,15 +1028,20 @@ async function saveCurrent(button, status) {
   try {
     const payload = { name: CURRENT.name, notes: CURRENT.notes, state };
     const p = CURRENT.id ? await STORE.update(CURRENT.id, payload) : await STORE.create(payload);
-    if (!p) return renderMessage("Project not found", "It may have been deleted in another tab.");
+    if (!p) { renderMessage("Project not found", "It may have been deleted in another tab."); return false; }
     const wasNew = !CURRENT.id;
-    CURRENT = { id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention, reevaluated: false };
+    setCurrent({ id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention });
     // Give the new project its own address without re-running the router.
-    if (wasNew) window.history.replaceState(null, "", "#/projects/" + p.id);
+    if (wasNew) {
+      window.history.replaceState(null, "", "#/projects/" + p.id);
+      lastHash = window.location.hash;
+    }
     saveMessage = "Saved";
     showStep(state.step);
+    return true;
   } catch (e) {
     setNotice(status, errorText(e), true);
+    return false;
   } finally {
     button.disabled = false;
   }
@@ -1041,6 +1108,12 @@ async function init() {
   wireNav();
   await initAccounts();
   window.addEventListener("hashchange", render);
+  // Closing or reloading the tab with unsaved changes: the browser's own prompt.
+  window.addEventListener("beforeunload", (e) => {
+    if (hasUnsavedChanges()) { e.preventDefault(); e.returnValue = ""; }
+  });
+  const wizard = document.getElementById("view-wizard");
+  if (wizard.addEventListener) ["input", "change", "click"].forEach((t) => wizard.addEventListener(t, () => setTimeout(refreshUnsavedFlag, 0)));
   render();
 }
 

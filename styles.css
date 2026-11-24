@@ -430,3 +430,7 @@ button.danger { background: var(--critical); border-color: var(--critical); colo
 .deletion-hint { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--significant-bg); color: var(--significant); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .stale-banner { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-dark); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------------------------------------------------------------- unsaved changes */
+.unsaved-flag { font-size: 0.8rem; font-weight: 700; color: var(--significant); background: var(--significant-bg); padding: 2px 8px; border-radius: 999px; }
+.unsaved-guard { margin-top: 12px; padding: 12px 14px; border-radius: 8px; border: 2px solid var(--significant); background: var(--significant-bg); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }

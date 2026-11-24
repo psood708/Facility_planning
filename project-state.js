@@ -203,8 +203,19 @@
     return state;
   }
 
+  // Stable string of everything Save would store. Two equal fingerprints mean
+  // "nothing to save"; used to warn about unsaved changes.
+  function canonical(v) {
+    if (Array.isArray(v)) return "[" + v.map(canonical).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canonical(v[k])).join(",") + "}";
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  function fingerprint({ name, notes, state }) {
+    return canonical({ name: String(name || "").trim(), notes: String(notes || ""), inputs: serializeInputs(state) });
+  }
+
   return {
     CATEGORY_DEFS, SPECIFIC_FORMS, DEV_STAGES, SCALE_SIZES, LIMITS,
-    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState,
+    resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint,
   };
 });
