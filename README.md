@@ -64,9 +64,9 @@ For the browser tests, set `CHROME_PATH`, or run `npx playwright install chromiu
 ## Reading the results page
 
 - **Your primary authority first:** chosen in Step 1 from the covered markets you selected. One table per room lists every requirement as ✓ Pass, ✗ Fail, ⊘ Not covered (the authority sets no figure, or the dataset has no data) or ? No value, failures first. Buttons switch to another chosen authority without changing the project. Authorities without data (UK MHRA, TGA, SAHPRA, SFDA) are shown in Step 1 as "No data yet" and can't be chosen.
-- **Then the comparison with other authorities.** Summary: how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
+- **Then the comparison across every covered authority** (Schedule M, US FDA, EU-GMP / PIC/S, WHO GMP, NMPA, PMDA), whatever you ticked; your target markets are marked "Your target". EU-GMP and PIC/S share identical data, so they appear and count once. Summary: how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
 - **One strip per authority:** verdict (icon and word), a bar of check counts (met, not met, no value, not regulated) and gaps by severity. The verdict comes from the worst gap, not from the bar.
-- **What to fix first:** fixes ranked by how many authorities each one satisfies, then by severity. International-standard (advisory) fixes are listed separately and never count toward a verdict.
+- **What to fix first (the gap report):** every gap with its concrete suggested change, grouped as Mandatory gaps, Recommendations, Not yet classified (no mandatory/recommended label yet, pending expert review) and Advisory (international standard only, never affects a verdict). Within each group, the change that satisfies the most authorities comes first, then by severity.
 - **Room by authority:** where the gaps are, rooms sorted by number of gaps.
 - **Entered values against each requirement:** each failing numeric value drawn against every authority's range and the advisory international range.
 - **Full detail:** every check, recommendation text and source, collapsed at the bottom.
