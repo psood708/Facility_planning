@@ -103,6 +103,8 @@ async function loadData() {
   files.forEach((f, i) => (data[f] = results[i]));
   // Optional: without provenance every result shows "Citation pending" / "Unclassified".
   data.provenance = await fetch("data/provenance.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // Content hash (saved projects) and the date the benchmark data last changed (reports).
+  data.manifest = await fetch("data/manifest.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   return FacilityEngine.indexData(data);
 }
 
@@ -735,6 +737,58 @@ function authorityOpts(snapshot) {
   };
 }
 
+// ---------------------------------------------------------------------
+// Report export (Milestone 5)
+// ---------------------------------------------------------------------
+
+// "Download report": a self-contained HTML gap report built from the model on
+// screen. model is null for read-only saved results, which must be
+// re-evaluated first (their suggested changes are recomputed, not saved).
+function exportBar(model) {
+  if (!model || model.empty) {
+    const why = !model ? "Re-evaluate with current data to download a report." : "Select at least one market and room, then enter values, to download a report.";
+    return h("div", { class: "export-bar" }, [
+      h("button", { type: "button", class: "secondary", disabled: "disabled", "aria-describedby": "export-note" }, "Download report"),
+      h("span", { class: "field-hint", id: "export-note" }, why),
+    ]);
+  }
+  return h("div", { class: "export-bar" }, [
+    h("button", { type: "button", class: "secondary", id: "download-report", onclick: () => downloadReport(model) }, "Download report"),
+    h("span", { class: "field-hint" }, "A shareable HTML file that opens in any browser and prints to PDF."),
+  ]);
+}
+
+// "YYYY-MM-DDTHH:MM" in the viewer's time zone.
+const localTimestamp = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+function downloadReport(model) {
+  const category = (CATEGORY_DEFS.find((c) => c.key === state.category) || {}).label || "";
+  const { filename, html } = ReportExport.buildReport({
+    model,
+    labels: resultLabels(),
+    project: { name: CURRENT ? CURRENT.name : "" },
+    facility: {
+      category,
+      forms: state.specificForms.slice(),
+      targets: reportTargets().map((k) => FacilityEngine.reportLabel(DATA, k)),
+      primary: state.primaryAuthority ? FacilityEngine.reportLabel(DATA, state.primaryAuthority) : "",
+    },
+    meta: {
+      dataDate: (DATA.manifest || {}).data_date,
+      dataHash: (DATA.manifest || {}).content_hash,
+      engineVersion: FacilityEngine.ENGINE_VERSION,
+      generatedAt: localTimestamp(), // the planner's own date, not UTC (India is UTC+5:30)
+    },
+  });
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const link = h("a", { href: url, download: filename, hidden: "hidden" }, "Download");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  announce("Report downloaded: " + filename);
+}
+
 function renderStep4() {
   const root = document.getElementById("step-4");
   clear(root);
@@ -743,6 +797,7 @@ function renderStep4() {
   // read-only, until the user re-evaluates (banner in the project bar). It
   // renders through the same ResultsModel/ResultsView as the live page.
   if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
+    root.appendChild(exportBar(null));
     if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels(), authorityOpts(CURRENT.results.snapshot), reportTargets()));
     return;
   }
@@ -767,7 +822,8 @@ function renderStep4() {
 
   const compact = ResultsSnapshot.compact(all, evalState);
   const model = ResultsModel.build(compact, labels, { targets: reportTargets() });
-  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, evalState.targetMarkets, labels), labels, authority: authorityOpts(compact) }));
+  panel.appendChild(exportBar(model));
+  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, evalState.targetMarkets, labels), labels, authority: authorityOpts(compact), dataDate: (DATA.manifest || {}).data_date }));
 
   // The full tables, recommendation text and sources stay available, collapsed.
   const detail = h("div", { class: "full-detail-body" });
@@ -1443,7 +1499,15 @@ async function initAccounts() {
     auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
   });
   AUTH = Auth.createAuth({ client: SB, location: window.location });
-  const manifest = await fetch("data/manifest.json").then((r) => r.json());
+  const manifest = DATA.manifest;
+  // Saved projects are stamped with the data's content hash; without it,
+  // keep accounts off (wizard only) rather than save unverifiable results.
+  if (!manifest || !manifest.content_hash) {
+    console.error("data/manifest.json is missing or has no content_hash; saving is off.");
+    SB = null;
+    AUTH = null;
+    return;
+  }
   STORE = ProjectStore.createStore({
     client: SB,
     DATA,

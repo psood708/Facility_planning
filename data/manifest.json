@@ -1,6 +1,7 @@
 {
   "manifest_version": 1,
   "content_hash": "7d9b15b3c16c5d83cff53bfed25db429df3042e60bca39bd6886aa8e15d5f4e3",
+  "data_date": "2026-11-24",
   "files": {
     "authorities.json": "3079b6d9d8d102f606514cd014b6f40e7aa0d34f6bfa4849d2fab54f5809d949",
     "boolean_thresholds.json": "d7603892dd4a323b375578baaab2cb390ece7716e5dff6ddb133b9743869b4b4",

@@ -63,6 +63,22 @@ async function openList(page) {
   check("gaps are grouped (mandatory / recommended / not yet classified / advisory)", groups.length > 0 && groups.every((g) => /Mandatory|Recommendations|Not yet classified|international standard/i.test(g)), groups.join(" | "));
   const changes = await page.locator("#step-4 .fix-row .fix-change").allTextContents();
   check("every gap shows a concrete suggested change", changes.length > 0 && changes.every((t) => /^(Increase|Decrease|Adjust|Upgrade|Add|Set|Change)\b/.test(t.trim())), changes.join(" | "));
+  // ---- report export (Milestone 5): the downloaded file says what the screen says
+  const screenGaps = await page.$$eval("#step-4 .fix-row", (rows) => rows.map((r) => ({
+    change: r.querySelector(".fix-change").textContent.trim(),
+    label: r.querySelector(".fix-obligation").textContent.trim(),
+    source: (r.querySelector(".fix-source") || { textContent: "" }).textContent.replace(/^Source:\s*/, "").trim(),
+    satisfies: r.querySelector(".fix-satisfies").textContent.trim(),
+  })));
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#download-report")]);
+  check("download offers a dated .html file", /^gap-report-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.html$/.test(download.suggestedFilename()), download.suggestedFilename());
+  const exported = require("node:fs").readFileSync(await download.path(), "utf8");
+  const unesc = (t) => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  const field = (li, c) => { const m = li.match(new RegExp(`class="${c}"[^>]*>([\\s\\S]*?)</`)); return m ? unesc(m[1]).trim() : ""; };
+  const fileGaps = [...exported.matchAll(/<li class="gap"[\s\S]*?<\/li>/g)].map((m) => ({ change: field(m[0], "gap-change"), label: field(m[0], "gap-label"), source: field(m[0], "gap-source"), satisfies: field(m[0], "gap-satisfies") }));
+  check("the downloaded report lists the same gaps as the screen, with change, label, source and reach", fileGaps.length > 0 && JSON.stringify(fileGaps) === JSON.stringify(screenGaps), `${fileGaps.length} vs ${screenGaps.length}`);
+  check("the downloaded report states the data date and the advisory disclaimer", /Benchmark data as of \d{1,2} \w{3} \d{4}/.test(exported) && (exported.match(/not a regulatory sign-off/g) || []).length >= 2);
+  check("the downloaded report runs no script", !/<script/i.test(exported));
   await page.evaluate(() => { CURRENT.savedFingerprint = currentFingerprint(); }); // discard this throwaway project
   await openList(page);
 
@@ -162,6 +178,7 @@ async function openList(page) {
   await rowFor(page, id).locator("a.project-name").click();
   await page.waitForSelector(".stale-banner");
   check("stale project explains the data changed", /benchmark data has been updated/i.test(await page.textContent(".stale-banner")));
+  check("stale results can't be exported until re-evaluated", await page.isDisabled("#step-4 .export-bar button"));
   check("stale project shows results as saved (read-only)", /Results as saved/.test(await page.textContent("#step-4")) && (await page.locator("#step-4 input, #step-4 select").count()) === 0);
   await page.click(".stale-banner button:has-text('Re-evaluate')");
   await page.waitForSelector("#step-4 h2:has-text('Compliance Results')");

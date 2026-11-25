@@ -97,7 +97,7 @@ The clock is the project's **last edit**. Opening a project doesn't count.
 
 ## When the benchmark data or engine changes
 
-- After editing anything in `data/`, run `node scripts/manifest.js`. The tests fail if `data/manifest.json` doesn't match the data files.
+- After editing anything in `data/`, run `node scripts/manifest.js`. The tests fail if `data/manifest.json` doesn't match the data files. The script also stamps `data_date` (today) whenever the data's content changes, and keeps it otherwise; reports print it as "Benchmark data as of …".
 - When evaluation logic in `engine.js` changes, bump `ENGINE_VERSION` and the `package.json` version together. A test checks they match.
 
 Saved projects then show the stale-results banner until the user re-evaluates and saves.

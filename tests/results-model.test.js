@@ -335,3 +335,27 @@ test("malformed saved entries are skipped; inherited names never act as verdicts
   assert.equal(m.fixes.length, 1);
   assert.equal(model.forAuthority(snapshot, "schedule_m", LABELS).rooms[0].rows.length, 1);
 });
+
+// ---------------------------------------------------------------- label and source per gap (Milestone 5)
+
+test("live gaps carry their label and source; the label reads the way the report prints it", () => {
+  const s = engine.reportState(DATA, demo());
+  const m = model.build(snap.compact(engine.evaluateAll(DATA, s), s), LABELS);
+  for (const f of m.gapGroups.flatMap((g) => g.fixes)) {
+    assert.ok(Array.isArray(f.sources) && f.sources.length > 0 && f.sources.every((x) => typeof x === "string" && x), `${f.id} sources`);
+    assert.match(f.labelText, /^(Mandatory|Recommended)( \(draft\))?$|^Not yet classified$|^Advisory \(international standard\)$/, `${f.id}: ${f.labelText}`);
+  }
+  const area = m.fixes.find((f) => f.id === "AREA-Z-29-Z-29");
+  assert.equal(area.labelText, "Mandatory (draft)");
+  assert.match(area.sources[0], /Schedule M/);
+});
+
+test("labelText for every obligation and status", () => {
+  const L = model.labelText;
+  assert.equal(L({ group: "mandatory", obligationStatus: "draft" }), "Mandatory (draft)");
+  assert.equal(L({ group: "mandatory", obligationStatus: "expert_confirmed" }), "Mandatory");
+  assert.equal(L({ group: "recommended", obligationStatus: "draft" }), "Recommended (draft)");
+  assert.equal(L({ group: "recommended", obligationStatus: "expert_confirmed" }), "Recommended");
+  assert.equal(L({ group: "unclassified", obligationStatus: "unclassified" }), "Not yet classified");
+  assert.equal(L({ group: "advisory", obligationStatus: "fixed" }), "Advisory (international standard)");
+});

@@ -76,6 +76,14 @@
   ];
   const OBLIGATIONS = ["mandatory", "recommended", "unclassified"];
 
+  // How a gap's label reads, on screen and in the exported report.
+  function labelText(f) {
+    if (f.group === "advisory") return "Advisory (international standard)";
+    if (f.group === "unclassified") return "Not yet classified";
+    const word = f.group === "mandatory" ? "Mandatory" : "Recommended";
+    return f.obligationStatus === "draft" ? `${word} (draft)` : word;
+  }
+
   // opts.targets: the planner's target markets as report authority keys
   // (engine.reportKeyFor), marked on the scorecards.
   function build(snapshot, labels, opts = {}) {
@@ -159,6 +167,9 @@
         group: basis === "fallback" ? "advisory" : obligation,
         // Older saves stored no suggested change; the page says so.
         change: typeof r.change === "string" && r.change ? r.change : null,
+        // null = not available (saved results don't keep sources); [] = none recorded.
+        sources: Array.isArray(r.sources) ? r.sources.filter((x) => typeof x === "string" && x) : null,
+        obligationStatus: typeof r.obligationStatus === "string" ? r.obligationStatus : null,
       };
     });
     // Mandatory, recommended, not yet classified, advisory; within each, the
@@ -169,6 +180,7 @@
       b.satisfies - a.satisfies ||
       (SEV_RANK[b.severity] || 2) - (SEV_RANK[a.severity] || 2) ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    fixes.forEach((f) => (f.labelText = labelText(f)));
     const gapGroups = GAP_GROUPS.map((g) => ({ key: g.key, label: g.label, fixes: fixes.filter((f) => f.group === g.key) }));
 
     const gaps = fixes.filter((f) => f.basis === "authority");
@@ -269,5 +281,5 @@
     return { key: mk, label: L.market(mk), verdict, verdictKey: verdict ? verdictKeyOf(verdict) : null, counts, rooms };
   }
 
-  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps, forAuthority };
+  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps, forAuthority, labelText };
 });

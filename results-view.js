@@ -248,16 +248,19 @@
   function fixItem(h, f, labels) {
     const sev = f.severity.toLowerCase();
     const markets = h("span", { class: "fix-markets" }, f.marketsFailing.map((mk) => h("span", { class: "market-chip", title: marketName(labels, mk) }, short(mk))));
+    const source = Array.isArray(f.sources) ? h("p", { class: "fix-source" }, "Source: " + (f.sources.length ? f.sources.join("; ") : "No source recorded")) : null;
     return h("li", { class: "fix fix-row fix-" + f.basis }, [
       h("p", { class: "fix-change" + (f.change ? "" : " fix-change-missing") }, f.change || "Re-evaluate with current data to see the suggested change."),
       h("div", { class: "fix-head" }, [
         h("span", { class: "sev-chip" }, [h("span", { class: "swatch sw-sev-" + sev, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[f.severity]), f.severity]),
+        h("span", { class: "fix-obligation ob-" + f.group }, f.labelText || ""),
         h("span", { class: "fix-label" }, f.label),
         h("span", { class: "fix-room" }, f.roomLabel),
       ]),
       h("div", { class: "fix-meta" }, f.basis === "authority"
         ? [h("span", { class: "fix-satisfies" }, `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`), markets]
         : [h("span", { class: "fix-satisfies" }, "International standard only — misses it for"), markets]),
+      source,
     ]);
   }
 
@@ -521,12 +524,20 @@
     ]);
   }
 
+  // "2026-11-24" → "24 Nov 2026" (dates are calendar days, read as UTC).
+  const formatDay = (iso) => {
+    const d = new Date(String(iso) + "T00:00:00Z");
+    return Number.isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  };
+
   function resultsPage(h, s, model, opts = {}) {
     const labels = opts.labels || { market: (mk) => (model.markets.find((m) => m.key === mk) || {}).label || mk };
     const hasComparison = !!model && !model.empty;
+    const dataDate = opts.dataDate ? h("p", { class: "data-date" }, "Benchmark data as of " + formatDay(opts.dataDate)) : null;
     const primary = opts.authority
       ? [authorityView(h, opts.authority), hasComparison ? h("h3", { class: "compare-heading" }, "Compare with other authorities") : null]
       : [];
+    primary.unshift(dataDate);
     if (!model || model.empty) {
       return h("div", { class: "results-page" }, primary.concat(h("p", { class: "empty-state" }, "No results to show yet — select at least one target market and room, then enter values.")));
     }
@@ -540,5 +551,5 @@
     ]);
   }
 
-  return { GLYPH, resultsPage, authorityView, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
+  return { GLYPH, formatDay, resultsPage, authorityView, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
 });

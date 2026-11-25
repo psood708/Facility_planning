@@ -70,7 +70,7 @@ test("R13: no inline scripts or styles, and every script is local", () => {
   for (const tag of html.match(/<link\b[^>]*rel="stylesheet"[^>]*>/g)) {
     assert.match(tag, /^<link rel="stylesheet" href="[a-z0-9._-]+\.css">$/i, tag);
   }
-  for (const f of ["app.js", "projects-view.js", "results-model.js", "results-view.js"]) {
+  for (const f of ["app.js", "projects-view.js", "results-model.js", "results-view.js", "report-export.js"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(ROOT, f), "utf8"), /\bstyle:\s*["'`]/, `${f} sets an inline style attribute (blocked by CSP)`);
   }
 });

@@ -353,3 +353,12 @@ test("wording reflects that every covered authority is compared", () => {
   const t = text(report(demo({ roomValues: {}, facilityValues: {} })));
   assert.doesNotMatch(t, /selected authorit/i);
 });
+
+test("each gap on screen shows its label and source; the page states the benchmark data date", () => {
+  const page = report(demo(), { dataDate: "2026-11-24" });
+  for (const it of all(page, cls("fix-row"))) {
+    assert.match(text(find(it, cls("fix-obligation"))), /^(Mandatory|Recommended)( \(draft\))?$|^Not yet classified$|^Advisory \(international standard\)$/);
+    assert.match(text(find(it, cls("fix-source"))), /^Source: .{3,}/);
+  }
+  assert.match(text(find(page, cls("data-date"))), /Benchmark data as of 24 Nov 2026/);
+});

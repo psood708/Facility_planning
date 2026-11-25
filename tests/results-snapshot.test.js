@@ -117,7 +117,7 @@ test("compact over the report state is the snapshot body without version fields 
   const sn = snap.buildSnapshot(DATA, state(), VERSIONS);
   const body = snap.compact(engine.evaluateAll(DATA, s), s);
   const { snapshot_version, data_hash, engine_version, ...rest } = snap.expand(sn, DATA);
-  body.recommendations = body.recommendations.map(({ change, ...r }) => r);
+  body.recommendations = body.recommendations.map(({ change, sources, obligationStatus, ...r }) => r); // live-only fields
   assert.deepEqual(rest, body);
 });
 
@@ -166,7 +166,7 @@ test("saved results stay well under the 256 KB database limit, even in the worst
 test("expand reads both the old (object) and new (coded) saved formats the same way", () => {
   const s = engine.reportState(DATA, state());
   const live = snap.compact(engine.evaluateAll(DATA, s), s);
-  live.recommendations = live.recommendations.map(({ change, ...r }) => r);
+  live.recommendations = live.recommendations.map(({ change, sources, obligationStatus, ...r }) => r);
   assert.deepEqual(snap.expand(live, DATA).evaluations, live.evaluations, "old object form passes through");
   assert.deepEqual(snap.expand(snap.buildSnapshot(DATA, state(), VERSIONS), DATA).evaluations, live.evaluations, "coded form decodes to it");
 });
@@ -190,4 +190,16 @@ test("a save sharing no authority with the report cannot be verified, so it is n
   const old = JSON.parse(JSON.stringify(snap.compact(engine.evaluateAll(DATA, s), s)));
   const r = snap.reconcile(DATA, { inputs: { ...s, targetMarkets: [] }, results_snapshot: old, data_hash: VERSIONS.dataHash, engine_version: VERSIONS.engineVersion }, VERSIONS);
   assert.equal(r.status, "inconsistent");
+});
+
+test("the live results carry each gap's sources and label status; saved results do not", () => {
+  const s = engine.reportState(DATA, state());
+  const live = snap.compact(engine.evaluateAll(DATA, s), s);
+  for (const r of live.recommendations) {
+    assert.ok(Array.isArray(r.sources) && r.sources.length > 0, r.id);
+    assert.ok(["draft", "expert_confirmed", "unclassified", "fixed"].includes(r.obligationStatus), r.obligationStatus);
+  }
+  for (const r of snap.buildSnapshot(DATA, state(), VERSIONS).recommendations) {
+    assert.equal("sources" in r || "obligationStatus" in r, false, "derived text is recomputed, not saved");
+  }
 });

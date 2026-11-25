@@ -68,7 +68,11 @@
       // saved: its obligation, whether it is authority or advisory, and the
       // suggested change (deterministic for the same data and engine).
       recommendations: all.recommendations
-        .map((r) => ({ id: r.id, severity: r.severity, obligation: r.obligation || "unclassified", basis: r.basis === "fallback" ? "fallback" : "authority", change: String(r.text || "") }))
+        .map((r) => ({
+          id: r.id, severity: r.severity, obligation: r.obligation || "unclassified", basis: r.basis === "fallback" ? "fallback" : "authority",
+          // Live only (not saved): the suggested change, its sources and whether the label is a draft.
+          change: String(r.text || ""), sources: (r.citations || []).map(String).filter(Boolean), obligationStatus: r.obligationStatus || "unclassified",
+        }))
         .sort(byKey("id")),
       structural: all.structural.map((f) => f.id).sort(),
     };
@@ -95,7 +99,7 @@
         return row;
       }),
       checklist: body.checklist,
-      recommendations: body.recommendations.map(({ change, ...r }) => r),
+      recommendations: body.recommendations.map(({ change, sources, obligationStatus, ...r }) => r),
       structural: body.structural,
     };
   }

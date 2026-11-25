@@ -284,3 +284,10 @@
 .fix-change { margin: 0 0 6px; font-weight: 600; color: var(--ink); line-height: 1.45; }
 .fix-change-missing { font-weight: 400; font-style: italic; color: var(--ink-soft); }
 .fix-row .fix-head { font-size: 0.86rem; color: var(--ink-soft); }
+
+/* ---------------------------------------------------------------- report export (Milestone 5) */
+.export-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 16px; }
+.data-date { color: var(--ink-soft); font-size: 0.86rem; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+.fix-obligation { font-size: 0.78rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-strong, #7d8a96); color: var(--ink); white-space: nowrap; }
+.fix-obligation.ob-mandatory { border-color: var(--critical); color: var(--critical-ink, #a3281c); }
+.fix-source { margin: 4px 0 0; font-size: 0.8rem; color: var(--ink-soft); overflow-wrap: anywhere; }

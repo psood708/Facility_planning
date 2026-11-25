@@ -20,17 +20,22 @@ const DATA_FILES = [
 
 const sha256 = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 
-function computeManifest(dataDir) {
+// data_date: when the benchmark data last changed (shown on reports). Kept
+// from the previous manifest while the content hash is unchanged.
+function computeManifest(dataDir, { previous = null, today = new Date().toISOString().slice(0, 10) } = {}) {
   const files = {};
   for (const f of DATA_FILES) files[f] = sha256(fs.readFileSync(path.join(dataDir, f)));
   // Combined hash over "name:hash" lines in fixed order — stable across platforms.
   const content_hash = sha256(DATA_FILES.map((f) => `${f}:${files[f]}`).join("\n"));
-  return { manifest_version: 1, content_hash, files };
+  const unchanged = previous && previous.content_hash === content_hash && /^\d{4}-\d{2}-\d{2}$/.test(previous.data_date || "");
+  return { manifest_version: 1, content_hash, data_date: unchanged ? previous.data_date : today, files };
 }
 
 if (require.main === module) {
   const dataDir = path.join(__dirname, "..", "data");
-  const manifest = computeManifest(dataDir);
+  const file = path.join(dataDir, "manifest.json");
+  const previous = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
+  const manifest = computeManifest(dataDir, { previous });
   fs.writeFileSync(path.join(dataDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   console.log(`wrote data/manifest.json (content_hash ${manifest.content_hash.slice(0, 12)}…)`);
 }
