@@ -55,19 +55,87 @@ test("fallback results never count toward an authority's verdict or gaps", () =>
   assert.deepEqual(sm.gapsBySeverity, { Critical: 0, Significant: 2, Partial: 0 });
 });
 
-test("fixes: id = threshold[-room]; authority first, by authorities satisfied, then severity", () => {
-  const m = model.build(compactOf(demo()), LABELS);
-  const ids = m.fixes.map((f) => f.id);
-  assert.equal(ids[0], "GRADE-Z-29-Z-29", "grade gap fails all four markets");
-  const grade = m.fixes[0];
-  assert.equal(grade.satisfies, 4);
-  assert.deepEqual(grade.marketsFailing, ["schedule_m", "us_fda", "eu_gmp", "who_gmp"]);
-  assert.equal(grade.room, "Z-29");
-  assert.match(grade.label, /Cleanroom|Grade/i);
-  assert.equal(grade.basis, "authority");
-  // Single-market fixes ordered by severity: Critical, Significant, Partial.
-  assert.deepEqual(ids.slice(1), ["THR-018", "AREA-Z-29-Z-29", "THR-001-Z-29"]);
-  assert.equal(m.fixes.find((f) => f.id === "THR-018").room, null);
+// ---------------------------------------------------------------- gap report (Milestone 4)
+
+// Six authorities; each evaluation row fails in a known set of them.
+const SIX = ["schedule_m", "us_fda", "eu_gmp", "who_gmp", "china_nmpa", "japan_pmda"];
+function gapSnapshot() {
+  const row = (threshold, failing, fallback) => ({
+    room: null, param: threshold, threshold,
+    markets: Object.fromEntries(SIX.map((mk) => [mk, { status: failing.includes(mk) ? "non_compliant" : "not_regulated", fallback: fallback || null }])),
+  });
+  const rec = (id, severity, obligation, basis = "authority") => ({ id, severity, obligation, basis, change: `Set ${id} to the required value to satisfy the failing authorities.` });
+  return {
+    rollup: Object.fromEntries(SIX.map((mk) => [mk, "Partial"])),
+    evaluations: [
+      row("M-two-sig", ["schedule_m", "us_fda"]),
+      row("M-three", ["schedule_m", "us_fda", "eu_gmp"]),
+      row("M-two-crit", ["eu_gmp", "who_gmp"]),
+      row("R-one", ["japan_pmda"]),
+      row("R-four", ["schedule_m", "us_fda", "who_gmp", "china_nmpa"]),
+      row("U-one", ["china_nmpa"]),
+      row("A-fallback", [], "non_compliant"),
+    ],
+    checklist: [],
+    recommendations: [
+      rec("M-two-sig", "Significant", "mandatory"), rec("M-three", "Partial", "mandatory"), rec("M-two-crit", "Critical", "mandatory"),
+      rec("R-one", "Critical", "recommended"), rec("R-four", "Partial", "recommended"),
+      rec("U-one", "Significant", "unclassified"), rec("A-fallback", "Partial", "unclassified", "fallback"),
+    ],
+  };
+}
+const groupIds = (m) => Object.fromEntries(m.gapGroups.map((g) => [g.key, g.fixes.map((f) => f.id)]));
+
+test("gap report: mandatory gaps, recommendations, not yet classified, advisory — in that order", () => {
+  const m = model.build(gapSnapshot(), LABELS);
+  assert.deepEqual(m.gapGroups.map((g) => g.key), ["mandatory", "recommended", "unclassified", "advisory"]);
+  assert.match(m.gapGroups[0].label, /Mandatory/);
+  assert.match(m.gapGroups[1].label, /Recommend/);
+  assert.match(m.gapGroups[2].label, /Not yet classified/);
+  assert.match(m.gapGroups[3].label, /international standard/i);
+});
+
+test("gap report: each gap is in exactly one group, by its obligation (fallback-only gaps are advisory)", () => {
+  const g = groupIds(model.build(gapSnapshot(), LABELS));
+  assert.deepEqual(Object.values(g).flat().sort(), ["A-fallback", "M-three", "M-two-crit", "M-two-sig", "R-four", "R-one", "U-one"]);
+  assert.deepEqual(g.mandatory.slice().sort(), ["M-three", "M-two-crit", "M-two-sig"]);
+  assert.deepEqual(g.recommended.slice().sort(), ["R-four", "R-one"]);
+  assert.deepEqual(g.unclassified, ["U-one"]);
+  assert.deepEqual(g.advisory, ["A-fallback"]);
+});
+
+test("gap report ranking: most authorities satisfied first, then severity", () => {
+  const m = model.build(gapSnapshot(), LABELS);
+  const g = groupIds(m);
+  assert.deepEqual(g.mandatory, ["M-three", "M-two-crit", "M-two-sig"], "3 authorities, then 2 (Critical before Significant)");
+  assert.deepEqual(g.recommended, ["R-four", "R-one"], "4 authorities beats a single Critical");
+  const byId = Object.fromEntries(m.fixes.map((f) => [f.id, f]));
+  assert.equal(byId["M-three"].satisfies, 3);
+  assert.equal(byId["R-four"].satisfies, 4);
+  assert.equal(byId["A-fallback"].satisfies, 0);
+  assert.equal(m.authorityCount, 6, "'satisfies N of 6'");
+});
+
+test("every gap carries its suggested change (real engine output, every covered authority)", () => {
+  const s = demo();
+  const all = engine.evaluateAll(DATA, engine.reportState(DATA, s));
+  const m = model.build(snap.compact(all, engine.reportState(DATA, s)), LABELS);
+  const fixes = m.gapGroups.flatMap((g) => g.fixes);
+  assert.ok(fixes.length > 0);
+  for (const f of fixes) assert.ok(typeof f.change === "string" && f.change.length > 25, `${f.id}: ${f.change}`);
+  for (const g of m.gapGroups) {
+    for (let i = 1; i < g.fixes.length; i++) assert.ok(g.fixes[i - 1].satisfies >= g.fixes[i].satisfies, `${g.key} not ranked by authorities satisfied`);
+  }
+  for (const f of fixes) {
+    const expected = f.basis === "fallback" ? "advisory" : f.obligation;
+    assert.ok(m.gapGroups.find((g) => g.key === expected).fixes.includes(f), `${f.id} misfiled`);
+  }
+});
+
+test("target markets are marked (the app maps chosen markets to report authorities first)", () => {
+  const targets = ["schedule_m", "pics"].map((k) => engine.reportKeyFor(DATA, k));
+  const m = model.build(gapSnapshot(), LABELS, { targets });
+  assert.deepEqual(m.markets.filter((x) => x.target).map((x) => x.key), ["schedule_m", "eu_gmp"]);
 });
 
 test("severity totals and headline totals", () => {
@@ -252,4 +320,18 @@ test("forAuthority: within each room, failures come first, then passes, then no 
 test("forAuthority: an unexpected saved fallback value never shows as advisory", () => {
   const snapshot = { rollup: { schedule_m: "Partial" }, evaluations: [{ room: null, param: "UTIL-001", threshold: "T1", markets: { schedule_m: { status: "not_regulated", fallback: "constructor" } } }] };
   assert.equal(model.forAuthority(snapshot, "schedule_m", LABELS).rooms[0].rows[0].advisory, null);
+});
+
+test("malformed saved entries are skipped; inherited names never act as verdicts or severities", () => {
+  const snapshot = {
+    rollup: { schedule_m: "constructor" },
+    evaluations: [null, { room: null, param: "UTIL-001", threshold: "T1", markets: { schedule_m: { status: "non_compliant", fallback: null } } }],
+    checklist: [null],
+    recommendations: [null, { id: "T1", severity: "toString", obligation: "mandatory" }],
+  };
+  const m = model.build(snapshot, LABELS);
+  assert.equal(m.markets[0].verdictKey, "insufficient");
+  assert.deepEqual(Object.keys(m.markets[0].gapsBySeverity).sort(), ["Critical", "Partial", "Significant"]);
+  assert.equal(m.fixes.length, 1);
+  assert.equal(model.forAuthority(snapshot, "schedule_m", LABELS).rooms[0].rows.length, 1);
 });

@@ -120,12 +120,12 @@
   // Read-only view of a stored snapshot (used while results are stale). It
   // renders through the same ResultsModel/ResultsView as the live page, minus
   // the numeric comparison (snapshots hold statuses only).
-  function snapshotSummary(h, s, snapshot, labels, authority) {
+  function snapshotSummary(h, s, snapshot, labels, authority, targets) {
     const RM = typeof ResultsModel !== "undefined" ? ResultsModel : require("./results-model.js");
     const RV = typeof ResultsView !== "undefined" ? ResultsView : require("./results-view.js");
     return h("div", { class: "panel snapshot-summary" }, [
       h("h2", {}, "Results as saved"),
-      RV.resultsPage(h, s, RM.build(snapshot, labels), { stale: true, labels, authority }),
+      RV.resultsPage(h, s, RM.build(snapshot, labels, { targets }), { stale: true, labels, authority }),
     ]);
   }
 

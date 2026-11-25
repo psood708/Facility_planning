@@ -699,7 +699,7 @@ function fallbackBlock(fallback) {
 // Labels for ResultsModel: ids in the compact snapshot -> display names.
 function resultLabels() {
   return {
-    market: marketLabel,
+    market: (mk) => FacilityEngine.reportLabel(DATA, mk), // "EU-GMP / PIC/S" combined, as in the report
     room: (id) => (DATA.roomById[id] || {}).name || id,
     param: (id) => (DATA.paramById[id] || {}).name || (id === "DIM-001-area" ? "Room Net Area" : id),
     threshold: (id) => (DATA.boolean_thresholds.find((b) => b.id === id) || {}).parameter_name || id,
@@ -711,9 +711,18 @@ function resultLabels() {
 // only changes what is shown; it never edits the project.
 let viewingAuthority = null;
 
+// The planner's target markets as report authorities (EU-GMP and PIC/S are one).
+function reportTargets() {
+  return [...new Set(state.targetMarkets.map((k) => FacilityEngine.reportKeyFor(DATA, k)).filter(Boolean))];
+}
+
 function authorityOpts(snapshot) {
-  const choices = WizardView.primaryChoices(DATA.authorities, state).map((c) => ({ key: c.key, label: c.label }));
-  const current = choices.some((c) => c.key === viewingAuthority) ? viewingAuthority : state.primaryAuthority;
+  const choices = [];
+  WizardView.primaryChoices(DATA.authorities, state).forEach((c) => {
+    const key = FacilityEngine.reportKeyFor(DATA, c.key);
+    if (key && !choices.some((x) => x.key === key)) choices.push({ key, label: FacilityEngine.reportLabel(DATA, key) });
+  });
+  const current = choices.some((c) => c.key === viewingAuthority) ? viewingAuthority : FacilityEngine.reportKeyFor(DATA, state.primaryAuthority);
   return {
     view: current ? ResultsModel.forAuthority(snapshot, current, resultLabels()) : null,
     choices,
@@ -734,11 +743,14 @@ function renderStep4() {
   // read-only, until the user re-evaluates (banner in the project bar). It
   // renders through the same ResultsModel/ResultsView as the live page.
   if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
-    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels(), authorityOpts(CURRENT.results.snapshot)));
+    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels(), authorityOpts(CURRENT.results.snapshot), reportTargets()));
     return;
   }
 
-  const all = FacilityEngine.evaluateAll(DATA, state);
+  // The cross-authority report evaluates every covered authority, whatever
+  // was ticked; the project's own state is not changed.
+  const evalState = FacilityEngine.reportState(DATA, state);
+  const all = FacilityEngine.evaluateAll(DATA, evalState);
   const { rows, booleanRows, recommendations: recs, structural } = all;
   const labels = resultLabels();
 
@@ -753,9 +765,9 @@ function renderStep4() {
     h("div", { class: "advisory-note" }, "Advisory only — not a regulatory sign-off. Mandatory/Recommended labels marked “draft” and sources marked “pending” are awaiting domain-expert review. “International/industry standard (fallback)” is shown where an authority gives no number, and never counts toward that authority's verdict.")
   );
 
-  const compact = ResultsSnapshot.compact(all, state);
-  const model = ResultsModel.build(compact, labels);
-  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, state.targetMarkets, labels), labels, authority: authorityOpts(compact) }));
+  const compact = ResultsSnapshot.compact(all, evalState);
+  const model = ResultsModel.build(compact, labels, { targets: reportTargets() });
+  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, evalState.targetMarkets, labels), labels, authority: authorityOpts(compact) }));
 
   // The full tables, recommendation text and sources stay available, collapsed.
   const detail = h("div", { class: "full-detail-body" });
@@ -784,7 +796,7 @@ function renderStep4() {
   detail.appendChild(h("h3", {}, "Detailed Parameter Status"));
   const tableScroll = ResultsView.scrollRegion(h, "Detailed parameter status", null);
   const table = h("table", { class: "results-table" });
-  const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(state.targetMarkets.map((mk) => h("th", {}, marketLabel(mk)))));
+  const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(evalState.targetMarkets.map((mk) => h("th", {}, labels.market(mk)))));
   table.appendChild(h("thead", {}, headRow));
   const tbody = h("tbody");
   rows.forEach((row) => {
@@ -805,7 +817,7 @@ function renderStep4() {
       h("td", {}, enteredDisplay),
       h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, sev)),
     ]);
-    state.targetMarkets.forEach((mk) => {
+    evalState.targetMarkets.forEach((mk) => {
       const r = row.evalResult.perMarket[mk] || { status: "no_value" };
       const cell = h("td", {}, h("span", { class: "status-pill " + statusPillClass(r.status) }, statusLabel(r.status)));
       if (r.note) cell.appendChild(h("div", { class: "field-note" }, r.note));
@@ -1222,6 +1234,7 @@ const fmtDate = (d) => ProjectsView.formatDate(d);
 function errorText(e) {
   if (e && e.code === "invalid") return "Can't save yet: " + e.errors.join("; ");
   if (e && e.code === "invalid_project") return "This saved project couldn't be loaded safely.";
+  if (e && e.code === "too_large") return e.message;
   if (e && e.serverCode === "PGRST301") return "Your session has expired. Sign in again.";
   return "Couldn't reach the server. Check your connection and try again.";
 }

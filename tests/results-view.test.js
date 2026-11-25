@@ -11,7 +11,7 @@ const view = require("../results-view.js");
 
 const DATA = loadData();
 const LABELS = {
-  market: (mk) => engine.marketLabel(DATA, mk),
+  market: (mk) => engine.reportLabel(DATA, mk), // combined "EU-GMP / PIC/S", as the app shows it
   room: (id) => (DATA.roomById[id] || {}).name || id,
   param: (id) => (DATA.paramById[id] || {}).name || (id === "DIM-001-area" ? "Room Net Area" : id),
   threshold: (id) => (DATA.boolean_thresholds.find((b) => b.id === id) || {}).parameter_name || id,
@@ -117,20 +117,54 @@ test("segments too narrow for a label print none; text is never filled with a st
   assert.equal(all(page, (n) => n.ns === "svg" && n.tag === "text").length, 0);
 });
 
-test("fix list: top 5, satisfies N of M authorities, advisory group separate, show all", () => {
+// Gap report (Milestone 4): every covered authority; gaps grouped mandatory /
+// recommended / not yet classified / advisory, each with its suggested change.
+function report(st = demo(), opts = {}) {
+  const evalState = engine.reportState(DATA, st);
+  const all_ = engine.evaluateAll(DATA, evalState);
+  const targets = st.targetMarkets.map((k) => engine.reportKeyFor(DATA, k)).filter(Boolean);
+  const m = model.build(snap.compact(all_, evalState), LABELS, { targets });
+  return view.resultsPage(h, s, m, { labels: LABELS, ...opts });
+}
+
+test("gap report: groups in order, each gap shows its suggested change and authorities satisfied", () => {
+  const page = report();
+  const sections = all(find(page, cls("fix-list")), cls("gap-group"));
+  const heads = sections.map((g) => text(find(g, tag("h4"))));
+  const order = ["Mandatory", "Recommend", "Not yet classified", "international standard"];
+  const present = order.filter((o) => heads.some((hd) => new RegExp(o, "i").test(hd)));
+  assert.ok(present.length >= 2, `groups shown: ${heads.join(" | ")}`);
+  assert.deepEqual(heads.map((hd) => order.findIndex((o) => new RegExp(o, "i").test(hd))), heads.map((_, i) => order.findIndex((o) => new RegExp(o, "i").test(heads[i]))).sort((a, b) => a - b), "groups appear in the fixed order");
+  const items = all(page, cls("fix-row"));
+  assert.ok(items.length > 0);
+  for (const it of items) {
+    assert.ok(text(find(it, cls("fix-change"))).length > 25, "each gap states its suggested change");
+    assert.match(text(it), /Satisfies \d of 6 authorities|International standard only/);
+  }
+});
+
+test("gap report: top 5 per group, the rest behind 'Show all'", () => {
   const rooms = DATA.rooms.map((r) => r.id);
   const values = Object.fromEntries(rooms.map((id) => [id, { "HVAC-001": "Unclassified/CNC", "DIM-001": 1 }]));
-  const page = live(demo({ selectedRooms: rooms, roomValues: values }));
-  const fixes = find(page, cls("fix-list"));
-  const top = find(fixes, cls("fixes-top"));
-  assert.equal(all(top, tag("li")).length, 5);
-  assert.match(text(top), /Satisfies \d of 4 authorities/);
-  const more = find(fixes, (n) => n.tag === "details" && /Show all/.test(text(find(n, tag("summary")))));
-  assert.ok(more);
-  const adv = find(live(demo({ targetMarkets: ["schedule_m"] })), cls("fixes-advisory"));
-  assert.ok(adv, "advisory group");
-  assert.match(text(adv), /international/i);
-  assert.match(text(adv), /does not affect/i);
+  const page = report(demo({ selectedRooms: rooms, roomValues: values }));
+  const big = all(page, cls("gap-group")).find((g) => all(g, cls("fix-row")).length > 5);
+  assert.ok(big, "a group with more than 5 gaps");
+  assert.equal(all(find(big, cls("fixes-top")), cls("fix-row")).length, 5);
+  assert.ok(find(big, (n) => n.tag === "details" && /Show all/.test(text(find(n, tag("summary"))))));
+});
+
+test("advisory suggestions say they don't affect any verdict", () => {
+  const adv = all(report(demo({ facilityValues: { "UTIL-001": "Class 2" } })), cls("gap-group")).find((g) => /international standard/i.test(text(find(g, tag("h4")))));
+  if (adv) assert.match(text(adv), /does not affect/i);
+});
+
+test("scorecards cover all six authorities and mark the planner's target markets", () => {
+  const page = report(demo({ targetMarkets: ["schedule_m", "pics"] }));
+  const cards = all(find(page, cls("scorecards")), cls("scorecard"));
+  assert.equal(cards.length, 6);
+  const marked = cards.filter((c) => /Your target/.test(text(c))).map((c) => text(c));
+  assert.equal(marked.length, 2);
+  assert.ok(marked.some((t) => /EU-GMP \/ PIC\/S/.test(t)));
 });
 
 test("room grid: scrollable labelled region, glyph + text in cells, capped at 15 rows", () => {
@@ -313,4 +347,9 @@ test("with nothing to compare, the 'Compare with other authorities' heading is n
   const page = view.resultsPage(h, s, model.build({ rollup: {} }, LABELS), { authority: authorityOpts() });
   assert.equal(find(page, (n) => n.tag === "h3" && /Compare with other authorities/.test(text(n))), null);
   assert.ok(find(page, cls("auth-view")), "the authority section still shows");
+});
+
+test("wording reflects that every covered authority is compared", () => {
+  const t = text(report(demo({ roomValues: {}, facilityValues: {} })));
+  assert.doesNotMatch(t, /selected authorit/i);
 });

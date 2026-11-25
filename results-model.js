@@ -34,6 +34,10 @@
     const v = typeof fn === "function" ? fn(id) : null;
     return v === null || v === undefined || v === "" ? String(id) : String(v);
   };
+  // Saved snapshots are untrusted: skip malformed entries, and never let an
+  // inherited name ("constructor", "toString") act as a verdict or severity.
+  const list = (v) => (Array.isArray(v) ? v.filter((x) => !!x && typeof x === "object") : []);
+  const verdictKeyOf = (v) => (Object.prototype.hasOwnProperty.call(VERDICT_KEY, v) ? VERDICT_KEY[v] : "insufficient");
   const idOf = (threshold, room) => threshold + (room ? "-" + room : "");
   const zeroCounts = () => Object.fromEntries(STATUSES.map((s) => [s, 0]));
   const zeroSev = () => Object.fromEntries(GAP_SEVERITIES.map((s) => [s, 0]));
@@ -42,14 +46,14 @@
   // Every check as { id, room, label, status[mk], fallback[mk] }: evaluation
   // rows carry per-market results; checklist rows have one status everywhere.
   function checksOf(snapshot, markets, L) {
-    const evals = (snapshot.evaluations || []).map((e) => ({
+    const evals = list(snapshot.evaluations).map((e) => ({
       id: idOf(e.threshold, e.room),
       room: e.room === undefined ? null : e.room,
       label: L.param(e.param),
       status: Object.fromEntries(markets.map((mk) => [mk, ((e.markets || {})[mk] || {}).status || "no_value"])),
       fallback: Object.fromEntries(markets.map((mk) => [mk, ((e.markets || {})[mk] || {}).fallback || null])),
     }));
-    const checklist = (snapshot.checklist || []).map((c) => ({
+    const checklist = list(snapshot.checklist).map((c) => ({
       id: idOf(c.threshold, c.room),
       room: c.room === undefined ? null : c.room,
       label: L.threshold(c.threshold),
@@ -63,7 +67,19 @@
     });
   }
 
-  function build(snapshot, labels) {
+  // Gap report groups, in the order the page shows them (Milestone 4).
+  const GAP_GROUPS = [
+    { key: "mandatory", label: "Mandatory gaps" },
+    { key: "recommended", label: "Recommendations" },
+    { key: "unclassified", label: "Not yet classified — pending expert review" },
+    { key: "advisory", label: "Advisory: international standard only" },
+  ];
+  const OBLIGATIONS = ["mandatory", "recommended", "unclassified"];
+
+  // opts.targets: the planner's target markets as report authority keys
+  // (engine.reportKeyFor), marked on the scorecards.
+  function build(snapshot, labels, opts = {}) {
+    const targets = Array.isArray(opts.targets) ? opts.targets : [];
     const L = { market: label(labels, "market"), room: label(labels, "room"), param: label(labels, "param"), threshold: label(labels, "threshold") };
     const sn = snapshot || {};
     const keys = Object.keys(sn.rollup || {});
@@ -72,8 +88,8 @@
     // checklist rows, which otherwise carry one status for every market.
     const uncovered = keys.filter((mk) => VERDICT_KEY[sn.rollup[mk]] === "not_covered");
     checks.forEach((c) => uncovered.forEach((mk) => { c.status[mk] = "not_covered"; c.fallback[mk] = null; }));
-    const recSeverity = Object.fromEntries((sn.recommendations || []).map((r) => [r.id, sevKey(r.severity)]));
-    const severityOf = (id) => recSeverity[id] || "Partial";
+    const recSeverity = new Map(list(sn.recommendations).map((r) => [r.id, sevKey(r.severity)]));
+    const severityOf = (id) => recSeverity.get(id) || "Partial";
 
     const markets = keys.map((mk) => {
       const counts = zeroCounts();
@@ -86,8 +102,9 @@
       return {
         key: mk,
         label: L.market(mk),
+        target: targets.includes(mk),
         verdict,
-        verdictKey: VERDICT_KEY[verdict] || "insufficient",
+        verdictKey: verdictKeyOf(verdict),
         counts,
         checked: counts.compliant + counts.non_compliant,
         met: counts.compliant,
@@ -122,11 +139,12 @@
     // saved snapshot (ids + severities only) yields the same list.
     const checkById = new Map();
     checks.forEach((c) => { if (!checkById.has(c.id)) checkById.set(c.id, c); });
-    const fixes = (sn.recommendations || []).map((r) => {
+    const fixes = list(sn.recommendations).map((r) => {
       const c = checkById.get(r.id);
       const failing = c ? keys.filter((mk) => c.status[mk] === "non_compliant") : [];
       const fbFailing = c ? keys.filter((mk) => c.fallback[mk] === "non_compliant") : [];
       const basis = failing.length || !fbFailing.length ? "authority" : "fallback";
+      const obligation = OBLIGATIONS.includes(r.obligation) ? r.obligation : "unclassified";
       return {
         id: r.id,
         label: c ? c.label : String(r.id),
@@ -137,12 +155,21 @@
         satisfies: basis === "authority" ? failing.length : 0,
         of: coveredCount,
         basis,
+        obligation,
+        group: basis === "fallback" ? "advisory" : obligation,
+        // Older saves stored no suggested change; the page says so.
+        change: typeof r.change === "string" && r.change ? r.change : null,
       };
     });
+    // Mandatory, recommended, not yet classified, advisory; within each, the
+    // change that satisfies the most authorities first, then by severity.
+    const groupRank = (f) => GAP_GROUPS.findIndex((g) => g.key === f.group);
     fixes.sort((a, b) =>
-      (a.basis === "fallback") - (b.basis === "fallback") ||
+      groupRank(a) - groupRank(b) ||
       b.satisfies - a.satisfies ||
-      (SEV_RANK[b.severity] || 2) - (SEV_RANK[a.severity] || 2));
+      (SEV_RANK[b.severity] || 2) - (SEV_RANK[a.severity] || 2) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const gapGroups = GAP_GROUPS.map((g) => ({ key: g.key, label: g.label, fixes: fixes.filter((f) => f.group === g.key) }));
 
     const gaps = fixes.filter((f) => f.basis === "authority");
     const severity = zeroSev();
@@ -153,6 +180,8 @@
       markets,
       rooms,
       fixes,
+      gapGroups,
+      authorityCount: coveredCount,
       severity,
       totals: { checks: checks.length, gaps: gaps.length, advisory: fixes.length - gaps.length },
       structural: (sn.structural || []).slice(),
@@ -237,7 +266,7 @@
     const byStatus = (rows) => rows.map((r, i) => [r, i]).sort((x, y) => RANK[x[0].status] - RANK[y[0].status] || x[1] - y[1]).map(([r]) => r);
     const rooms = [...groups].filter(([, rows]) => rows.length).map(([room, rows]) => ({ room, label: room === null ? "Facility" : L.room(room), rows: byStatus(rows) }));
     const verdict = (sn.rollup || {})[mk] || null;
-    return { key: mk, label: L.market(mk), verdict, verdictKey: verdict ? VERDICT_KEY[verdict] || "insufficient" : null, counts, rooms };
+    return { key: mk, label: L.market(mk), verdict, verdictKey: verdict ? verdictKeyOf(verdict) : null, counts, rooms };
   }
 
   return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps, forAuthority };

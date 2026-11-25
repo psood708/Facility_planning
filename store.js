@@ -29,7 +29,7 @@
     constructor(code, message, extra = {}) {
       super(message);
       this.name = "StoreError";
-      this.code = code; // "invalid" | "invalid_project" | "not_found" | "server"
+      this.code = code; // "invalid" | "invalid_project" | "not_found" | "too_large" | "server"
       Object.assign(this, extra);
     }
   }
@@ -68,7 +68,17 @@
     };
   }
 
-  function createStore({ client, DATA, versions, ProjectState, ResultsSnapshot }) {
+  // The database refuses a results snapshot over 256 KB (measured as
+  // jsonb::text, which adds spaces). Check before sending, with headroom.
+  const SNAPSHOT_BYTES_MAX = 0.9 * 256 * 1024;
+  const jsonbBytes = (v) => {
+    const json = JSON.stringify(v);
+    const spaces = (json.match(/":|,"/g) || []).length; // jsonb::text writes ": " and ", "
+    return new TextEncoder().encode(json).length + spaces;
+  };
+
+  function createStore({ client, DATA, versions, ProjectState, ResultsSnapshot, limits = {} }) {
+    const snapshotBytesMax = limits.snapshotBytes || SNAPSHOT_BYTES_MAX;
     async function run(query) {
       const { data, error } = await query;
       if (error) throw new StoreError("server", error.message || "Server error", { serverCode: error.code });
@@ -83,13 +93,17 @@
       const r = ProjectState.validateProject({ name, notes: notes || "", inputs: ProjectState.serializeInputs(state) }, DATA);
       if (!r.ok) throw new StoreError("invalid", "Project is not valid", { errors: r.errors });
       const { project } = r;
+      const snapshot = ResultsSnapshot.buildSnapshot(DATA, project.inputs, versions);
+      if (jsonbBytes(snapshot) > snapshotBytesMax) {
+        throw new StoreError("too_large", "This project's results are too large to save. Remove some rooms, then save again.");
+      }
       return {
         name: project.name,
         notes: project.notes,
         inputs: project.inputs,
         data_hash: versions.dataHash,
         engine_version: versions.engineVersion,
-        results_snapshot: ResultsSnapshot.buildSnapshot(DATA, project.inputs, versions),
+        results_snapshot: snapshot,
       };
     }
 

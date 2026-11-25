@@ -196,6 +196,7 @@
     const v = VERDICT[m.verdictKey] || VERDICT.insufficient;
     const head = h("div", { class: "sc-head" }, [
       h("h4", { class: "sc-name" }, m.label),
+      m.target ? h("span", { class: "target-badge" }, "Your target") : null,
       h("span", { class: "verdict-badge verdict-" + m.verdictKey }, [glyph(h, v.glyph), h("span", { class: "verdict-word" }, v.word)]),
     ]);
     if (m.verdictKey === "not_covered") {
@@ -247,7 +248,8 @@
   function fixItem(h, f, labels) {
     const sev = f.severity.toLowerCase();
     const markets = h("span", { class: "fix-markets" }, f.marketsFailing.map((mk) => h("span", { class: "market-chip", title: marketName(labels, mk) }, short(mk))));
-    return h("li", { class: "fix fix-" + f.basis }, [
+    return h("li", { class: "fix fix-row fix-" + f.basis }, [
+      h("p", { class: "fix-change" + (f.change ? "" : " fix-change-missing") }, f.change || "Re-evaluate with current data to see the suggested change."),
       h("div", { class: "fix-head" }, [
         h("span", { class: "sev-chip" }, [h("span", { class: "swatch sw-sev-" + sev, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[f.severity]), f.severity]),
         h("span", { class: "fix-label" }, f.label),
@@ -255,36 +257,46 @@
       ]),
       h("div", { class: "fix-meta" }, f.basis === "authority"
         ? [h("span", { class: "fix-satisfies" }, `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`), markets]
-        : [h("span", { class: "fix-satisfies" }, "Misses the international standard for"), markets]),
+        : [h("span", { class: "fix-satisfies" }, "International standard only — misses it for"), markets]),
     ]);
   }
 
+  const GROUP_LEDE = {
+    unclassified: "These requirements have no mandatory/recommended label yet; the domain expert's review will classify them.",
+    advisory: "Where an authority gives no number, the value is compared with the international/industry standard. This advisory group does not affect any authority's verdict.",
+  };
+
+  function gapGroup(h, g, labels) {
+    const n = g.fixes.length;
+    const body = [h("h4", {}, `${g.label} (${n})`)];
+    if (GROUP_LEDE[g.key]) body.push(h("p", { class: "section-lede" }, GROUP_LEDE[g.key]));
+    body.push(h("ol", { class: "fixes fixes-top" }, g.fixes.slice(0, FIX_LIMIT).map((f) => fixItem(h, f, labels))));
+    if (n > FIX_LIMIT) {
+      body.push(h("details", { class: "show-all" }, [
+        h("summary", {}, `Show all ${n}`),
+        h("ol", { class: "fixes fixes-more", start: String(FIX_LIMIT + 1) }, g.fixes.slice(FIX_LIMIT).map((f) => fixItem(h, f, labels))),
+      ]));
+    }
+    return h("div", { class: `gap-group gap-${g.key}` }, body);
+  }
+
+  // Cross-authority gap report (Milestone 4): every gap with its suggested
+  // change, mandatory first, ranked by how many authorities it satisfies.
   function fixList(h, model, labels) {
     const auth = model.fixes.filter((f) => f.basis === "authority");
-    const adv = model.fixes.filter((f) => f.basis === "fallback");
     const body = [h("h3", {}, "What to fix first")];
     if (!auth.length && model.markets.every((m) => !m.checked)) {
       body.push(h("p", { class: "section-lede" }, "Nothing was checked yet, so there is nothing to fix. Enter values, or choose authorities this dataset covers."));
     } else if (!auth.length) {
       const noValue = model.markets.some((m) => m.counts.no_value);
-      body.push(h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), "Nothing to fix against any selected authority among the values checked." + (noValue ? " Some checks have no value entered yet." : "")]));
+      body.push(h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), "Nothing to fix against any covered authority among the values checked." + (noValue ? " Some checks have no value entered yet." : "")]));
     } else {
-      body.push(h("p", { class: "section-lede" }, "Ranked by how many authorities each fix satisfies, then by severity."));
-      body.push(h("ol", { class: "fixes fixes-top" }, auth.slice(0, FIX_LIMIT).map((f) => fixItem(h, f, labels))));
-      if (auth.length > FIX_LIMIT) {
-        body.push(h("details", { class: "show-all" }, [
-          h("summary", {}, `Show all ${auth.length} fixes`),
-          h("ol", { class: "fixes fixes-more", start: String(FIX_LIMIT + 1) }, auth.slice(FIX_LIMIT).map((f) => fixItem(h, f, labels))),
-        ]));
-      }
+      const of = model.authorityCount || model.markets.length;
+      body.push(h("p", { class: "section-lede" }, `Every gap with a suggested change. Mandatory gaps first; within each group, the change that satisfies the most of the ${of} authorities comes first, then by severity.`));
     }
-    if (adv.length) {
-      body.push(h("div", { class: "fixes-advisory" }, [
-        h("h4", {}, `Advisory — international standard only (${adv.length})`),
-        h("p", { class: "section-lede" }, "Where an authority gives no number, the value is compared with the international/industry standard. This advisory group does not affect any authority's verdict."),
-        h("ol", { class: "fixes" }, adv.map((f) => fixItem(h, f, labels))),
-      ]));
-    }
+    // Only non-empty groups; mandatory/recommended/unclassified hold authority
+    // gaps only, so with none they are empty and the advisory group remains.
+    (model.gapGroups || []).filter((g) => g.fixes.length).forEach((g) => body.push(gapGroup(h, g, labels)));
     return h("section", { class: "fix-list" }, body);
   }
 
@@ -306,7 +318,7 @@
     const top = model.rooms[0];
     const takeaway = top && top.failTotal
       ? `${top.label} has the most gaps (${top.failTotal} across all authorities).`
-      : "No room has a gap against any selected authority.";
+      : "No room has a gap against any covered authority.";
     const extra = model.rooms.length - ROOM_LIMIT;
     const showAll = extra > 0
       ? h("button", { type: "button", class: "secondary small show-rows", onclick: (e) => {
@@ -429,7 +441,7 @@
         ? "No numeric values entered yet."
         : list.some((g) => g.state === "pass")
           ? [glyph(h, "✓", "glyph-ok"), "Every entered numeric value is within each authority's range."]
-          : "The selected authorities give no number to compare the entered values against."));
+          : "The covered authorities give no number to compare the entered values against."));
       return h("section", { class: "numeric-section" }, body);
     }
     const shown = failing.slice(0, NUMERIC_LIMIT);

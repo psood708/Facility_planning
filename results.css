@@ -137,7 +137,8 @@
 .fixes-more { border-top: none; }
 .fixes[start="6"] { counter-reset: fix 5; }
 .fix { counter-increment: fix; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 0; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.fix::before { content: counter(fix); grid-row: span 2; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.fix::before { content: counter(fix); grid-column: 1; grid-row: 1 / span 3; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.fix > * { grid-column: 2; } /* suggested change, head and meta all sit in the content column */
 .fix-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .fix-label { font-size: 16px; font-weight: 600; }
 .fix-room { font-size: 14px; color: var(--ink-soft); }
@@ -151,11 +152,6 @@
 .fix-room { order: 1; }
 .show-all { margin-top: 4px; }
 .show-all > summary, .table-view > summary, .full-detail > summary { cursor: pointer; color: var(--accent-dark); font-size: 14px; font-weight: 600; padding: 8px 0; }
-.fixes-advisory { margin-top: 24px; padding: 16px; border: 1px dashed var(--fill-novalue); border-radius: 10px; }
-.fixes-advisory h4 { font-size: 14px; color: var(--ink-soft); }
-.fixes-advisory .fix-label { font-size: 14px; font-weight: 600; }
-.fixes-advisory .fixes { border-top: none; }
-.fixes-advisory .fix:last-child { border-bottom: none; }
 .positive-note { display: flex; gap: 8px; align-items: baseline; margin: 8px 0 0; font-size: 16px; }
 .glyph-ok { color: var(--aligned); }
 
@@ -232,7 +228,6 @@
   .room-table th[scope="row"], .room-table thead th:first-child { min-width: 120px; max-width: 160px; }
   .room-table th, .room-table td { padding: 8px; }
   .cell { min-width: 44px; }
-  .fixes-advisory { padding: 12px; }
 }
 
 /* ---------------------------------------------------------------- forced colours & print */
@@ -274,3 +269,18 @@
 .auth-note { color: var(--ink-soft); font-size: 0.86rem; }
 .compare-heading { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
 @media (forced-colors: active) { .auth-choice[aria-pressed="true"] { outline: 2px solid CanvasText; } }
+
+/* ---------------------------------------------------------------- cross-authority gap report (Milestone 4) */
+.target-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--accent-dark); color: var(--accent-dark); background: var(--accent-soft);
+  font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+}
+.gap-group { margin: 16px 0 24px; }
+.gap-group > h4 { margin: 0 0 6px; }
+.gap-mandatory > h4 { color: var(--critical-ink, #a3281c); }
+.gap-unclassified > h4, .gap-advisory > h4 { color: var(--ink-soft); }
+.gap-advisory { border-left: 3px dashed var(--border-strong, #7d8a96); padding-left: 12px; }
+.fix-change { margin: 0 0 6px; font-weight: 600; color: var(--ink); line-height: 1.45; }
+.fix-change-missing { font-weight: 400; font-style: italic; color: var(--ink-soft); }
+.fix-row .fix-head { font-size: 0.86rem; color: var(--ink-soft); }

@@ -108,8 +108,40 @@
     return a ? a.label : mk;
   }
 
+  // ---------------------------------------------------------------- gap report (Milestone 4)
+  // The cross-authority report compares every covered authority, once per
+  // dataset: authorities that share a data key (EU-GMP and PIC/S) are one
+  // combined authority, represented by the first key in data order.
+  function reportAuthorities(DATA) {
+    const groups = new Map();
+    for (const a of DATA.authorities) {
+      if (!a.covered || !a.data_key) continue;
+      if (!groups.has(a.data_key)) groups.set(a.data_key, []);
+      groups.get(a.data_key).push(a);
+    }
+    return [...groups.values()].map((as) => ({ key: as[0].key, keys: as.map((a) => a.key), label: as.map((a) => a.label).join(" / ") }));
+  }
+
+  function reportKeyFor(DATA, mk) {
+    const r = reportAuthorities(DATA).find((a) => a.keys.includes(mk));
+    return r ? r.key : null;
+  }
+
+  function reportLabel(DATA, mk) {
+    const r = reportAuthorities(DATA).find((a) => a.keys.includes(mk));
+    return r ? r.label : marketLabel(DATA, mk);
+  }
+
+  // The state the report is evaluated with: every covered authority, whatever
+  // the planner ticked. A copy; the project's own state is never changed.
+  function reportState(DATA, state) {
+    return { ...state, targetMarkets: reportAuthorities(DATA).map((a) => a.key) };
+  }
+
+  // Authorities named in suggested changes, as the report names them
+  // ("EU-GMP / PIC/S" once, not twice).
   function labelList(DATA, keys) {
-    return keys.map((k) => marketLabel(DATA, k)).join(", ");
+    return [...new Set(keys.map((k) => reportLabel(DATA, k)))].join(", ");
   }
 
   // -------------------------------------------------------------------
@@ -564,6 +596,10 @@
   return {
     ENGINE_VERSION,
     evaluateAll,
+    reportAuthorities,
+    reportKeyFor,
+    reportLabel,
+    reportState,
     GRADE_HIERARCHY,
     GRADE_TAG_TO_LABEL,
     SEVERITY_RANK,

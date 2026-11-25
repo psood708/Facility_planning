@@ -173,3 +173,10 @@ test("get: a legacy save with an authority without data opens as current with a 
   assert.equal(p.inputs.primaryAuthority, "schedule_m");
   assert.equal(p.results.status, "current", p.results.reasons.join());
 });
+
+test("create: results too large to save give a clear error and never reach the server", async () => {
+  const c = fakeClient();
+  const s = createStore({ client: c, DATA, versions: VERSIONS, ProjectState, ResultsSnapshot, limits: { snapshotBytes: 1000 } });
+  await assert.rejects(s.create({ name: "Big", notes: "", state: filled() }), (e) => e instanceof StoreError && e.code === "too_large" && /too large/i.test(e.message));
+  assert.equal(c.calls.length, 0);
+});

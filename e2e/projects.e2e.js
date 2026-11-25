@@ -56,6 +56,13 @@ async function openList(page) {
   await page.waitForFunction(() => /Schedule M/.test(document.querySelector("#step-4 .auth-view h3").textContent));
   check("the switcher shows another authority without changing the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
   check("Schedule M shows the 120 m² room against its 150 m² minimum as Fail", /Fail/.test(await page.locator("#step-4 .auth-row.st-fail").first().textContent()));
+  // ---- cross-authority gap report (Milestone 4)
+  check("the gap report compares all six covered authorities", (await page.locator("#step-4 .scorecard").count()) === 6);
+  check("the planner's two target markets are marked", (await page.locator("#step-4 .scorecard .target-badge").count()) === 2);
+  const groups = await page.locator("#step-4 .gap-group > h4").allTextContents();
+  check("gaps are grouped (mandatory / recommended / not yet classified / advisory)", groups.length > 0 && groups.every((g) => /Mandatory|Recommendations|Not yet classified|international standard/i.test(g)), groups.join(" | "));
+  const changes = await page.locator("#step-4 .fix-row .fix-change").allTextContents();
+  check("every gap shows a concrete suggested change", changes.length > 0 && changes.every((t) => /^(Increase|Decrease|Adjust|Upgrade|Add|Set|Change)\b/.test(t.trim())), changes.join(" | "));
   await page.evaluate(() => { CURRENT.savedFingerprint = currentFingerprint(); }); // discard this throwaway project
   await openList(page);
 
