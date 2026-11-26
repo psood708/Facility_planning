@@ -733,6 +733,7 @@ function authorityOpts(snapshot) {
       renderStep4();
       const pressed = document.querySelector('#step-4 .auth-choice[aria-pressed="true"]');
       if (pressed && pressed.focus) pressed.focus();
+      announce("Showing evidence against " + FacilityEngine.reportLabel(DATA, key));
     },
   };
 }
@@ -789,7 +790,35 @@ function downloadReport(model) {
   announce("Report downloaded: " + filename);
 }
 
+// Step 4, then mark the wrappers that really scroll as focusable regions.
 function renderStep4() {
+  renderResults();
+  syncResultsRegions();
+}
+
+// Scroll wrappers become named, focusable regions only while they overflow
+// (results redesign, Phase 3). Re-checked after render and whenever Step 4
+// changes size — a resize, "Show all", a <details> opening, fonts loading,
+// or the step becoming visible — via a ResizeObserver (window resize as a
+// fallback), plus <details> toggles.
+let resultsRegionsBound = false;
+function syncResultsRegions() {
+  const root = document.getElementById("step-4");
+  if (!root) return;
+  ResultsView.syncScrollRegions(root);
+  if (resultsRegionsBound) return;
+  resultsRegionsBound = true;
+  let frame = 0;
+  const later = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => { frame = 0; ResultsView.syncScrollRegions(root); });
+  };
+  root.addEventListener("toggle", later, true);
+  if (typeof ResizeObserver === "function") new ResizeObserver(later).observe(root);
+  else window.addEventListener("resize", later);
+}
+
+function renderResults() {
   const root = document.getElementById("step-4");
   clear(root);
 

@@ -81,7 +81,12 @@
     return h("li", { class: "legend-item" }, [h("span", { class: "swatch " + swatchClass, "aria-hidden": "true" }), glyph(h, g), h("span", { class: "legend-text" }, label)]);
   }
 
-  function chartSvg(s, { title, desc, height, className }, marks) {
+  // decorative: the numbers are already in the text beside the chart, so the
+  // SVG is hidden from screen readers rather than read twice (Phase 3).
+  function chartSvg(s, { title, desc, height, className, decorative }, marks) {
+    if (decorative) {
+      return s("svg", { class: "chart " + className, "aria-hidden": "true", width: "100%", height: String(height), focusable: "false" }, marks);
+    }
     const t = nextId("title");
     const d = nextId("desc");
     return s("svg", { class: "chart " + className, role: "img", "aria-labelledby": `${t} ${d}`, width: "100%", height: String(height), focusable: "false" },
@@ -97,7 +102,7 @@
   }
 
   // Segmented bar: rounded outer ends (clip), 2px surface gap between segments.
-  function segmentedBar(s, segments, { title, desc, height = 12, className = "" }) {
+  function segmentedBar(s, segments, { title, desc, height = 12, className = "", decorative = false } = {}) {
     const total = segments.reduce((a, x) => a + x.value, 0);
     const clip = nextId("clip");
     const pat = nextId("hatch");
@@ -122,16 +127,34 @@
         marks.push(s("rect", { x: pct(x), y: "0", width: "2", height: String(height), transform: "translate(-1 0)", class: "seg-gap" }));
       });
     }
-    return chartSvg(s, { title, desc, height, className: "bar " + className }, [defs, s("g", { "clip-path": `url(#${clip})` }, marks)]);
+    return chartSvg(s, { title, desc, height, className: "bar " + className, decorative }, [defs, s("g", { "clip-path": `url(#${clip})` }, marks)]);
   }
 
   // A wrapper that may scroll sideways must be keyboard-reachable and named
   // (WCAG 2.1.1; axe "scrollable-region-focusable").
-  const scrollRegion = (h, label, child) => h("div", { class: "table-scroll", role: "region", tabindex: "0", "aria-label": label }, child);
+  // Views only name the wrapper; syncScrollRegions() (browser, after render
+  // and on resize/toggle) makes it a focusable named region when it really
+  // scrolls, and removes that again when it fits (Phase 3).
+  const scrollRegion = (h, label, child) => h("div", { class: "table-scroll", "data-region-label": label }, child);
+
+  function syncScrollRegions(root) {
+    if (!root || typeof root.querySelectorAll !== "function") return;
+    Array.from(root.querySelectorAll(".table-scroll, .grid-scroll")).forEach((el) => {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        el.setAttribute("role", "region");
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("aria-label", (el.dataset && el.dataset.regionLabel) || "Scrollable table");
+      } else {
+        el.removeAttribute("role");
+        el.removeAttribute("tabindex");
+        el.removeAttribute("aria-label");
+      }
+    });
+  }
 
   function tableView(h, caption, head, rows) {
     return h("details", { class: "table-view" }, [
-      h("summary", {}, "View as table"),
+      h("summary", {}, ["View as table", srOnly(h, ": " + caption)]),
       scrollRegion(h, caption, h("table", { class: "results-table data-table" }, [
         h("caption", {}, caption),
         h("thead", {}, h("tr", {}, head.map((c) => h("th", { scope: "col" }, c)))),
@@ -142,7 +165,7 @@
 
   const figure = (h, className, title, takeaway, body) =>
     h("figure", { class: "rv-figure " + className }, [
-      h("figcaption", {}, [h("span", { class: "fig-title" }, title), takeaway ? h("span", { class: "fig-takeaway" }, takeaway) : null]),
+      h("figcaption", {}, [h("h4", { class: "fig-title" }, title), takeaway ? h("p", { class: "fig-takeaway" }, takeaway) : null]),
     ].concat(body));
 
   // ------------------------------------------------------------ verdict per market
@@ -210,14 +233,14 @@
   function scorecard(h, s, m) {
     const v = VERDICT[m.verdictKey] || VERDICT.insufficient;
     const head = h("div", { class: "sc-head" }, [
-      h("h4", { class: "sc-name" }, m.place),
+      h("h5", { class: "sc-name" }, m.place),
       m.target ? h("span", { class: "target-badge" }, "Your target") : null,
       h("span", { class: "verdict-badge verdict-" + m.verdictKey }, [glyph(h, v.glyph), h("span", { class: "verdict-word" }, v.word)]),
     ]);
     if (m.verdictKey === "not_covered") {
       return h("li", { class: "scorecard sc-not_covered" }, [
         head,
-        segmentedBar(s, [{ value: 1, cls: "st-not_covered", hatched: true }], { title: `${m.place}: not covered`, desc: "This dataset has no requirements for this authority; nothing was checked.", className: "status-bar" }),
+        segmentedBar(s, [{ value: 1, cls: "st-not_covered", hatched: true }], { className: "status-bar", decorative: true }),
         h("p", { class: "sc-met" }, "Nothing checked"),
         h("p", { class: "sc-note" }, `This dataset has no requirements for ${m.place}, so nothing was checked. This is not a pass.`),
       ]);
@@ -226,13 +249,12 @@
     // value or have no rule are said in words beside it, never drawn.
     const c = m.counts;
     const present = ["compliant", "non_compliant"].filter((k) => c[k]);
-    const desc = m.checked ? present.map((k) => `${c[k]} ${STATUS_WORD[k]}`).join(", ") + "." : "No value has been checked against this authority yet.";
     const noRule = c.not_regulated + c.not_covered;
     const unchecked = [c.no_value ? `${c.no_value} ${c.no_value === 1 ? "needs" : "need"} a value` : null, noRule ? `${noRule} ${STATUS_WORD.no_rule}` : null].filter(Boolean).join(" · ");
     const gaps = SEVERITIES.filter((k) => m.gapsBySeverity[k]);
     return h("li", { class: "scorecard sc-" + m.verdictKey }, [
       head,
-      segmentedBar(s, ["compliant", "non_compliant"].map((k) => ({ value: c[k], cls: "st-" + k })), { title: m.checked ? `${m.place}: ${m.met} of ${m.checked} checked values met` : `${m.place}: nothing checked yet`, desc, className: "status-bar" }),
+      segmentedBar(s, ["compliant", "non_compliant"].map((k) => ({ value: c[k], cls: "st-" + k })), { className: "status-bar", decorative: true }),
       h("p", { class: "sc-met" }, [h("strong", {}, m.checked ? `${m.met} of ${plural(m.checked, "check")} met` : "Nothing checked yet")]),
       present.length ? h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + k, GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))) : null,
       unchecked ? h("p", { class: "sc-unchecked" }, unchecked) : null,
@@ -379,8 +401,9 @@
       ]);
     }
     const capped = (i) => i >= ROOM_LIMIT;
+    // The first revealed row/card can take focus after "Show all".
     const rows = gapRooms.map((r, i) => h("tr", { class: capped(i) ? "row-extra" : null, hidden: capped(i) ? "hidden" : null }, [
-      h("th", { scope: "row" }, breakable(h, r.label)),
+      h("th", { scope: "row", tabindex: i === ROOM_LIMIT ? "-1" : null }, breakable(h, r.label)),
     ].concat(markets.map((m) => {
       const c = r.cells[m.key] || { state: "na", fails: 0, worst: null };
       const k = CELL[c.state] || CELL.na;
@@ -392,7 +415,7 @@
         srOnly(h, ` ${c.fails} not met, worst ${sevWord(c.worst).toLowerCase()}`),
       ]);
     }))));
-    const cards = gapRooms.map((r, i) => h("li", { class: "room-card", hidden: capped(i) ? "hidden" : null }, [
+    const cards = gapRooms.map((r, i) => h("li", { class: "room-card", hidden: capped(i) ? "hidden" : null, tabindex: i === ROOM_LIMIT ? "-1" : null }, [
       h("p", { class: "room-card-name" }, r.label),
       h("ul", { class: "room-card-gaps" }, markets.filter((m) => (r.cells[m.key] || {}).state === "fail").map((m) => {
         const c = r.cells[m.key];
@@ -402,9 +425,17 @@
     const top = gapRooms[0];
     const takeaway = `${top.label} has the most gaps (${top.failTotal} across all authorities).`;
     const extra = gapRooms.length - ROOM_LIMIT;
+    const countNote = extra > 0 ? h("p", { class: "chart-note grid-count" }, `Showing ${ROOM_LIMIT} of ${gapRooms.length} rooms with a gap.`) : null;
     const showAll = extra > 0
       ? h("button", { type: "button", class: "secondary small show-rows", onclick: (e) => {
           rows.concat(cards).forEach((r) => { r.hidden = false; });
+          setKids(countNote, [`Showing all ${gapRooms.length} rooms with a gap.`]);
+          // Focus moves to the first newly shown room (table row or card,
+          // whichever is on screen) before the button disappears; that move
+          // is the announcement, so there is no competing live region.
+          const targets = [rows[ROOM_LIMIT].children ? rows[ROOM_LIMIT].children[0] : null, cards[ROOM_LIMIT]];
+          const target = targets.find((t) => t && t.offsetParent) || targets[0];
+          if (target && typeof target.focus === "function") target.focus();
           if (e && e.currentTarget) e.currentTarget.hidden = true;
         } }, `Show all ${gapRooms.length} rooms`)
       : null;
@@ -414,14 +445,14 @@
       h("h3", {}, "Room by authority"),
       figure(h, "grid-figure", "Where the gaps are", takeaway, [
         h("ul", { class: "legend grid-legend" }, legend),
-        h("div", { class: "grid-scroll", role: "region", tabindex: "0", "aria-label": "Rooms with a gap, by authority — scrolls sideways on small screens" },
+        h("div", { class: "grid-scroll", "data-region-label": "Rooms with a gap, by authority" },
           h("table", { class: "room-table" }, [
             h("caption", {}, "Rooms with a gap, by authority"),
-            h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col", title: m.place }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.place)]))))),
+            h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col" }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.place)]))))),
             h("tbody", {}, rows),
           ])),
         h("ul", { class: "room-cards" }, cards),
-        extra > 0 ? h("p", { class: "chart-note" }, `Showing ${ROOM_LIMIT} of ${gapRooms.length} rooms with a gap.`) : null,
+        countNote,
         showAll,
         clear.length ? h("p", { class: "chart-note grid-clear" }, `${plural(clear.length, "more room")} ${clear.length === 1 ? "has" : "have"} no gap against any covered authority: ${clear.map((r) => r.label).join(", ")}.`) : null,
       ]),
@@ -466,7 +497,8 @@
   // rule, not a verdict); the miss between the value and the limit carries
   // the colour. A one-sided limit fades out on its open side instead of
   // drawing an edge the authority never set.
-  function bulletSvg(s, d, band, entered, { title, desc, fallback, misses }) {
+  // Decorative: the bound, result, miss and entered value are all in the text beside it.
+  function bulletSvg(s, d, band, entered, { fallback, misses }) {
     const marks = [s("rect", { x: "0", y: "9", width: "100%", height: "2", class: "bullet-track" })];
     const defs = [];
     const pat = nextId("hatch");
@@ -491,6 +523,10 @@
         class: "band " + (fallback ? "band-fallback" : "band-neutral") + (open ? " band-open-" + open : ""), fill,
       }));
     }
+    // A visible edge (3:1) at each limit the authority set; none on an open side.
+    [band.min, band.max].forEach((v) => {
+      if (v !== null && v >= d.lo && v <= d.hi) marks.push(s("line", { x1: pct(d.x(v)), x2: pct(d.x(v)), y1: "3", y2: "17", class: "band-edge" }));
+    });
     const clampX = (v) => Math.min(100, Math.max(0, d.x(v)));
     (misses || []).forEach((m) => {
       const a = clampX(Math.min(m.from, m.to)), b = clampX(Math.max(m.from, m.to));
@@ -504,7 +540,7 @@
     } else {
       marks.push(s("line", { x1: pct(clampX(entered)), x2: pct(clampX(entered)), y1: "1", y2: "19", class: "marker" + (off(entered) ? " marker-off" : "") }));
     }
-    return chartSvg(s, { title, desc, height: 20, className: "bullet-svg" }, marks);
+    return chartSvg(s, { height: 20, className: "bullet-svg", decorative: true }, marks);
   }
 
   function bulletItem(h, s, g, labels) {
@@ -541,12 +577,7 @@
           h("span", { class: "bullet-status" }, (fallback ? "advisory · " : "") + (STATUS_WORD[status] || status)),
           missText ? h("span", { class: "bullet-miss" }, missText) : null,
         ]),
-        bulletSvg(s, d, band, g.entered, {
-          title: `${g.label} (${g.roomLabel}), ${labelText}: requires ${boundText(band.min, band.max, g.unit)}; entered ${entered} — ${STATUS_WORD[status] || status}${missText ? ", " + missText : ""}`,
-          desc: `${fallback ? "Advisory international-standard band (hatched)" : "Requirement band"} with the entered value marked${misses.length ? " and the gap to the limit highlighted" : ""}; axis ${fmtNum(d.lo)} to ${fmtNum(d.hi)}${unitText(g.unit)}.`,
-          fallback,
-          misses,
-        }),
+        bulletSvg(s, d, band, g.entered, { fallback, misses }),
       ]);
     };
     groups.forEach(({ band, names }) => children.push(row(names.join(", "), band, band.status, false)));
@@ -701,5 +732,5 @@
     ]);
   }
 
-  return { GLYPH, formatDay, resultsPage, authorityView, verdictSection, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
+  return { GLYPH, formatDay, resultsPage, authorityView, verdictSection, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion, syncScrollRegions };
 });

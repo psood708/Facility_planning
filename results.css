@@ -16,7 +16,8 @@
   --fill-novalue: #8795a3;
   --fill-notregulated: #c3ccd5;
   --fill-critical: #c0392b;
-  --fill-significant: #d99a2b;
+  --fill-significant: #bf8212; /* 3.3:1 on white; validated against critical and minor (normal + CVD) */
+  --band-edge: #5f6e7e; /* limit lines on the range band: 5.2:1 on white, 3.6:1 on the band */
   --fill-partial: #6f6200;
   --band-neutral: #cfd8e1;
   --hatch-line: #8795a3;
@@ -37,8 +38,8 @@
 .rv-figure { margin: 0; min-width: 0; }
 .results-page > * { min-width: 0; }
 .rv-figure figcaption { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 12px; }
-.fig-title { font-size: 16px; font-weight: 600; }
-.fig-takeaway { font-size: 14px; color: var(--ink-soft); }
+.results-page .fig-title { font-size: 16px; font-weight: 600; margin: 0; }
+.fig-takeaway { font-size: 14px; color: var(--ink-soft); margin: 0; }
 
 .glyph { display: inline-block; min-width: 1em; text-align: center; font-weight: 700; }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
@@ -124,7 +125,7 @@
   border-bottom: 1px solid var(--border);
 }
 .sc-head { grid-area: head; display: flex; flex-direction: column; gap: 4px; align-self: start; }
-.sc-name { font-size: 16px; font-weight: 600; }
+.sc-name { font-size: 16px; font-weight: 600; margin: 0; }
 .sc-head .target-badge { align-self: flex-start; }
 .scorecard .status-bar { grid-area: bar; }
 .sc-met { grid-area: met; margin: 0; font-size: 14px; }
@@ -157,10 +158,11 @@
 .fix-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 14px; }
 .fix-satisfies { color: var(--ink); }
 /* Severity rail: a coloured left edge on each fix (the chip says the word). */
-.fix { box-shadow: inset 4px 0 0 var(--border); padding-left: 12px; }
-.fix-sev-critical { box-shadow: inset 4px 0 0 var(--fill-critical); }
-.fix-sev-significant { box-shadow: inset 4px 0 0 var(--fill-significant); }
-.fix-sev-partial { box-shadow: inset 4px 0 0 var(--fill-partial); }
+.fix { border-left: 4px solid var(--border); padding-left: 12px; }
+.fix-sev-critical { border-left-color: var(--fill-critical); }
+.fix-sev-significant { border-left-color: var(--fill-significant); }
+.fix-sev-partial { border-left-color: var(--fill-partial); }
+.band-edge { stroke: var(--band-edge); stroke-width: 2; }
 /* Authorities strip: one cell per covered authority, filled where the change satisfies it. */
 .unlock-strip { display: inline-flex; flex-wrap: wrap; gap: 2px; }
 .unlock-cell { min-width: 44px; padding: 1px 4px; text-align: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft); background: var(--panel); }
@@ -282,6 +284,11 @@
 
 /* ---------------------------------------------------------------- forced colours & print */
 @media (forced-colors: active) {
+  /* Tints vanish in forced colours: outline what colour marked, keep the words. */
+  .cell-fail, .mx-cell:not(.mx-zero), .room-card-gaps li { outline: 2px solid CanvasText; outline-offset: -2px; }
+  .chart .band-edge { stroke: CanvasText; }
+  .chart rect.miss { fill: CanvasText; }
+  .fix { border-left-color: CanvasText; }
   .swatch, .verdict-badge .glyph, .verdict-item .verdict-glyph { forced-color-adjust: none; border: 1px solid CanvasText; }
   .chart rect.seg, .chart rect.band:not(.band-open-hi):not(.band-open-lo), .chart rect.miss { stroke: CanvasText; stroke-width: 1; }
   .unlock-cell.unlock-on { forced-color-adjust: none; background: Highlight; color: HighlightText; }

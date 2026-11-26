@@ -59,7 +59,13 @@ async function scenes(page, viewport, projectId) {
   await page.waitForSelector("#step-4:not([hidden]) h2");
   await audit(page, "step 4 results (live)");
   await page.evaluate(() => document.querySelectorAll("#step-4 details").forEach((d) => (d.open = true)));
+  await page.waitForTimeout(50); // the toggle events re-check which wrappers scroll
   await audit(page, "step 4 results with all details open");
+  const regions = await page.$$eval("#step-4 .table-scroll, #step-4 .grid-scroll", (els) => els.filter((e) => e.offsetParent).map((e) => ({
+    scrolls: e.scrollWidth > e.clientWidth + 1, region: e.getAttribute("role") === "region" && e.getAttribute("tabindex") === "0" && !!e.getAttribute("aria-label"), role: e.getAttribute("role"),
+  })));
+  check(`@${viewport.width}: only wrappers that scroll are focusable regions (${regions.filter((r) => r.scrolls).length} of ${regions.length} scroll)`,
+    regions.length > 0 && regions.every((r) => (r.scrolls ? r.region : r.role === null)), JSON.stringify(regions));
 
   if (projectId) {
     // Discard the throwaway wizard state so leaving doesn't trigger the unsaved prompt.
@@ -131,6 +137,8 @@ async function scenes(page, viewport, projectId) {
   await page.locator("#step-4 button.show-rows").click();
   const after = await page.locator("#step-4 .room-card:not([hidden])").count();
   check(`"Show all" reveals every room card (${after})`, after > shown && after === (await page.locator("#step-4 .room-grid tbody tr").count()), `${shown} → ${after}`);
+  check("focus moves to the first newly shown room card", await page.evaluate(() => document.activeElement && document.activeElement.classList.contains("room-card")));
+  check("the count note says every room is shown", /^Showing all \d+ rooms with a gap\.$/.test((await page.textContent("#step-4 .grid-count")).trim()));
   await audit(page, `step 4 results, ${roomCount} rooms, all rows shown`);
 
   // A saved project whose benchmark data has since changed (stale results).

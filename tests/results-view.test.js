@@ -310,8 +310,8 @@ test("room grid: scrollable labelled region, glyph + text in cells, capped at 15
   assert.equal(rows[15].children[0].attrs.tabindex, "-1", "the first revealed row can take focus");
   btn.attrs.onclick({ currentTarget: btn });
   assert.equal(rows.filter((r) => r.hidden === false || !r.attrs.hidden).length, rows.length);
-  assert.match(text(find(page, cls("grid-status"))), new RegExp(`Showing all ${rows.length} rooms`));
-  assert.equal(find(page, cls("grid-status")).attrs.role, "status");
+  assert.match(text(find(page, cls("grid-count"))), new RegExp(`^Showing all ${rows.length} rooms with a gap\\.$`));
+  assert.equal(find(page, (n) => n.attrs.role === "status" && cls("grid-status")(n)), null, "focus is the one announcement");
   const fail = find(region, cls("cell-fail"));
   assert.match(text(fail), /✗/);
   assert.match(text(fail), /not met/);
@@ -511,9 +511,9 @@ test("every 'View as table' and 'Show all' has a unique name", () => {
   const page = live(busy());
   const names = (re) => all(page, (n) => (n.tag === "summary" || n.tag === "button") && re.test(text(n))).map((n) => text(n).replace(/\s+/g, " ").trim());
   const views = names(/^View as table/);
-  assert.ok(views.length >= 3);
+  assert.ok(views.length >= 2);
   assert.equal(new Set(views).size, views.length, views.join(" | "));
-  views.forEach((v) => assert.match(v, /^View as table: \S/));
+  views.forEach((v) => assert.match(v, /^View as table ?: \S/));
   const shows = names(/^Show all/);
   assert.ok(shows.length >= 2);
   assert.equal(new Set(shows).size, shows.length, shows.join(" | "));

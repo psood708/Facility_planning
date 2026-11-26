@@ -59,6 +59,8 @@ async function openList(page) {
   await page.click('#step-4 .auth-choice:has-text("Schedule M")');
   await page.waitForFunction(() => /Schedule M/.test(document.querySelector("#step-4 .auth-view h3").textContent));
   check("the switcher shows another authority without changing the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
+  await page.waitForFunction(() => /Showing evidence against .*Schedule M/.test(document.getElementById("app-status").textContent));
+  check("switching is announced and focus stays on the chosen authority", await page.evaluate(() => document.activeElement.classList.contains("auth-choice") && document.activeElement.getAttribute("aria-pressed") === "true"));
   check("Schedule M shows the 120 m² room against its 150 m² minimum as Not met", /Not met/.test(await page.locator("#step-4 .auth-row.st-fail").first().textContent()));
   check("rooms with a failure are open; the rest of the evidence is folded", (await page.locator("#step-4 details.auth-room[open] .st-fail").count()) > 0 && (await page.locator("#step-4 details.auth-folded:not([open])").count()) > 0);
   // ---- cross-authority gap report (Milestone 4)
