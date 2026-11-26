@@ -177,7 +177,8 @@ test("secret scan finds nothing in the committed repository", () => {
 
 test(".env.example documents only public client settings, with no values", () => {
   const lines = fs.readFileSync(path.join(ROOT, ".env.example"), "utf8").split("\n").filter((l) => l && !l.startsWith("#"));
-  assert.deepEqual(lines.map((l) => l.split("=")[0]).sort(), ["SUPABASE_ANON_KEY", "SUPABASE_URL"]);
+  // All public: the Supabase URL and anon key, and the Turnstile *site* key (its secret lives only in Supabase).
+  assert.deepEqual(lines.map((l) => l.split("=")[0]).sort(), ["SUPABASE_ANON_KEY", "SUPABASE_URL", "TURNSTILE_SITE_KEY"]);
   for (const l of lines) assert.match(l, /^[A-Z_]+=$/);
   assert.match(fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8"), /^dist\/$/m);
 });
