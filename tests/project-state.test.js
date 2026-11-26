@@ -333,3 +333,11 @@ test("non-string market entries are errors, never silently dropped; long bad val
   const msg = errorsFor({ ...validInputs(), primaryAuthority: "x".repeat(500) });
   assert.ok(msg.length < 200, `error message is ${msg.length} chars`);
 });
+
+// PDF intake needs the same select options as the Step 3 form, so they live here.
+test("optionsFor: overrides first, otherwise unit_options split on ' / '", () => {
+  assert.deepEqual(ps.optionsFor(DATA.paramById["HVAC-001"]), ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"]);
+  assert.deepEqual(ps.optionsFor(DATA.paramById["HVAC-007"]), ["G4", "G4+F8", "G4+F8+H13", "H14"]);
+  assert.deepEqual(ps.optionsFor(DATA.paramById["UTIL-001"]), ["Class 1", "Class 1.2.1", "Class 2"]);
+  assert.deepEqual(ps.optionsFor(DATA.paramById["SHE-004"]), ["OEB 1", "OEB 2", "OEB 3", "OEB 4", "OEB 5"]);
+});

@@ -39,14 +39,16 @@ test("R13: every response carries a strict CSP", () => {
   const csp = headersFor("/(.*)")["content-security-policy"];
   const d = Object.fromEntries(csp.split(";").map((s) => s.trim()).filter(Boolean).map((s) => { const [k, ...v] = s.split(/\s+/); return [k, v]; }));
   assert.deepEqual(d["default-src"], ["'self'"]);
-  assert.deepEqual(d["script-src"], ["'self'"]);
+  // 'wasm-unsafe-eval' lets the in-browser OCR compile WebAssembly; it does not allow eval().
+  assert.deepEqual(d["script-src"], ["'self'", "'wasm-unsafe-eval'"]);
+  assert.deepEqual(d["worker-src"], ["'self'"]);
   assert.deepEqual(d["style-src"], ["'self'"]);
   assert.deepEqual(d["object-src"], ["'none'"]);
   assert.deepEqual(d["base-uri"], ["'none'"]);
   assert.deepEqual(d["frame-ancestors"], ["'none'"]);
   assert.deepEqual(d["form-action"], ["'self'"]);
   assert.deepEqual(d["connect-src"], ["'self'", "https://*.supabase.co"]);
-  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*(?!\.supabase\.co)|http:/);
+  assert.doesNotMatch(csp, /'unsafe-inline'|'unsafe-eval'|\*(?!\.supabase\.co)|http:/);
 });
 
 test("R13: HSTS, nosniff, referrer policy and framing protection", () => {
@@ -86,7 +88,12 @@ test("build ships exactly the files the page loads, plus generated config", () =
   const styles = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(styles.includes("styles.css"));
   const data = fs.readdirSync(path.join(ROOT, "data")).filter((f) => f.endsWith(".json")).map((f) => "data/" + f);
-  assert.deepEqual(files, [...new Set(["index.html", ...styles, ...scripts, ...data])].sort());
+  // The PDF reader and OCR are loaded on demand, so they ship as whole vendored folders.
+  const lazy = fs.readdirSync(path.join(ROOT, "vendor"), { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^(pdfjs|tesseract)-\d/.test(e.name))
+    .flatMap((e) => listFiles(path.join(ROOT, "vendor", e.name)).map((f) => `vendor/${e.name}/${f}`));
+  assert.ok(lazy.some((f) => /pdf\.min\.mjs$/.test(f)) && lazy.some((f) => /eng\.traineddata\.gz$/.test(f)), "pdf.js and OCR files are vendored");
+  assert.deepEqual(files, [...new Set(["index.html", ...styles, ...scripts, ...data, ...lazy])].sort());
   for (const f of files) assert.doesNotMatch(f, /^(tests|db-tests|e2e|supabase|scripts|expert-review|node_modules|\.claude)\/|package|\.env/);
 });
 

@@ -32,6 +32,21 @@
   const PROJECT_KEYS = ["name", "notes", "inputs"];
   const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
+  // Select options for a parameter: a curated list where the dataset's
+  // unit_options text isn't a clean list, otherwise unit_options split on " / ".
+  const OPTION_OVERRIDES = Object.freeze({
+    "UTIL-001": ["Class 1", "Class 1.2.1", "Class 2"],
+    "SHE-004": ["OEB 1", "OEB 2", "OEB 3", "OEB 4", "OEB 5"],
+    "HVAC-001": ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"],
+  });
+
+  function optionsFor(param) {
+    if (Object.prototype.hasOwnProperty.call(OPTION_OVERRIDES, param.id)) return OPTION_OVERRIDES[param.id].slice();
+    const raw = param.unit_options || "";
+    if (raw.includes(" / ")) return raw.split(" / ").map((s) => s.trim());
+    return [raw];
+  }
+
   function resolveInputKind(param) {
     if (param.id === "DFS-003") return "number";
     const dt = (param.data_type || "").toLowerCase();
@@ -258,7 +273,7 @@
   }
 
   return {
-    CATEGORY_DEFS, SPECIFIC_FORMS, DEV_STAGES, SCALE_SIZES, LIMITS,
+    CATEGORY_DEFS, optionsFor, SPECIFIC_FORMS, DEV_STAGES, SCALE_SIZES, LIMITS,
     resolveInputKind, defaultState, serializeInputs, validateInputs, validateProject, resetState, fingerprint, switchCategory, ensurePrimary,
   };
 });

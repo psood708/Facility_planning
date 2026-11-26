@@ -55,7 +55,14 @@ function shippedFiles() {
   const styles = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "manifest.json"), "utf8"));
   const data = ["manifest.json", ...Object.keys(manifest.files)].map((f) => "data/" + f);
-  return ["index.html", ...styles, ...scripts, ...data];
+  // The PDF reader and OCR engine load only when a planner picks a PDF, so
+  // index.html doesn't reference them; ship their vendored folders whole.
+  const listDir = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? listDir(`${dir}/${e.name}`) : [`${dir}/${e.name}`]));
+  const lazy = fs.readdirSync(path.join(ROOT, "vendor"), { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^(pdfjs|tesseract)-\d/.test(e.name))
+    .flatMap((e) => listDir(`vendor/${e.name}`));
+  return ["index.html", ...styles, ...scripts, ...data, ...lazy];
 }
 
 function cspWithOrigin(origin) {
