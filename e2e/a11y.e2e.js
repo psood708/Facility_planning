@@ -111,7 +111,7 @@ async function scenes(page, viewport, projectId) {
     const rooms = DATA.rooms.filter((r) => r.applies_to.sterile).map((r) => r.id);
     Object.assign(state, {
       category: "sterile", specificForms: ["Sterile Liquid (Vial)"], targetMarkets: ["schedule_m", "us_fda", "eu_gmp", "who_gmp", "china_nmpa", "japan_pmda"],
-      selectedRooms: rooms, roomValues: Object.fromEntries(rooms.map((id) => [id, { "DIM-001": 1 }])),
+      selectedRooms: rooms, roomValues: Object.fromEntries(rooms.map((id) => [id, { "HVAC-001": "Unclassified/CNC", "DIM-001": 1 }])),
     });
     showStep(2);
     return rooms.length;
@@ -122,13 +122,15 @@ async function scenes(page, viewport, projectId) {
   check("filter keeps hidden rooms selected", (await page.evaluate(() => state.selectedRooms.length)) === roomCount);
   await page.fill("#room-filter", "");
   await page.evaluate(() => showStep(4));
-  await page.waitForSelector("#step-4 .grid-scroll");
-  const shown = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
-  check(`results grid starts capped (${shown} rows shown)`, shown <= 16, `${shown} rows`);
+  // At phone width the room grid is a list of cards (the table is hidden).
+  await page.waitForSelector("#step-4 .room-cards");
+  check("phones get room cards instead of the wide table", await page.isVisible("#step-4 .room-cards") && !(await page.isVisible("#step-4 .grid-scroll")));
+  const shown = await page.locator("#step-4 .room-card:not([hidden])").count();
+  check(`room cards start capped (${shown} shown)`, shown > 0 && shown <= 15, `${shown} cards`);
   await audit(page, `step 4 results, ${roomCount} rooms`);
   await page.locator("#step-4 button.show-rows").click();
-  const after = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
-  check(`"Show all" reveals every room row (${after})`, after > shown, `${shown} → ${after}`);
+  const after = await page.locator("#step-4 .room-card:not([hidden])").count();
+  check(`"Show all" reveals every room card (${after})`, after > shown && after === (await page.locator("#step-4 .room-grid tbody tr").count()), `${shown} → ${after}`);
   await audit(page, `step 4 results, ${roomCount} rooms, all rows shown`);
 
   // A saved project whose benchmark data has since changed (stale results).

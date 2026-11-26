@@ -467,3 +467,18 @@ test("a thin all-clear says how few checks it rests on, once", () => {
   const sn = { rollup: { schedule_m: "Compliant" }, evaluations: ["T1", "T2"].map((t) => ({ room: null, param: t, threshold: t, markets: { schedule_m: { status: "compliant" } } })), checklist: [], recommendations: [] };
   assert.equal(model.build(sn, LABELS).verdicts[0].detail, "Only 2 checks, and it meets them.");
 });
+
+// ---------------------------------------------------------------- Phase 2: room grid tint
+
+test("rooms: each cell and room carries its worst gap severity (null when nothing fails)", () => {
+  const m = model.build(compactOf(demo()), LABELS);
+  const z29 = m.rooms.find((r) => r.room === "Z-29");
+  assert.equal(z29.cells.schedule_m.worst, "Significant", "area + grade, both significant");
+  assert.equal(z29.cells.eu_gmp.worst, "Significant");
+  const fac = m.rooms.find((r) => r.room === null);
+  assert.equal(fac.cells.eu_gmp.worst, "Critical", "compressed air class is critical");
+  assert.equal(fac.worst, "Critical");
+  const z01 = m.rooms.find((r) => r.room === "Z-01");
+  assert.equal(z01.worst, null);
+  assert.equal(z01.cells.us_fda.worst, null);
+});

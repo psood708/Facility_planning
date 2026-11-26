@@ -30,8 +30,6 @@
   const STATUS_WORD = Object.fromEntries(Object.entries(V.status).map(([k, w]) => [k, lower(w)]));
   STATUS_WORD.no_rule = lower(V.status.not_regulated);
   // "No rule set" covers both "the authority sets no figure" and "no data".
-  const BAR_ORDER = ["compliant", "non_compliant", "no_value", "no_rule"];
-  const BAR_CLASS = { compliant: "compliant", non_compliant: "non_compliant", no_value: "no_value", no_rule: "not_regulated" };
   const VERDICT_GLYPH = { compliant: "✓", partial: "!", non_compliant: "✗", insufficient: "?", not_covered: "⊘" };
   const VERDICT = Object.fromEntries(Object.keys(VERDICT_GLYPH).map((k) => [k, { glyph: VERDICT_GLYPH[k], word: V.verdict[k] }]));
   const SEVERITIES = ["Critical", "Significant", "Partial"];
@@ -59,7 +57,9 @@
   const pct = (v) => `${Math.round(Math.min(100, Math.max(0, v)) * 1000) / 1000}%`;
   const fmtNum = (v) => String(Math.round(v * 100) / 100);
   const short = (mk) => SHORT[mk] || String(mk).toUpperCase();
-  const marketName = (labels, mk) => (labels && typeof labels.market === "function" && labels.market(mk)) || String(mk);
+  // Country-first names ("China (NMPA)") wherever a market is named in text.
+  const marketName = (labels, mk) => (Object.prototype.hasOwnProperty.call(V.place, mk) ? V.place[mk] : null) ||
+    (labels && typeof labels.market === "function" && labels.market(mk)) || String(mk);
   const unitText = (u) => (u ? " " + u : "");
   function boundText(min, max, unit) {
     if (min !== null && max !== null) return `${fmtNum(min)}–${fmtNum(max)}${unitText(unit)}`;
@@ -147,18 +147,36 @@
 
   // ------------------------------------------------------------ verdict per market
 
-  function severityChart(h, s, model) {
+  // Authority × severity matrix (results redesign, Phase 2): one row per
+  // market in verdict order, gaps counted by severity. It is a real table,
+  // so the numbers are the chart; cells are tinted by severity only when
+  // they hold a gap, and always carry a glyph and the count.
+  function severityMatrix(h, model) {
     const sev = model.severity;
     if (!sev.total) return null;
-    const title = "Gaps by severity";
+    const byKey = new Map(model.markets.map((m) => [m.key, m]));
+    const rows = model.verdicts.map((v) => {
+      const m = byKey.get(v.key);
+      const head = h("th", { scope: "row" }, [h("span", { class: "mx-place" }, m.place), v.target ? h("span", { class: "target-badge" }, "Your target") : null]);
+      if (m.verdictKey === "not_covered") return h("tr", { class: "mx-row mx-quiet" }, [head, h("td", { class: "mx-note", colspan: "3" }, "Not covered by this dataset")]);
+      if (!m.checked) return h("tr", { class: "mx-row mx-quiet" }, [head, h("td", { class: "mx-note", colspan: "3" }, "Nothing checked yet")]);
+      return h("tr", { class: "mx-row" }, [head].concat(SEVERITIES.map((k) => {
+        const n = m.gapsBySeverity[k];
+        const key = k.toLowerCase();
+        return h("td", { class: `mx-cell mx-${key}` + (n ? "" : " mx-zero") }, n
+          ? [h("span", { class: "swatch sw-sev-" + key, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[k]), h("span", { class: "mx-count" }, String(n))]
+          : "0");
+      })));
+    });
     const takeaway = sev.Critical
-      ? `${sev.Critical} of ${plural(sev.total, "gap")} ${sev.Critical === 1 ? "is" : "are"} critical — fix these first.`
-      : `None of the ${plural(sev.total, "gap")} is critical.`;
-    const desc = SEVERITIES.map((k) => `${sev[k]} ${sevWord(k).toLowerCase()}`).join(", ") + ".";
-    return figure(h, "severity-chart", title, takeaway, [
-      segmentedBar(s, SEVERITIES.map((k) => ({ value: sev[k], cls: "sev-fill-" + k.toLowerCase() })), { title, desc, height: 12, className: "severity-bar" }),
-      h("ul", { class: "legend" }, SEVERITIES.filter((k) => sev[k]).map((k) => legendItem(h, "sw-sev-" + k.toLowerCase(), SEV_GLYPH[k], `${sev[k]} ${sevWord(k).toLowerCase()}`))),
-      tableView(h, "Gaps by severity", ["Severity", "Gaps"], SEVERITIES.map((k) => [sevWord(k), sev[k]])),
+      ? `${sev.Critical} of ${plural(sev.total, "change")} ${sev.Critical === 1 ? "is" : "are"} critical — fix ${sev.Critical === 1 ? "it" : "these"} first.`
+      : `None of the ${plural(sev.total, "change")} is critical.`;
+    return figure(h, "severity-matrix", "Gaps by authority and severity", takeaway, [
+      scrollRegion(h, "Gaps by authority and severity", h("table", { class: "mx-table" }, [
+        h("caption", {}, "Gaps by authority and severity (one change can close a gap for several authorities)"),
+        h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Authority")].concat(SEVERITIES.map((k) => h("th", { scope: "col" }, sevWord(k)))))),
+        h("tbody", {}, rows),
+      ])),
     ]);
   }
 
@@ -178,7 +196,7 @@
       ]))),
       h("p", { class: "completeness" }, RM.completenessText(model)),
       h("p", { class: "headline" }, RM.fixSummary(model)),
-      severityChart(h, s, model),
+      severityMatrix(h, model),
     ]);
   }
 
@@ -204,15 +222,20 @@
         h("p", { class: "sc-note" }, `This dataset has no requirements for ${m.place}, so nothing was checked. This is not a pass.`),
       ]);
     }
-    const c = { ...m.counts, no_rule: m.counts.not_regulated + m.counts.not_covered };
-    const present = BAR_ORDER.filter((k) => c[k]);
-    const desc = present.map((k) => `${c[k]} ${STATUS_WORD[k]}`).join(", ") + ".";
+    // The bar counts checked values only (met / not met); checks that need a
+    // value or have no rule are said in words beside it, never drawn.
+    const c = m.counts;
+    const present = ["compliant", "non_compliant"].filter((k) => c[k]);
+    const desc = m.checked ? present.map((k) => `${c[k]} ${STATUS_WORD[k]}`).join(", ") + "." : "No value has been checked against this authority yet.";
+    const noRule = c.not_regulated + c.not_covered;
+    const unchecked = [c.no_value ? `${c.no_value} ${c.no_value === 1 ? "needs" : "need"} a value` : null, noRule ? `${noRule} ${STATUS_WORD.no_rule}` : null].filter(Boolean).join(" · ");
     const gaps = SEVERITIES.filter((k) => m.gapsBySeverity[k]);
     return h("li", { class: "scorecard sc-" + m.verdictKey }, [
       head,
-      segmentedBar(s, BAR_ORDER.map((k) => ({ value: c[k], cls: "st-" + BAR_CLASS[k] })), { title: m.checked ? `${m.place}: ${m.met} of ${m.checked} checks met` : `${m.place}: nothing checked yet`, desc, className: "status-bar" }),
+      segmentedBar(s, ["compliant", "non_compliant"].map((k) => ({ value: c[k], cls: "st-" + k })), { title: m.checked ? `${m.place}: ${m.met} of ${m.checked} checked values met` : `${m.place}: nothing checked yet`, desc, className: "status-bar" }),
       h("p", { class: "sc-met" }, [h("strong", {}, m.checked ? `${m.met} of ${plural(m.checked, "check")} met` : "Nothing checked yet")]),
-      h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + BAR_CLASS[k], GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))),
+      present.length ? h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + k, GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))) : null,
+      unchecked ? h("p", { class: "sc-unchecked" }, unchecked) : null,
       h("p", { class: "sc-gaps" }, gaps.length
         ? [h("span", {}, "Gaps:")].concat(gaps.map((k, i) => h("span", { class: "sc-gap" }, [h("span", { class: "swatch sw-sev-" + k.toLowerCase(), "aria-hidden": "true" }), `${m.gapsBySeverity[k]} ${sevWord(k).toLowerCase()}${i < gaps.length - 1 ? "," : ""}`])))
         : m.checked ? "No gaps against this authority." : "No checks with a value yet."),
@@ -230,7 +253,7 @@
       h("h3", {}, "By authority"),
       figure(h, "scorecard-figure", "How the facility performs against each authority", takeaway, [
         h("ul", { class: "scorecard-list" }, model.markets.map((m) => scorecard(h, s, m))),
-        h("p", { class: "chart-note" }, `The verdict is set by the worst gap severity, not by the bar: any critical gap makes it ${V.verdict.non_compliant}; any other gap means it ${lower(V.verdict.partial)}. The bar counts checks.` +
+        h("p", { class: "chart-note" }, `The verdict is set by the worst gap severity, not by the bar: any critical gap makes it ${V.verdict.non_compliant}; any other gap means it ${lower(V.verdict.partial)}. The bar counts checked values only: met and not met.` +
           (withNoValue ? " Checks that need a value are not counted as met or not met." : "") +
           " International-standard (advisory) results never count toward an authority's verdict."),
         tableView(h, "Checks by authority",
@@ -244,11 +267,19 @@
 
   // One fix: severity and label tag, a short title, the full suggested
   // change, how many authorities it satisfies, and its source as a footnote.
-  function fixItem(h, f, labels) {
+  // covered: the covered authorities' keys, one strip cell each.
+  function fixItem(h, f, labels, covered) {
     const sev = f.severity.toLowerCase();
-    const markets = h("span", { class: "fix-markets" }, f.marketsFailing.map((mk) => h("span", { class: "market-chip", title: marketName(labels, mk) }, short(mk))));
+    const keys = covered && covered.length ? covered : f.marketsFailing;
+    // The strip is a picture of the words beside it, so screen readers get the words.
+    const markets = [
+      h("span", { class: "unlock-strip", "aria-hidden": "true" }, keys.map((mk) => h("span", {
+        class: "unlock-cell" + (f.marketsFailing.includes(mk) ? " unlock-on" : "") + (f.basis === "fallback" ? " unlock-advisory" : ""),
+      }, short(mk)))),
+      h("span", { class: "sr-only fix-satisfied-names" }, ": " + f.marketsFailing.map((mk) => marketName(labels, mk)).join(", ")),
+    ];
     const source = Array.isArray(f.sources) ? h("p", { class: "fix-source" }, "Source: " + (f.sources.length ? f.sources.join("; ") : "No source recorded")) : null;
-    return h("li", { class: "fix fix-row fix-" + f.basis + (f.mandatory ? " fix-mandatory" : "") }, [
+    return h("li", { class: "fix fix-row fix-" + f.basis + " fix-sev-" + sev + (f.mandatory ? " fix-mandatory" : "") }, [
       h("div", { class: "fix-head" }, [
         h("span", { class: "sev-chip" }, [h("span", { class: "swatch sw-sev-" + sev, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[f.severity]), sevWord(f.severity)]),
         h("span", { class: "fix-obligation ob-" + f.group }, f.labelText || ""),
@@ -256,8 +287,8 @@
       h("p", { class: "fix-title" }, f.title || `${f.label} · ${f.roomLabel}`),
       h("p", { class: "fix-change" + (f.change ? "" : " fix-change-missing") }, f.change || "Re-evaluate with current data to see the suggested change."),
       h("div", { class: "fix-meta" }, f.basis === "authority"
-        ? [h("span", { class: "fix-satisfies" }, `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`), markets]
-        : [h("span", { class: "fix-satisfies" }, "International standard only — misses it for"), markets]),
+        ? [h("span", { class: "fix-satisfies" }, `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`)].concat(markets)
+        : [h("span", { class: "fix-satisfies" }, "International standard only — misses it for")].concat(markets)),
       source,
     ]);
   }
@@ -276,9 +307,9 @@
   // only" filter when the list mixes mandatory and other gaps. Filtering
   // rebuilds the list from the matching changes (so they lead it, numbered
   // from 1) and announces how many are shown.
-  function rankedList(h, fixes, labels) {
+  function rankedList(h, fixes, labels, covered) {
     const lists = (subset, noun) => {
-      const rows = subset.map((f) => fixItem(h, f, labels));
+      const rows = subset.map((f) => fixItem(h, f, labels, covered));
       return [
         h("ol", { class: "fixes fixes-top" }, rows.slice(0, FIX_LIMIT)),
         rows.length > FIX_LIMIT ? h("details", { class: "show-all" }, [
@@ -310,6 +341,7 @@
     const groups = model.gapGroups || [];
     const main = (groups.find((g) => g.key === "gaps") || { fixes: [] }).fixes;
     const advisory = groups.find((g) => g.key === "advisory") || { label: "", fixes: [] };
+    const covered = model.markets.filter((m) => m.verdictKey !== "not_covered").map((m) => m.key);
     const body = [h("h3", {}, "What to fix first")];
     if (!main.length) {
       const checked = model.markets.some((m) => m.checked);
@@ -319,13 +351,13 @@
     } else {
       body.push(h("p", { class: "section-lede" }, RM.NOTES.order));
       if (main.some((f) => f.draft)) body.push(h("p", { class: "chart-note fix-draft-note" }, RM.NOTES.draft));
-      body.push(rankedList(h, main, labels));
+      body.push(rankedList(h, main, labels, covered));
     }
     if (advisory.fixes.length) {
       body.push(h("details", { class: "gap-group gap-advisory" }, [
         h("summary", {}, `${advisory.label} (${advisory.fixes.length})`),
         h("p", { class: "section-lede" }, RM.NOTES.advisory),
-        h("ol", { class: "fixes" }, advisory.fixes.map((f) => fixItem(h, f, labels))),
+        h("ol", { class: "fixes" }, advisory.fixes.map((f) => fixItem(h, f, labels, covered))),
       ]));
     }
     return h("section", { class: "fix-list" }, body);
@@ -333,42 +365,65 @@
 
   // ------------------------------------------------------------ room grid
 
+  // Room × authority grid (Phase 2): only rooms with a gap, failing cells
+  // tinted by their worst severity (said in words too), rooms without a gap
+  // named in one line. Phones get one card per room instead of the table.
   function roomGrid(h, model) {
     const markets = model.markets;
-    const rows = model.rooms.map((r, i) => h("tr", { class: i >= ROOM_LIMIT ? "row-extra" : null, hidden: i >= ROOM_LIMIT ? "hidden" : null }, [
+    const gapRooms = model.rooms.filter((r) => r.failTotal > 0);
+    const clear = model.rooms.filter((r) => !r.failTotal);
+    if (!gapRooms.length) {
+      return h("section", { class: "room-grid" }, [
+        h("h3", {}, "Room by authority"),
+        h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), "No room has a gap against any covered authority."]),
+      ]);
+    }
+    const capped = (i) => i >= ROOM_LIMIT;
+    const rows = gapRooms.map((r, i) => h("tr", { class: capped(i) ? "row-extra" : null, hidden: capped(i) ? "hidden" : null }, [
       h("th", { scope: "row" }, breakable(h, r.label)),
     ].concat(markets.map((m) => {
-      const c = r.cells[m.key] || { state: "na", fails: 0 };
+      const c = r.cells[m.key] || { state: "na", fails: 0, worst: null };
       const k = CELL[c.state] || CELL.na;
-      return h("td", { class: "cell cell-" + c.state }, [
+      if (c.state !== "fail") return h("td", { class: "cell cell-" + c.state }, [glyph(h, k.glyph), srOnly(h, ` ${k.word}`)]);
+      const worst = (c.worst || "Partial").toLowerCase();
+      return h("td", { class: `cell cell-fail cell-worst-${worst}` }, [
         glyph(h, k.glyph),
-        c.state === "fail" ? h("span", { class: "cell-count" }, String(c.fails)) : null,
-        srOnly(h, c.state === "fail" ? ` ${c.fails} not met` : ` ${k.word}`),
+        h("span", { class: "cell-count" }, String(c.fails)),
+        srOnly(h, ` ${c.fails} not met, worst ${sevWord(c.worst).toLowerCase()}`),
       ]);
     }))));
-    const top = model.rooms[0];
-    const takeaway = top && top.failTotal
-      ? `${top.label} has the most gaps (${top.failTotal} across all authorities).`
-      : "No room has a gap against any covered authority.";
-    const extra = model.rooms.length - ROOM_LIMIT;
+    const cards = gapRooms.map((r, i) => h("li", { class: "room-card", hidden: capped(i) ? "hidden" : null }, [
+      h("p", { class: "room-card-name" }, r.label),
+      h("ul", { class: "room-card-gaps" }, markets.filter((m) => (r.cells[m.key] || {}).state === "fail").map((m) => {
+        const c = r.cells[m.key];
+        return h("li", { class: "cell-worst-" + (c.worst || "Partial").toLowerCase() }, [glyph(h, "✗"), `${m.place}: ${c.fails} not met (${sevWord(c.worst).toLowerCase()})`]);
+      })),
+    ]));
+    const top = gapRooms[0];
+    const takeaway = `${top.label} has the most gaps (${top.failTotal} across all authorities).`;
+    const extra = gapRooms.length - ROOM_LIMIT;
     const showAll = extra > 0
       ? h("button", { type: "button", class: "secondary small show-rows", onclick: (e) => {
-          rows.forEach((r) => { r.hidden = false; });
+          rows.concat(cards).forEach((r) => { r.hidden = false; });
           if (e && e.currentTarget) e.currentTarget.hidden = true;
-        } }, `Show all ${model.rooms.length} rows`)
+        } }, `Show all ${gapRooms.length} rooms`)
       : null;
+    const legend = SEVERITIES.map((k) => legendItem(h, "sw-cell-worst-" + k.toLowerCase(), "✗", `not met, worst ${sevWord(k).toLowerCase()} (count of gaps)`))
+      .concat(["pass", "empty", "na"].map((k) => legendItem(h, "sw-cell-" + k, CELL[k].glyph, CELL[k].word)));
     return h("section", { class: "room-grid" }, [
       h("h3", {}, "Room by authority"),
       figure(h, "grid-figure", "Where the gaps are", takeaway, [
-        h("ul", { class: "legend grid-legend" }, ["fail", "pass", "empty", "na"].map((k) => legendItem(h, "sw-cell-" + k, CELL[k].glyph, k === "fail" ? "not met (count of gaps)" : CELL[k].word))),
-        h("div", { class: "grid-scroll", role: "region", tabindex: "0", "aria-label": "Room by authority grid — scrolls sideways on small screens" },
+        h("ul", { class: "legend grid-legend" }, legend),
+        h("div", { class: "grid-scroll", role: "region", tabindex: "0", "aria-label": "Rooms with a gap, by authority — scrolls sideways on small screens" },
           h("table", { class: "room-table" }, [
-            h("caption", {}, "Gaps by room and authority"),
+            h("caption", {}, "Rooms with a gap, by authority"),
             h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col", title: m.place }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.place)]))))),
             h("tbody", {}, rows),
           ])),
-        extra > 0 ? h("p", { class: "chart-note" }, `Showing ${ROOM_LIMIT} of ${model.rooms.length} rows.`) : null,
+        h("ul", { class: "room-cards" }, cards),
+        extra > 0 ? h("p", { class: "chart-note" }, `Showing ${ROOM_LIMIT} of ${gapRooms.length} rooms with a gap.`) : null,
         showAll,
+        clear.length ? h("p", { class: "chart-note grid-clear" }, `${plural(clear.length, "more room")} ${clear.length === 1 ? "has" : "have"} no gap against any covered authority: ${clear.map((r) => r.label).join(", ")}.`) : null,
       ]),
     ]);
   }
@@ -396,20 +451,55 @@
     return { lo, hi, x: (v) => ((v - lo) / (hi - lo)) * 100, offScale: vals.filter((v) => v < lo || v > hi) };
   }
 
-  function bulletSvg(s, d, band, entered, { title, desc, fallback }) {
+  // How far an entered value misses a band: [{ from, to, text }] (empty when
+  // it is inside). "30 m² short" below a minimum, "2 °C over" above a maximum.
+  function missesOf(band, entered, unit) {
+    const out = [];
+    const lo = typeof entered === "object" ? entered.min : entered;
+    const hi = typeof entered === "object" ? entered.max : entered;
+    if (band.min !== null && lo !== null && lo < band.min) out.push({ from: lo, to: band.min, text: `${fmtNum(band.min - lo)}${unitText(unit)} short` });
+    if (band.max !== null && hi !== null && hi > band.max) out.push({ from: band.max, to: hi, text: `${fmtNum(hi - band.max)}${unitText(unit)} over` });
+    return out;
+  }
+
+  // One requirement band on the shared axis. The band is neutral (it is the
+  // rule, not a verdict); the miss between the value and the limit carries
+  // the colour. A one-sided limit fades out on its open side instead of
+  // drawing an edge the authority never set.
+  function bulletSvg(s, d, band, entered, { title, desc, fallback, misses }) {
     const marks = [s("rect", { x: "0", y: "9", width: "100%", height: "2", class: "bullet-track" })];
+    const defs = [];
     const pat = nextId("hatch");
-    if (fallback) marks.unshift(s("defs", {}, hatch(s, pat, "fallback")));
+    if (fallback) defs.push(hatch(s, pat, "fallback"));
     const lo = band.min === null ? d.lo : Math.max(band.min, d.lo);
     const hi = band.max === null ? d.hi : Math.min(band.max, d.hi);
+    const open = band.min === null ? "lo" : band.max === null ? "hi" : null;
+    let fill = fallback ? `url(#${pat})` : null;
+    if (open && !fallback) {
+      const grad = nextId("fade");
+      const solid = { offset: "0%", class: "band-stop", "stop-opacity": "1" };
+      const keep = { offset: "35%", class: "band-stop", "stop-opacity": "1" };
+      const gone = { offset: "100%", class: "band-stop", "stop-opacity": "0" };
+      // Fades towards the open side: right for "at least", left for "at most".
+      defs.push(s("linearGradient", { id: grad, x1: open === "hi" ? "0" : "1", x2: open === "hi" ? "1" : "0", y1: "0", y2: "0" }, [s("stop", solid), s("stop", keep), s("stop", gone)]));
+      fill = `url(#${grad})`;
+    }
+    if (defs.length) marks.unshift(s("defs", {}, defs));
     if (hi > lo) {
-      marks.push(s("rect", { x: pct(d.x(lo)), y: "3", width: pct(d.x(hi) - d.x(lo)), height: "14", rx: "3", class: fallback ? "band band-fallback" : "band band-auth band-" + band.status, fill: fallback ? `url(#${pat})` : null }));
+      marks.push(s("rect", {
+        x: pct(d.x(lo)), y: "3", width: pct(d.x(hi) - d.x(lo)), height: "14", rx: open ? "0" : "3",
+        class: "band " + (fallback ? "band-fallback" : "band-neutral") + (open ? " band-open-" + open : ""), fill,
+      }));
     }
     const clampX = (v) => Math.min(100, Math.max(0, d.x(v)));
+    (misses || []).forEach((m) => {
+      const a = clampX(Math.min(m.from, m.to)), b = clampX(Math.max(m.from, m.to));
+      if (b > a) marks.push(s("rect", { x: pct(a), y: "7", width: pct(b - a), height: "6", class: "miss" + (fallback ? " miss-advisory" : "") }));
+    });
     const off = (v) => v < d.lo || v > d.hi;
     if (typeof entered === "object") {
       const a = entered.min === null ? null : entered.min, b = entered.max === null ? null : entered.max;
-      if (a !== null && b !== null) marks.push(s("rect", { x: pct(clampX(a)), y: "8", width: pct(clampX(b) - clampX(a)), height: "4", class: "marker-range" }));
+      if (a !== null && b !== null) marks.push(s("rect", { x: pct(clampX(a)), y: "9", width: pct(clampX(b) - clampX(a)), height: "2", class: "marker-range" }));
       [a, b].filter((v) => v !== null).forEach((v) => marks.push(s("line", { x1: pct(clampX(v)), x2: pct(clampX(v)), y1: "1", y2: "19", class: "marker" + (off(v) ? " marker-off" : "") })));
     } else {
       marks.push(s("line", { x1: pct(clampX(entered)), x2: pct(clampX(entered)), y1: "1", y2: "19", class: "marker" + (off(entered) ? " marker-off" : "") }));
@@ -420,7 +510,13 @@
   function bulletItem(h, s, g, labels) {
     const d = domainOf(g);
     const entered = enteredText(g.entered, g.unit);
-    const shownBands = Object.entries(g.bands).filter(([, b]) => b.status === "compliant" || b.status === "non_compliant");
+    // Authorities with the same limit and result share one row.
+    const groups = new Map();
+    Object.entries(g.bands).filter(([, b]) => b.status === "compliant" || b.status === "non_compliant").forEach(([mk, b]) => {
+      const k = `${b.min}|${b.max}|${b.status}`;
+      if (!groups.has(k)) groups.set(k, { band: b, names: [] });
+      groups.get(k).names.push(marketName(labels, mk));
+    });
     const notSpecified = Object.entries(g.bands).filter(([, b]) => b.status === "not_regulated").map(([mk]) => marketName(labels, mk));
     const children = [];
     if (g.conflict) {
@@ -434,20 +530,26 @@
       h("span", { class: "bullet-entered" }, ["Entered ", h("strong", {}, entered)]),
     ]));
     if (!d) return h("li", { class: "bullet" }, children);
-    const row = (labelText, band, status, fallback) => h("div", { class: "bullet-row" + (fallback ? " bullet-row-fallback" : "") }, [
-      h("div", { class: "bullet-label" }, [
-        glyph(h, GLYPH[status] || "?", "glyph-" + status),
-        h("span", { class: "bullet-market" }, labelText),
-        h("span", { class: "bullet-bound" }, boundText(band.min, band.max, g.unit)),
-        h("span", { class: "bullet-status" }, (fallback ? "advisory · " : "") + (STATUS_WORD[status] || status)),
-      ]),
-      bulletSvg(s, d, band, g.entered, {
-        title: `${g.label} (${g.roomLabel}), ${labelText}: requires ${boundText(band.min, band.max, g.unit)}; entered ${entered} — ${STATUS_WORD[status] || status}`,
-        desc: `${fallback ? "Advisory international-standard band (hatched)" : "Requirement band"} with the entered value marked; axis ${fmtNum(d.lo)} to ${fmtNum(d.hi)}${unitText(g.unit)}.`,
-        fallback,
-      }),
-    ]);
-    shownBands.forEach(([mk, b]) => children.push(row(marketName(labels, mk), b, b.status, false)));
+    const row = (labelText, band, status, fallback) => {
+      const misses = status === "non_compliant" ? missesOf(band, g.entered, g.unit) : [];
+      const missText = misses.map((m) => m.text).join(" and ");
+      return h("div", { class: "bullet-row" + (fallback ? " bullet-row-fallback" : "") }, [
+        h("div", { class: "bullet-label" }, [
+          glyph(h, GLYPH[status] || "?", "glyph-" + status),
+          h("span", { class: "bullet-market" }, labelText),
+          h("span", { class: "bullet-bound" }, boundText(band.min, band.max, g.unit)),
+          h("span", { class: "bullet-status" }, (fallback ? "advisory · " : "") + (STATUS_WORD[status] || status)),
+          missText ? h("span", { class: "bullet-miss" }, missText) : null,
+        ]),
+        bulletSvg(s, d, band, g.entered, {
+          title: `${g.label} (${g.roomLabel}), ${labelText}: requires ${boundText(band.min, band.max, g.unit)}; entered ${entered} — ${STATUS_WORD[status] || status}${missText ? ", " + missText : ""}`,
+          desc: `${fallback ? "Advisory international-standard band (hatched)" : "Requirement band"} with the entered value marked${misses.length ? " and the gap to the limit highlighted" : ""}; axis ${fmtNum(d.lo)} to ${fmtNum(d.hi)}${unitText(g.unit)}.`,
+          fallback,
+          misses,
+        }),
+      ]);
+    };
+    groups.forEach(({ band, names }) => children.push(row(names.join(", "), band, band.status, false)));
     if (g.fallback) children.push(row("International standard", g.fallback, g.fallback.status, true));
     children.push(h("div", { class: "bullet-axis", "aria-hidden": "true" }, [
       h("span", {}, fmtNum(d.lo) + unitText(g.unit)),
@@ -487,8 +589,8 @@
     });
     body.push(figure(h, "numeric-figure", "How far off are the entered values?", takeaway, [
       h("ul", { class: "legend numeric-legend" }, [
-        h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-band-pass", "aria-hidden": "true" }), glyph(h, "✓"), h("span", { class: "legend-text" }, "required range, met")]),
-        h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-band-fail", "aria-hidden": "true" }), glyph(h, "✗"), h("span", { class: "legend-text" }, "required range, not met")]),
+        h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-band-neutral", "aria-hidden": "true" }), glyph(h, "▭"), h("span", { class: "legend-text" }, "required range (fades where there is no limit)")]),
+        h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-miss", "aria-hidden": "true" }), glyph(h, "✗"), h("span", { class: "legend-text" }, "gap to the limit")]),
         h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-band-fallback", "aria-hidden": "true" }), glyph(h, "–"), h("span", { class: "legend-text" }, "international standard (advisory)")]),
         h("li", { class: "legend-item" }, [h("span", { class: "swatch sw-marker", "aria-hidden": "true" }), glyph(h, "|"), h("span", { class: "legend-text" }, "entered value")]),
       ]),

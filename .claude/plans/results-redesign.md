@@ -31,5 +31,5 @@ Cost/effort per fix — needs new data from the domain expert.
 | Phase | Status |
 |---|---|
 | 1 | done (verdict per market first, shared vocabulary, severity-ranked fix list with tags + Mandatory-only filter, honest counts, folded evidence; export matches) |
-| 2 | pending |
+| 2 | done (authority × severity matrix, bars over checked values, fix rail + authorities strip, gap-rooms grid tinted by worst severity with phone cards, range charts with labelled miss, faded open limits, merged rows) |
 | 3 | pending |

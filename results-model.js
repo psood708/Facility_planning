@@ -167,17 +167,20 @@
       if (!byRoom.has(k)) byRoom.set(k, { room: c.room, checks: [] });
       byRoom.get(k).checks.push(c);
     });
+    // The most severe of a set of severities, or null.
+    const worstOf = (sevs) => sevs.reduce((w, k) => (k && (w === null || SEV_ORDER[k] < SEV_ORDER[w]) ? k : w), null);
     const rooms = [...byRoom.values()].map(({ room, checks: list }, order) => {
       let failTotal = 0;
       const cells = Object.fromEntries(keys.map((mk) => {
         const st = list.map((c) => c.status[mk]);
-        const fails = st.filter((s) => s === "non_compliant").length;
+        const failing = list.filter((c) => c.status[mk] === "non_compliant");
+        const fails = failing.length;
         const passes = st.filter((s) => s === "compliant").length;
         failTotal += fails;
         const state = fails ? "fail" : passes ? "pass" : st.includes("no_value") ? "empty" : "na";
-        return [mk, { state, fails, passes }];
+        return [mk, { state, fails, passes, worst: worstOf(failing.map((c) => severityOf(c.id))) }];
       }));
-      return { room, label: room === null ? "Facility" : L.room(room), cells, failTotal, order };
+      return { room, label: room === null ? "Facility" : L.room(room), cells, failTotal, worst: worstOf(keys.map((mk) => cells[mk].worst)), order };
     });
     rooms.sort((a, b) => b.failTotal - a.failTotal || a.order - b.order);
     rooms.forEach((r) => delete r.order);

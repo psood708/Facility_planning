@@ -132,6 +132,59 @@ test("scorecards: one strip per authority with glyph + verdict word, X of Y met 
   assert.match(text(find(page, cls("scorecards"))), /worst gap/i);
 });
 
+test("scorecard bars count checked values only; the rest is said in words", () => {
+  const cards = all(find(live(), cls("scorecards")), cls("scorecard"));
+  for (const c of cards) {
+    const segs = all(find(c, cls("status-bar")), (n) => n.ns === "svg" && cls("seg")(n)).filter((n) => !cls("seg-empty")(n));
+    for (const seg of segs) assert.ok(cls("st-compliant")(seg) || cls("st-non_compliant")(seg), seg.attrs.class);
+    assert.doesNotMatch(text(find(c, cls("sc-legend")) || { children: [] }), /needs value|no rule set/);
+  }
+  const eu = cards.find((c) => /European Union/.test(text(c)));
+  assert.match(text(find(eu, cls("sc-unchecked"))), /^\d+ need a value · \d+ no rule set$/);
+});
+
+test("authority × severity matrix: one row per market (verdict order), counts by severity, in a captioned table", () => {
+  const page = report(demo({ targetMarkets: ["us_fda"] }));
+  const mx = find(find(page, cls("results-verdicts")), cls("severity-matrix"));
+  assert.ok(mx, "matrix inside the verdict section");
+  assert.equal(mx.tag, "figure");
+  const table = find(mx, tag("table"));
+  assert.ok(find(table, tag("caption")));
+  assert.deepEqual(all(find(table, tag("thead")), tag("th")).map((n) => text(n).trim()), ["Authority", "Critical", "Significant", "Minor"]);
+  const rows = all(find(table, tag("tbody")), tag("tr"));
+  assert.equal(rows.length, 6);
+  assert.match(text(rows[0].children[0]), /United States/, "targets first, as in the verdicts");
+  const eu = rows.find((r) => /European Union/.test(text(r)));
+  assert.deepEqual(eu.children.slice(1).map((c) => text(c).replace(/\D/g, "")), ["1", "1", "1"]);
+  for (const c of all(table, cls("mx-cell"))) {
+    const n = Number(text(c).replace(/\D/g, "") || 0);
+    assert.equal(cls("mx-zero")(c), n === 0, text(c));
+  }
+  assert.equal(find(page, cls("severity-chart")), null, "the severity bar is replaced");
+  assert.equal(find(page, cls("hero-stats")), null);
+});
+
+test("matrix rows for markets with nothing checked say so instead of zeros", () => {
+  const page = report(demo({ roomValues: { "Z-29": { "DIM-001": 120 } }, facilityValues: {} }));
+  const rows = all(find(find(page, cls("severity-matrix")), tag("tbody")), tag("tr"));
+  const fda = rows.find((r) => /United States/.test(text(r)));
+  assert.match(text(fda), /Nothing checked/);
+});
+
+test("fix rows: a severity rail and a strip of the six authorities, filled where the change satisfies one", () => {
+  const rows = all(find(report(), cls("gap-gaps")), cls("fix-row"));
+  for (const r of rows) {
+    assert.ok(["critical", "significant", "partial"].some((k) => cls("fix-sev-" + k)(r)), r.attrs.class);
+    const strip = find(r, cls("unlock-strip"));
+    assert.equal(strip.attrs["aria-hidden"], "true", "the words carry it for screen readers");
+    const cells = all(strip, cls("unlock-cell"));
+    assert.equal(cells.length, 6);
+    const n = Number(text(find(r, cls("fix-satisfies"))).match(/Satisfies (\d)/)[1]);
+    assert.equal(cells.filter(cls("unlock-on")).length, n);
+    assert.match(text(find(r, cls("fix-satisfied-names"))), /\w/);
+  }
+});
+
 test("legend items always pair a swatch, a glyph and a text label", () => {
   const page = live();
   const items = all(page, cls("legend-item"));
@@ -239,9 +292,14 @@ test("scorecards cover all six authorities and mark the planner's target markets
   assert.ok(marked.some((t) => /EU-GMP \/ PIC\/S/.test(t)));
 });
 
+// Every room selected, each too small: many rooms with a gap.
+const busy = () => {
+  const rooms = DATA.rooms.filter((r) => r.applies_to.sterile).map((r) => r.id);
+  return demo({ selectedRooms: rooms, roomValues: Object.fromEntries(rooms.map((id) => [id, { "HVAC-001": "Unclassified/CNC", "DIM-001": 1 }])) });
+};
+
 test("room grid: scrollable labelled region, glyph + text in cells, capped at 15 rows", () => {
-  const rooms = DATA.rooms.map((r) => r.id);
-  const page = live(demo({ selectedRooms: rooms }));
+  const page = live(busy());
   const region = find(page, cls("grid-scroll"));
   assert.equal(region.attrs.role, "region");
   assert.equal(region.attrs.tabindex, "0");
@@ -249,13 +307,46 @@ test("room grid: scrollable labelled region, glyph + text in cells, capped at 15
   const rows = all(find(region, tag("tbody")), tag("tr"));
   assert.ok(rows.length > 15);
   assert.equal(rows.filter((r) => !r.attrs.hidden).length, 15);
-  assert.ok(find(page, (n) => n.tag === "button" && /Show all \d+ rows/.test(text(n))));
+  assert.ok(find(page, (n) => n.tag === "button" && /Show all \d+ rooms/.test(text(n))));
   const fail = find(region, cls("cell-fail"));
   assert.match(text(fail), /✗/);
   assert.match(text(fail), /not met/);
-  assert.doesNotMatch(text(find(page, cls("grid-legend"))), /not checked here|no value entered/);
-  // Sticky first column = row headers.
   rows.forEach((r) => assert.equal(r.children[0].tag, "th"));
+});
+
+test("room grid: only rooms with a gap; the rest are named in one line", () => {
+  const page = live(demo({ selectedRooms: ["Z-29", "Z-01"] }));
+  const grid = find(page, cls("room-grid"));
+  const heads = all(find(grid, tag("tbody")), (n) => n.tag === "th").map((n) => text(n));
+  assert.ok(heads.some((t) => /Aseptic Filling/.test(t)));
+  assert.ok(heads.some((t) => /Facility/.test(t)));
+  assert.ok(!heads.some((t) => /Inward Material/.test(t)), heads.join(" | "));
+  assert.match(text(find(grid, cls("grid-clear"))), /1 more room has no gap against any covered authority: Inward Material/);
+});
+
+test("room grid: failing cells are tinted by their worst severity, said in words too", () => {
+  const grid = find(live(), cls("room-grid"));
+  const crit = find(grid, cls("cell-worst-critical"));
+  assert.ok(crit, "the facility row has a critical gap");
+  assert.match(text(crit), /worst critical/);
+  assert.ok(find(grid, cls("cell-worst-significant")));
+  assert.match(text(find(grid, cls("grid-legend"))), /critical/i);
+  for (const c of all(grid, cls("cell-fail"))) assert.ok(["critical", "significant", "partial"].some((k) => cls("cell-worst-" + k)(c)));
+});
+
+test("room grid: phone cards list each gap room with the authorities it fails", () => {
+  const grid = find(live(), cls("room-grid"));
+  const cards = all(find(grid, cls("room-cards")), cls("room-card"));
+  assert.equal(cards.length, all(find(grid, tag("tbody")), tag("tr")).length, "one card per grid row");
+  const fac = cards.find((c) => /Facility/.test(text(c)));
+  assert.match(text(fac), /European Union \(EU-GMP \/ PIC\/S\): 1 not met \(critical\)/, "full names on phones, not abbreviations");
+});
+
+test("room grid: no room with a gap shows a plain message, no table", () => {
+  const page = live(demo({ facilityValues: {}, roomValues: { "Z-29": { "HVAC-001": "Grade A (ISO 5)" } } }));
+  const grid = find(page, cls("room-grid"));
+  assert.equal(find(grid, tag("table")), null);
+  assert.match(text(grid), /No room has a gap against any covered authority/);
 });
 
 test("numeric bullet charts: failing rows only, authority + advisory fallback bands, units", () => {
@@ -284,6 +375,35 @@ test("numeric: entered values far off the bands are clamped and marked off scale
   }
 });
 
+test("range charts label the miss: '30 m² short', '2 °C over'", () => {
+  const items = all(find(live(), cls("numeric-section")), cls("bullet"));
+  const area = items.find((i) => /Area/i.test(text(i)));
+  assert.match(text(area), /30 m² short/);
+  assert.ok(find(area, (n) => n.ns === "svg" && cls("miss")(n)), "the gap is drawn");
+  const temp = items.find((i) => /Temperature/i.test(text(i)));
+  assert.match(text(temp), /2 °C over/);
+});
+
+test("range charts merge authorities with identical limits into one row", () => {
+  const g = [{ id: "m", room: null, roomLabel: "Facility", label: "Pressure", unit: "Pa", entered: 5, conflict: null, fallback: null, state: "fail", severity: "Partial",
+    bands: { schedule_m: { min: 10, max: null, status: "non_compliant" }, who_gmp: { min: 10, max: null, status: "non_compliant" }, eu_gmp: { min: 15, max: null, status: "non_compliant" } } }];
+  const item = find(view.numericSection(h, s, g, { labels: LABELS }), cls("bullet"));
+  const rows = all(item, cls("bullet-row"));
+  assert.equal(rows.length, 2);
+  assert.match(text(rows.find((r) => /≥ 10/.test(text(r)))), /India \(Schedule M\), WHO GMP \(international\)/);
+});
+
+test("range charts invent no edge: a one-sided limit fades out instead of ending", () => {
+  const g = [{ id: "o", room: null, roomLabel: "Facility", label: "Pressure", unit: "Pa", entered: 5, conflict: null, fallback: null, state: "fail", severity: "Partial",
+    bands: { eu_gmp: { min: 10, max: null, status: "non_compliant" } } }];
+  const item = find(view.numericSection(h, s, g, { labels: LABELS }), cls("bullet"));
+  const band = find(item, (n) => n.ns === "svg" && cls("band")(n));
+  assert.ok(cls("band-open-hi")(band));
+  const grad = find(item, (n) => n.tag === "linearGradient");
+  assert.ok(grad && band.attrs.fill === `url(#${grad.attrs.id})`);
+  assert.ok(cls("band-neutral")(band), "required ranges are neutral; the miss carries the colour");
+});
+
 test("numeric: cap at 12 with a note", () => {
   const g = Array.from({ length: 20 }, (_, i) => ({ id: "n" + i, room: null, roomLabel: "Facility", label: "P" + i, unit: "Pa", entered: 5, bands: { eu_gmp: { min: 10, max: 15, status: "non_compliant" } }, fallback: null, conflict: null, state: "fail", severity: "Partial" }));
   const sec = view.numericSection(h, s, g, { labels: LABELS });
@@ -303,7 +423,7 @@ test("no gaps: positive message instead of empty charts", () => {
   const st = demo({ facilityValues: {}, roomValues: { "Z-29": { "HVAC-001": "Grade A (ISO 5)" } } });
   const page = live(st);
   assert.match(text(find(page, cls("fix-list"))), /Nothing to fix/i);
-  assert.equal(find(page, cls("severity-chart")), null);
+  assert.equal(find(page, cls("severity-matrix")), null, "no empty matrix");
 });
 
 test("partial data: no-value count is shown with a note", () => {

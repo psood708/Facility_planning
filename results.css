@@ -18,8 +18,7 @@
   --fill-critical: #c0392b;
   --fill-significant: #d99a2b;
   --fill-partial: #6f6200;
-  --band-pass: #b9e0c8;
-  --band-fail: #f2bdb6;
+  --band-neutral: #cfd8e1;
   --hatch-line: #8795a3;
   --marker: #1c2733;
 }
@@ -51,8 +50,6 @@
 
 .sw-compliant { background: var(--fill-compliant); }
 .sw-non_compliant { background: var(--fill-noncompliant); }
-.sw-no_value { background: var(--fill-novalue); }
-.sw-not_regulated { background: var(--fill-notregulated); }
 .sw-not_covered, .sw-band-fallback { background: repeating-linear-gradient(45deg, var(--hatch-line) 0 2px, var(--neutral-bg) 2px 5px); }
 .sw-sev-critical { background: var(--fill-critical); }
 .sw-sev-significant { background: var(--fill-significant); }
@@ -61,8 +58,11 @@
 .sw-cell-pass { background: var(--aligned-bg); box-shadow: inset 0 0 0 1px var(--aligned); }
 .sw-cell-empty { background: var(--panel); box-shadow: inset 0 0 0 1px var(--fill-novalue); }
 .sw-cell-na { background: var(--neutral-bg); }
-.sw-band-pass { background: var(--band-pass); }
-.sw-band-fail { background: var(--band-fail); }
+.sw-band-neutral { background: var(--band-neutral); }
+.sw-miss { background: var(--fill-noncompliant); }
+.sw-cell-worst-critical { background: var(--critical-bg); box-shadow: inset 0 0 0 2px var(--fill-critical); }
+.sw-cell-worst-significant { background: var(--significant-bg); box-shadow: inset 0 0 0 2px var(--fill-significant); }
+.sw-cell-worst-partial { background: var(--partial-bg); box-shadow: inset 0 0 0 2px var(--fill-partial); }
 .sw-marker { width: 2px; height: 14px; border-radius: 0; background: var(--marker); }
 
 /* ---------------------------------------------------------------- SVG marks */
@@ -71,18 +71,16 @@
 .seg-empty { fill: var(--neutral-bg); }
 .st-compliant { fill: var(--fill-compliant); }
 .st-non_compliant { fill: var(--fill-noncompliant); }
-.st-no_value { fill: var(--fill-novalue); }
-.st-not_regulated { fill: var(--fill-notregulated); }
-.sev-fill-critical { fill: var(--fill-critical); }
-.sev-fill-significant { fill: var(--fill-significant); }
-.sev-fill-partial { fill: var(--fill-partial); }
 .hatch-bg { fill: var(--neutral-bg); }
 .hatch-line { fill: var(--hatch-line); }
 .hatch-bg-fallback { fill: var(--panel); }
 
 .bullet-track { fill: var(--border); }
-.band-auth.band-compliant { fill: var(--band-pass); }
-.band-auth.band-non_compliant { fill: var(--band-fail); }
+.band-neutral:not(.band-open-hi):not(.band-open-lo) { fill: var(--band-neutral); } /* open bands use their fade gradient */
+.band-stop { stop-color: var(--band-neutral); }
+.miss { fill: var(--fill-noncompliant); }
+.miss-advisory { fill: var(--fill-novalue); }
+.bullet-miss { font-size: 12px; font-weight: 700; color: var(--critical-ink, #a3281c); }
 .marker { stroke: var(--marker); stroke-width: 2; }
 .marker-off { stroke-dasharray: 3 2; }
 .marker-range { fill: var(--marker); }
@@ -113,15 +111,13 @@
 .empty-panel { padding: 20px 24px; border: 1px dashed var(--border-strong, #7d8a96); border-radius: 8px; background: var(--neutral-bg); }
 .empty-panel h3 { margin-bottom: 4px; }
 .empty-panel p { margin: 0; color: var(--ink-soft); }
-.severity-chart { max-width: 560px; }
-.severity-chart .rv-figure, .severity-chart figcaption { margin-top: 0; }
 
 /* ---------------------------------------------------------------- scorecards */
 .scorecard-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
 .scorecard {
   display: grid;
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(150px, 210px);
-  grid-template-areas: "head bar met" "head legend gaps";
+  grid-template-areas: "head bar met" "head legend gaps" "head unchecked unchecked";
   gap: 8px 24px;
   align-items: center;
   padding: 16px 0;
@@ -135,6 +131,7 @@
 .sc-legend { grid-area: legend; margin: 0; }
 .sc-gaps { grid-area: gaps; margin: 0; font-size: 12px; color: var(--ink); display: flex; flex-wrap: wrap; gap: 2px 8px; }
 .sc-note { grid-area: legend / legend / gaps / gaps; margin: 0; font-size: 14px; color: var(--ink-soft); }
+.sc-unchecked { grid-area: unchecked; margin: 0; font-size: 12px; color: var(--ink-soft); }
 .sc-gap { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 
 .verdict-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
@@ -159,8 +156,16 @@
 .fix-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
 .fix-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 14px; }
 .fix-satisfies { color: var(--ink); }
-.fix-markets { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.market-chip { font-size: 12px; font-weight: 600; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; color: var(--ink); background: var(--panel); }
+/* Severity rail: a coloured left edge on each fix (the chip says the word). */
+.fix { box-shadow: inset 4px 0 0 var(--border); padding-left: 12px; }
+.fix-sev-critical { box-shadow: inset 4px 0 0 var(--fill-critical); }
+.fix-sev-significant { box-shadow: inset 4px 0 0 var(--fill-significant); }
+.fix-sev-partial { box-shadow: inset 4px 0 0 var(--fill-partial); }
+/* Authorities strip: one cell per covered authority, filled where the change satisfies it. */
+.unlock-strip { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.unlock-cell { min-width: 44px; padding: 1px 4px; text-align: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-soft); background: var(--panel); }
+.unlock-cell.unlock-on { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff; }
+.unlock-cell.unlock-on.unlock-advisory { background: var(--neutral-bg); color: var(--ink); border-style: dashed; border-color: var(--ink-soft); }
 .sev-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .sev-chip .glyph { color: var(--ink-soft); min-width: 0; letter-spacing: -0.1em; }
 .fix-filter { margin: 0 0 8px; }
@@ -187,7 +192,36 @@
 .cell .glyph { margin-right: 2px; }
 .cell-count { font-weight: 700; }
 .cell-fail { background: var(--critical-bg); }
+.cell-worst-significant { background: var(--significant-bg); }
+.cell-worst-partial { background: var(--partial-bg); }
+.room-cards { display: none; list-style: none; margin: 0; padding: 0; }
+.room-card { padding: 12px 0; border-top: 1px solid var(--border); }
+.room-card[hidden] { display: none; }
+.room-card-name { margin: 0 0 4px; font-weight: 700; }
+.room-card-gaps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; font-size: 14px; }
+.room-card-gaps li { padding: 2px 8px; border-radius: 6px; background: var(--critical-bg); }
+.room-card-gaps .glyph { margin-right: 4px; }
+.room-card-gaps li.cell-worst-significant { background: var(--significant-bg); }
+.room-card-gaps li.cell-worst-partial { background: var(--partial-bg); }
+
+/* ---------------------------------------------------------------- authority × severity matrix */
+.severity-matrix { max-width: 720px; }
+.mx-table { border-collapse: separate; border-spacing: 2px; width: 100%; font-size: 14px; }
+.mx-table caption { text-align: left; font-size: 12px; color: var(--ink-soft); padding: 0 0 4px; }
+.mx-table thead th { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-align: center; padding: 4px 8px; }
+.mx-table thead th:first-child { text-align: left; }
+.mx-table th[scope="row"] { text-align: left; font-weight: 600; padding: 6px 8px; }
+.mx-table th[scope="row"] .target-badge { margin-left: 8px; }
+.mx-cell { text-align: center; padding: 6px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
+.mx-cell .glyph { min-width: 0; margin: 0 4px; color: var(--ink-soft); letter-spacing: -0.1em; }
+.mx-critical:not(.mx-zero) { background: var(--critical-bg); }
+.mx-significant:not(.mx-zero) { background: var(--significant-bg); }
+.mx-partial:not(.mx-zero) { background: var(--partial-bg); }
+.mx-zero { color: var(--ink-soft); font-weight: 400; background: var(--neutral-bg); }
+.mx-note { text-align: center; color: var(--ink-soft); font-style: italic; background: var(--neutral-bg); border-radius: 4px; }
 .cell-fail .glyph { color: var(--critical); }
+.cell-fail.cell-worst-significant .glyph { color: var(--significant-ink); }
+.cell-fail.cell-worst-partial .glyph { color: var(--partial-ink); }
 .cell-pass .glyph { color: var(--aligned); }
 .cell-empty .glyph, .cell-na .glyph { color: var(--ink-soft); font-weight: 400; }
 .cell-na { background: var(--neutral-bg); }
@@ -227,7 +261,7 @@
 @media (max-width: 900px) {
   .scorecard {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "head met" "bar bar" "legend legend" "gaps gaps";
+    grid-template-areas: "head met" "bar bar" "legend legend" "unchecked unchecked" "gaps gaps";
   }
   .sc-head { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
   .sc-met { text-align: right; }
@@ -241,13 +275,16 @@
   .bullet-entered { margin-left: 0; width: 100%; }
   .room-table th[scope="row"], .room-table thead th:first-child { min-width: 120px; max-width: 160px; }
   .room-table th, .room-table td { padding: 8px; }
+  .room-grid .grid-scroll, .room-grid .grid-legend { display: none; }
+  .room-cards { display: block; }
   .cell { min-width: 44px; }
 }
 
 /* ---------------------------------------------------------------- forced colours & print */
 @media (forced-colors: active) {
   .swatch, .verdict-badge .glyph, .verdict-item .verdict-glyph { forced-color-adjust: none; border: 1px solid CanvasText; }
-  .chart rect.seg, .chart rect.band { stroke: CanvasText; stroke-width: 1; }
+  .chart rect.seg, .chart rect.band:not(.band-open-hi):not(.band-open-lo), .chart rect.miss { stroke: CanvasText; stroke-width: 1; }
+  .unlock-cell.unlock-on { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .marker { stroke: CanvasText; }
 }
 @media print {
