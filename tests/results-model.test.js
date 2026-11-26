@@ -74,41 +74,26 @@ function gapSnapshot() {
       row("R-one", ["japan_pmda"]),
       row("R-four", ["schedule_m", "us_fda", "who_gmp", "china_nmpa"]),
       row("U-one", ["china_nmpa"]),
+      row("R-two-crit", ["us_fda", "japan_pmda"]),
       row("A-fallback", [], "non_compliant"),
     ],
     checklist: [],
     recommendations: [
       rec("M-two-sig", "Significant", "mandatory"), rec("M-three", "Partial", "mandatory"), rec("M-two-crit", "Critical", "mandatory"),
-      rec("R-one", "Critical", "recommended"), rec("R-four", "Partial", "recommended"),
+      rec("R-one", "Critical", "recommended"), rec("R-four", "Partial", "recommended"), rec("R-two-crit", "Critical", "recommended"),
       rec("U-one", "Significant", "unclassified"), rec("A-fallback", "Partial", "unclassified", "fallback"),
     ],
   };
 }
-const groupIds = (m) => Object.fromEntries(m.gapGroups.map((g) => [g.key, g.fixes.map((f) => f.id)]));
+// ---------------------------------------------------------------- fix list (results redesign, Phase 1)
+// One list ranked by severity, then authorities satisfied, then label
+// (mandatory, recommended, not yet classified); advisory gaps stay apart.
 
-test("gap report: mandatory gaps, recommendations, not yet classified, advisory — in that order", () => {
+const ids = (fixes) => fixes.map((f) => f.id);
+
+test("fix list: most severe first, then most authorities satisfied, then mandatory before recommended", () => {
   const m = model.build(gapSnapshot(), LABELS);
-  assert.deepEqual(m.gapGroups.map((g) => g.key), ["mandatory", "recommended", "unclassified", "advisory"]);
-  assert.match(m.gapGroups[0].label, /Mandatory/);
-  assert.match(m.gapGroups[1].label, /Recommend/);
-  assert.match(m.gapGroups[2].label, /Not yet classified/);
-  assert.match(m.gapGroups[3].label, /international standard/i);
-});
-
-test("gap report: each gap is in exactly one group, by its obligation (fallback-only gaps are advisory)", () => {
-  const g = groupIds(model.build(gapSnapshot(), LABELS));
-  assert.deepEqual(Object.values(g).flat().sort(), ["A-fallback", "M-three", "M-two-crit", "M-two-sig", "R-four", "R-one", "U-one"]);
-  assert.deepEqual(g.mandatory.slice().sort(), ["M-three", "M-two-crit", "M-two-sig"]);
-  assert.deepEqual(g.recommended.slice().sort(), ["R-four", "R-one"]);
-  assert.deepEqual(g.unclassified, ["U-one"]);
-  assert.deepEqual(g.advisory, ["A-fallback"]);
-});
-
-test("gap report ranking: most authorities satisfied first, then severity", () => {
-  const m = model.build(gapSnapshot(), LABELS);
-  const g = groupIds(m);
-  assert.deepEqual(g.mandatory, ["M-three", "M-two-crit", "M-two-sig"], "3 authorities, then 2 (Critical before Significant)");
-  assert.deepEqual(g.recommended, ["R-four", "R-one"], "4 authorities beats a single Critical");
+  assert.deepEqual(ids(m.fixes), ["M-two-crit", "R-two-crit", "R-one", "M-two-sig", "U-one", "R-four", "M-three", "A-fallback"]);
   const byId = Object.fromEntries(m.fixes.map((f) => [f.id, f]));
   assert.equal(byId["M-three"].satisfies, 3);
   assert.equal(byId["R-four"].satisfies, 4);
@@ -116,20 +101,123 @@ test("gap report ranking: most authorities satisfied first, then severity", () =
   assert.equal(m.authorityCount, 6, "'satisfies N of 6'");
 });
 
+test("fix list: one ranked list of authority gaps, then a separate advisory group", () => {
+  const m = model.build(gapSnapshot(), LABELS);
+  assert.deepEqual(m.gapGroups.map((g) => g.key), ["gaps", "advisory"]);
+  assert.deepEqual(ids(m.gapGroups[0].fixes), ids(m.fixes).filter((id) => id !== "A-fallback"));
+  assert.deepEqual(ids(m.gapGroups[1].fixes), ["A-fallback"]);
+  assert.match(m.gapGroups[1].label, /international standard/i);
+});
+
+test("fix list: the legal label is a tag on each fix, with a mandatory flag for the filter", () => {
+  const byId = Object.fromEntries(model.build(gapSnapshot(), LABELS).fixes.map((f) => [f.id, f]));
+  assert.equal(byId["M-two-crit"].mandatory, true);
+  assert.equal(byId["R-one"].mandatory, false);
+  assert.equal(byId["U-one"].labelText, "Not yet classified");
+  assert.equal(byId["A-fallback"].labelText, "Advisory (international standard)");
+  assert.equal(byId["A-fallback"].mandatory, false);
+});
+
+test("fix list: each fix has a short title (requirement · room) and keeps the full sentence", () => {
+  const s = engine.reportState(DATA, demo());
+  const m = model.build(snap.compact(engine.evaluateAll(DATA, s), s), LABELS);
+  const area = m.fixes.find((f) => f.id === "AREA-Z-29-Z-29");
+  assert.equal(area.title, `${area.label} · ${area.roomLabel}`);
+  assert.ok(area.change.length > 25);
+  assert.equal(area.draft, true, "draft labels are flagged for the 'await expert confirmation' note");
+});
+
 test("every gap carries its suggested change (real engine output, every covered authority)", () => {
-  const s = demo();
-  const all = engine.evaluateAll(DATA, engine.reportState(DATA, s));
-  const m = model.build(snap.compact(all, engine.reportState(DATA, s)), LABELS);
-  const fixes = m.gapGroups.flatMap((g) => g.fixes);
-  assert.ok(fixes.length > 0);
-  for (const f of fixes) assert.ok(typeof f.change === "string" && f.change.length > 25, `${f.id}: ${f.change}`);
-  for (const g of m.gapGroups) {
-    for (let i = 1; i < g.fixes.length; i++) assert.ok(g.fixes[i - 1].satisfies >= g.fixes[i].satisfies, `${g.key} not ranked by authorities satisfied`);
+  const s = engine.reportState(DATA, demo());
+  const m = model.build(snap.compact(engine.evaluateAll(DATA, s), s), LABELS);
+  assert.ok(m.fixes.length > 0);
+  for (const f of m.fixes) assert.ok(typeof f.change === "string" && f.change.length > 25, `${f.id}: ${f.change}`);
+  const RANK = { Critical: 0, Significant: 1, Partial: 2 };
+  const gaps = m.gapGroups[0].fixes;
+  for (let i = 1; i < gaps.length; i++) {
+    const a = gaps[i - 1], b = gaps[i];
+    assert.ok(RANK[a.severity] < RANK[b.severity] || (RANK[a.severity] === RANK[b.severity] && a.satisfies >= b.satisfies), `${a.id} before ${b.id}`);
   }
-  for (const f of fixes) {
-    const expected = f.basis === "fallback" ? "advisory" : f.obligation;
-    assert.ok(m.gapGroups.find((g) => g.key === expected).fixes.includes(f), `${f.id} misfiled`);
+  for (const f of m.gapGroups[1].fixes) assert.equal(f.basis, "fallback");
+});
+
+// ---------------------------------------------------------------- shared vocabulary
+
+test("one vocabulary for verdicts, severities and check statuses", () => {
+  const V = model.VOCAB;
+  assert.deepEqual(V.verdict, { non_compliant: "Non-compliant", partial: "Has gaps", compliant: "Meets", insufficient: "Not enough data", not_covered: "Not covered" });
+  assert.deepEqual(V.severity, { Critical: "Critical", Significant: "Significant", Partial: "Minor" });
+  assert.deepEqual(V.status, { compliant: "Met", non_compliant: "Not met", no_value: "Needs value", not_regulated: "No rule set", not_covered: "No rule set" });
+  assert.equal(model.severityWord("Partial"), "Minor");
+  assert.equal(model.severityWord("constructor"), "Minor");
+});
+
+test("markets read by country first: 'China (NMPA)'", () => {
+  const m = model.build(gapSnapshot(), LABELS);
+  const place = Object.fromEntries(m.markets.map((x) => [x.key, x.place]));
+  assert.equal(place.china_nmpa, "China (NMPA)");
+  assert.equal(place.japan_pmda, "Japan (PMDA)");
+  assert.equal(place.us_fda, "United States (FDA)");
+  assert.equal(place.schedule_m, "India (Schedule M)");
+  assert.match(place.eu_gmp, /European Union/);
+  assert.equal(model.build({ rollup: { xx_new: "Partial" } }, { market: () => "New Authority" }).markets[0].place, "New Authority", "unknown keys fall back to the label");
+});
+
+// ---------------------------------------------------------------- verdict per market + honest counts
+
+test("verdicts: one per market, the planner's targets first, in plain words", () => {
+  const s = engine.reportState(DATA, demo());
+  const targets = ["us_fda", "who_gmp"];
+  const m = model.build(snap.compact(engine.evaluateAll(DATA, s), s), LABELS, { targets });
+  assert.deepEqual(m.verdicts.slice(0, 2).map((v) => v.key), targets);
+  assert.equal(m.verdicts.length, 6);
+  const eu = m.verdicts.find((v) => v.key === "eu_gmp");
+  assert.equal(eu.word, "Non-compliant");
+  assert.match(eu.detail, /1 critical/);
+  const fda = m.verdicts.find((v) => v.key === "us_fda");
+  assert.equal(fda.word, "Has gaps");
+  for (const v of m.verdicts) assert.doesNotMatch(`${v.word} ${v.detail}`, /Partial|\b0 of\b/);
+});
+
+test("thin verdicts say how few checks they rest on", () => {
+  const sn = { rollup: { schedule_m: "Partial" }, evaluations: [{ room: null, param: "P", threshold: "T1", markets: { schedule_m: { status: "non_compliant" } } }], checklist: [], recommendations: [{ id: "T1", severity: "Significant", obligation: "mandatory" }] };
+  assert.match(model.build(sn, LABELS).verdicts[0].detail, /\(1 check\)/);
+});
+
+test("verdicts never say '0 of N met' when nothing was checked", () => {
+  const m = model.build(compactOf(demo({ facilityValues: {}, roomValues: {} })), LABELS);
+  for (const v of m.verdicts) {
+    assert.equal(v.word, "Not enough data");
+    assert.match(v.detail, /No values checked yet/);
   }
+  const uk = model.build(compactOf(demo({ targetMarkets: ["uk_mhra"] })), LABELS).verdicts[0];
+  assert.equal(uk.word, "Not covered");
+  assert.match(uk.detail, /not a pass/);
+});
+
+test("completeness: how many applicable checks have a value", () => {
+  const m = model.build(compactOf(demo()), LABELS);
+  assert.ok(m.completeness.total > m.completeness.withValue && m.completeness.withValue === 4, JSON.stringify(m.completeness));
+  assert.match(model.completenessText(m), new RegExp(`^4 of ${m.completeness.total} checks have values`));
+  const none = model.build(compactOf(demo({ facilityValues: {}, roomValues: {} })), LABELS);
+  assert.equal(none.completeness.withValue, 0);
+  assert.ok(none.completeness.total > 0);
+});
+
+test("headline: N changes (M authority-gaps), counted without double-counting changes", () => {
+  const s = engine.reportState(DATA, demo());
+  const m = model.build(snap.compact(engine.evaluateAll(DATA, s), s), LABELS);
+  const gaps = m.fixes.filter((f) => f.basis === "authority");
+  assert.equal(m.headline.changes, gaps.length);
+  assert.equal(m.headline.authorityGaps, gaps.reduce((a, f) => a + f.satisfies, 0));
+  assert.equal(m.headline.critical, gaps.filter((f) => f.severity === "Critical").length);
+  assert.match(model.fixSummary(m), new RegExp(`^${gaps.length} changes \\(${m.headline.authorityGaps} authority-gaps\\)`));
+});
+
+test("fixSummary covers nothing checked, nothing to fix and advisory-only", () => {
+  assert.match(model.fixSummary(model.build(compactOf(demo({ facilityValues: {}, roomValues: {} })), LABELS)), /^Nothing was checked yet/);
+  const pass = model.build({ rollup: { schedule_m: "Compliant" }, evaluations: [{ room: null, param: "P", threshold: "T1", markets: { schedule_m: { status: "compliant" } } }], checklist: [], recommendations: [] }, LABELS);
+  assert.match(model.fixSummary(pass), /^Nothing to fix against any covered authority/);
 });
 
 test("target markets are marked (the app maps chosen markets to report authorities first)", () => {
@@ -358,4 +446,24 @@ test("labelText for every obligation and status", () => {
   assert.equal(L({ group: "recommended", obligationStatus: "expert_confirmed" }), "Recommended");
   assert.equal(L({ group: "unclassified", obligationStatus: "unclassified" }), "Not yet classified");
   assert.equal(L({ group: "advisory", obligationStatus: "fixed" }), "Advisory (international standard)");
+});
+
+// ---------------------------------------------------------------- review follow-ups (Phase 1)
+
+test("completeness with nothing applicable never reads '0 of 0'", () => {
+  const m = model.build(compactOf(demo({ targetMarkets: ["uk_mhra"] })), LABELS);
+  assert.equal(m.completeness.total, 0);
+  assert.equal(model.completenessText(m), "No checks apply to the authorities this dataset covers.");
+});
+
+test("a saved verdict that claims a result with nothing checked reads 'Not enough data'", () => {
+  const sn = { rollup: { schedule_m: "Compliant" }, evaluations: [{ room: null, param: "P", threshold: "T1", markets: { schedule_m: { status: "no_value" } } }], checklist: [], recommendations: [] };
+  const v = model.build(sn, LABELS).verdicts[0];
+  assert.equal(v.word, "Not enough data");
+  assert.equal(v.verdictKey, "insufficient");
+});
+
+test("a thin all-clear says how few checks it rests on, once", () => {
+  const sn = { rollup: { schedule_m: "Compliant" }, evaluations: ["T1", "T2"].map((t) => ({ room: null, param: t, threshold: t, markets: { schedule_m: { status: "compliant" } } })), checklist: [], recommendations: [] };
+  assert.equal(model.build(sn, LABELS).verdicts[0].detail, "Only 2 checks, and it meets them.");
 });

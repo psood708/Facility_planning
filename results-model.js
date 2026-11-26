@@ -2,7 +2,9 @@
  * results snapshot (results-snapshot.js compact()), so the live view and the
  * read-only "as saved" view share one code path.
  *
- *   build(snapshot, labels) -> { markets, rooms, fixes, severity, totals, empty }
+ *   build(snapshot, labels, { targets }) -> { markets, verdicts, completeness, headline,
+ *     rooms, fixes, gapGroups, severity, totals, empty }
+ *   VOCAB: the one set of words the page and the exported report use.
  *   numericGaps(rows, targetMarkets, labels) -> live-only numeric comparison
  *     from FacilityEngine.evaluateAll(...).rows (never stored in snapshots).
  *
@@ -20,7 +22,6 @@
 
   const STATUSES = ["compliant", "non_compliant", "no_value", "not_regulated", "not_covered"];
   const GAP_SEVERITIES = ["Critical", "Significant", "Partial"];
-  const SEV_RANK = { Critical: 4, Significant: 3, Partial: 2, Aligned: 1, Varies: 2 };
   const VERDICT_KEY = {
     Compliant: "compliant",
     Partial: "partial",
@@ -28,6 +29,30 @@
     "Insufficient Data": "insufficient",
     "Not Covered by Dataset": "not_covered",
   };
+
+  // One vocabulary for every screen and the export (results redesign, Phase 1).
+  // Internal keys stay as saved in snapshots ("Partial" severity, rollup
+  // strings); only what people read is mapped here.
+  const VOCAB = Object.freeze({
+    verdict: Object.freeze({ non_compliant: "Non-compliant", partial: "Has gaps", compliant: "Meets", insufficient: "Not enough data", not_covered: "Not covered" }),
+    severity: Object.freeze({ Critical: "Critical", Significant: "Significant", Partial: "Minor" }),
+    status: Object.freeze({ compliant: "Met", non_compliant: "Not met", no_value: "Needs value", not_regulated: "No rule set", not_covered: "No rule set" }),
+    // Country first, the authority in brackets: "China (NMPA)".
+    place: Object.freeze({
+      schedule_m: "India (Schedule M)", us_fda: "United States (FDA)", eu_gmp: "European Union (EU-GMP / PIC/S)", pics: "PIC/S member states",
+      who_gmp: "WHO GMP (international)", china_nmpa: "China (NMPA)", japan_pmda: "Japan (PMDA)", uk_mhra: "United Kingdom (MHRA)",
+      tga_australia: "Australia (TGA)", sahpra: "South Africa (SAHPRA)", sfda: "Saudi Arabia (SFDA)",
+    }),
+  });
+  // Notes the fix list carries, on screen and in the export.
+  const NOTES = Object.freeze({
+    order: "Most severe first; within a severity, the change that satisfies the most authorities comes first.",
+    draft: "Labels marked draft await expert confirmation.",
+    advisory: "Where an authority gives no number, the value is compared with the international/industry standard. This advisory group does not affect any authority's verdict.",
+  });
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const severityWord = (sev) => VOCAB.severity[own(VOCAB.severity, sev) ? sev : "Partial"];
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 
   const label = (labels, kind) => (id) => {
     const fn = labels && labels[kind];
@@ -67,14 +92,14 @@
     });
   }
 
-  // Gap report groups, in the order the page shows them (Milestone 4).
+  // The fix list (results redesign): one list of authority gaps ranked by
+  // severity, then authorities satisfied, then label; advisory gaps apart.
   const GAP_GROUPS = [
-    { key: "mandatory", label: "Mandatory gaps" },
-    { key: "recommended", label: "Recommendations" },
-    { key: "unclassified", label: "Not yet classified — pending expert review" },
+    { key: "gaps", label: "Changes to make" },
     { key: "advisory", label: "Advisory: international standard only" },
   ];
   const OBLIGATIONS = ["mandatory", "recommended", "unclassified"];
+  const SEV_ORDER = { Critical: 0, Significant: 1, Partial: 2 };
 
   // How a gap's label reads, on screen and in the exported report.
   function labelText(f) {
@@ -110,6 +135,7 @@
       return {
         key: mk,
         label: L.market(mk),
+        place: own(VOCAB.place, mk) ? VOCAB.place[mk] : L.market(mk),
         target: targets.includes(mk),
         verdict,
         verdictKey: verdictKeyOf(verdict),
@@ -120,6 +146,19 @@
       };
     });
     const coveredCount = markets.filter((m) => m.verdictKey !== "not_covered").length;
+    const covered = keys.filter((mk) => !uncovered.includes(mk));
+
+    // Completeness: of the checks some covered authority (or the international
+    // standard) applies to, how many have a value to judge.
+    const judged = (st) => st === "compliant" || st === "non_compliant";
+    const completeness = { withValue: 0, total: 0 };
+    checks.forEach((c) => {
+      const st = covered.map((mk) => c.status[mk]);
+      const fb = covered.map((mk) => c.fallback[mk]);
+      const hasValue = st.some(judged) || fb.some(judged);
+      if (hasValue || st.includes("no_value") || fb.includes("no_value")) completeness.total += 1;
+      if (hasValue) completeness.withValue += 1;
+    });
 
     // Rooms × markets. Facility-level checks are the "Facility" row.
     const byRoom = new Map();
@@ -153,11 +192,14 @@
       const fbFailing = c ? keys.filter((mk) => c.fallback[mk] === "non_compliant") : [];
       const basis = failing.length || !fbFailing.length ? "authority" : "fallback";
       const obligation = OBLIGATIONS.includes(r.obligation) ? r.obligation : "unclassified";
+      const reqLabel = c ? c.label : String(r.id);
+      const roomLabel = c && c.room !== null ? L.room(c.room) : "Facility";
       return {
         id: r.id,
-        label: c ? c.label : String(r.id),
+        label: reqLabel,
+        title: `${reqLabel} · ${roomLabel}`,
         room: c ? c.room : null,
-        roomLabel: c && c.room !== null ? L.room(c.room) : "Facility",
+        roomLabel,
         severity: sevKey(r.severity),
         marketsFailing: basis === "authority" ? failing : fbFailing,
         satisfies: basis === "authority" ? failing.length : 0,
@@ -172,24 +214,45 @@
         obligationStatus: typeof r.obligationStatus === "string" ? r.obligationStatus : null,
       };
     });
-    // Mandatory, recommended, not yet classified, advisory; within each, the
-    // change that satisfies the most authorities first, then by severity.
-    const groupRank = (f) => GAP_GROUPS.findIndex((g) => g.key === f.group);
+    // Authority gaps before advisory ones; then most severe first, then the
+    // change that satisfies the most authorities, then mandatory before
+    // recommended before not yet classified.
     fixes.sort((a, b) =>
-      groupRank(a) - groupRank(b) ||
+      (a.basis === "fallback") - (b.basis === "fallback") ||
+      SEV_ORDER[a.severity] - SEV_ORDER[b.severity] ||
       b.satisfies - a.satisfies ||
-      (SEV_RANK[b.severity] || 2) - (SEV_RANK[a.severity] || 2) ||
+      OBLIGATIONS.indexOf(a.obligation) - OBLIGATIONS.indexOf(b.obligation) ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    fixes.forEach((f) => (f.labelText = labelText(f)));
-    const gapGroups = GAP_GROUPS.map((g) => ({ key: g.key, label: g.label, fixes: fixes.filter((f) => f.group === g.key) }));
+    fixes.forEach((f) => {
+      f.labelText = labelText(f);
+      f.mandatory = f.group === "mandatory";
+      f.draft = f.group !== "advisory" && f.obligationStatus === "draft";
+    });
+    const gapGroups = GAP_GROUPS.map((g) => ({ key: g.key, label: g.label, fixes: fixes.filter((f) => (f.basis === "fallback") === (g.key === "advisory")) }));
 
     const gaps = fixes.filter((f) => f.basis === "authority");
     const severity = zeroSev();
     gaps.forEach((f) => (severity[f.severity] += 1));
     severity.total = gaps.length;
+    const headline = {
+      changes: gaps.length,
+      authorityGaps: gaps.reduce((a, f) => a + f.satisfies, 0),
+      critical: severity.Critical,
+    };
+
+    // The planner's target markets first, then the rest in dataset order.
+    const verdicts = markets.filter((m) => m.target).concat(markets.filter((m) => !m.target))
+      .map((m) => {
+        // A saved verdict that claims a result with nothing checked reads as not enough data.
+        const key = !m.checked && m.verdictKey !== "not_covered" ? "insufficient" : m.verdictKey;
+        return { key: m.key, place: m.place, target: m.target, verdictKey: key, word: VOCAB.verdict[key], detail: verdictDetail(m) };
+      });
 
     return {
       markets,
+      verdicts,
+      completeness,
+      headline,
       rooms,
       fixes,
       gapGroups,
@@ -199,6 +262,37 @@
       structural: (sn.structural || []).slice(),
       empty: !keys.length || !checks.length,
     };
+  }
+
+  // What a market's verdict rests on, in plain words. Never "0 of N met":
+  // with nothing checked it says so; a verdict on one or two checks says how few.
+  function verdictDetail(m) {
+    if (m.verdictKey === "not_covered") return "This dataset has no requirements for it, so nothing was checked. This is not a pass.";
+    if (!m.checked) return "No values checked yet.";
+    const thin = m.checked < 3 ? ` (${plural(m.checked, "check")})` : "";
+    const g = m.gapsBySeverity;
+    const n = GAP_SEVERITIES.reduce((a, k) => a + g[k], 0);
+    if (!n) return m.checked < 3 ? `Only ${plural(m.checked, "check")}, and it meets ${m.checked === 1 ? "it" : "them"}.` : `All ${m.checked} checked values meet it.`;
+    const parts = GAP_SEVERITIES.filter((k) => g[k]).map((k) => `${g[k]} ${severityWord(k).toLowerCase()}`);
+    return `${plural(n, "gap")}: ${parts.join(", ")}${thin}.`;
+  }
+
+  // "4 of 31 checks have values" — shown next to the verdicts.
+  function completenessText(model) {
+    const c = (model && model.completeness) || { withValue: 0, total: 0 };
+    if (!c.total) return "No checks apply to the authorities this dataset covers.";
+    const base = `${c.withValue} of ${plural(c.total, "check")} ${c.total === 1 ? "has" : "have"} values`;
+    return c.withValue < c.total ? `${base} — this is not a full assessment.` : `${base}.`;
+  }
+
+  // The fix list's summary line, on screen and in the export.
+  function fixSummary(model) {
+    const m = model || {};
+    const hd = m.headline || { changes: 0, authorityGaps: 0, critical: 0 };
+    const markets = m.markets || [];
+    if (!hd.changes && markets.every((x) => !x.checked)) return "Nothing was checked yet, so there is nothing to fix. Enter values, or choose authorities this dataset covers.";
+    if (!hd.changes) return "Nothing to fix against any covered authority among the values checked." + (markets.some((x) => (x.counts || {}).no_value) ? " Some checks need a value." : "");
+    return `${plural(hd.changes, "change")} (${plural(hd.authorityGaps, "authority-gap")})` + (hd.critical ? `, ${hd.critical} critical` : "") + ".";
   }
 
   const isBlank = (v) => v === null || v === undefined || v === "";
@@ -281,5 +375,5 @@
     return { key: mk, label: L.market(mk), verdict, verdictKey: verdict ? verdictKeyOf(verdict) : null, counts, rooms };
   }
 
-  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, build, numericGaps, forAuthority, labelText };
+  return { STATUSES, GAP_SEVERITIES, VERDICT_KEY, VOCAB, NOTES, severityWord, build, numericGaps, forAuthority, labelText, completenessText, fixSummary };
 });

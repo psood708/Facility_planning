@@ -50,17 +50,24 @@ async function openList(page) {
   check("choosing the primary authority updates the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
   await page.evaluate(() => { Object.assign(state, { category: "sterile", specificForms: ["Sterile Liquid (Vial)"], selectedRooms: ["Z-29"], roomValues: { "Z-29": { "DIM-001": 120 } } }); showStep(4); });
   await page.waitForSelector("#step-4 .auth-view h3");
-  check("results lead with the primary authority", /Against US FDA/.test(await page.textContent("#step-4 .auth-view h3")));
+  const verdictRows = await page.locator("#step-4 .results-verdicts .verdict-item").allTextContents();
+  check("results open with a verdict per market, the two targets first", verdictRows.length === 6 && verdictRows.slice(0, 2).every((t) => /Your target/.test(t)) &&
+    verdictRows.slice(0, 2).some((t) => /United States \(FDA\)/.test(t)) && !/Your target/.test(verdictRows[2]), verdictRows.join(" | "));
+  check("the primary authority's evidence comes last on the page", /Evidence against US FDA/.test(await page.textContent("#step-4 .auth-view h3")) &&
+    (await page.evaluate(() => { const p = document.querySelector("#step-4 .results-page"); return p.lastElementChild.classList.contains("auth-view"); })));
   check("one requirement table per room, each with statuses", (await page.locator("#step-4 .auth-table").count()) >= 2 && (await page.locator("#step-4 .auth-status").count()) > 0);
   await page.click('#step-4 .auth-choice:has-text("Schedule M")');
   await page.waitForFunction(() => /Schedule M/.test(document.querySelector("#step-4 .auth-view h3").textContent));
   check("the switcher shows another authority without changing the project", (await page.evaluate(() => state.primaryAuthority)) === "us_fda");
-  check("Schedule M shows the 120 m² room against its 150 m² minimum as Fail", /Fail/.test(await page.locator("#step-4 .auth-row.st-fail").first().textContent()));
+  check("Schedule M shows the 120 m² room against its 150 m² minimum as Not met", /Not met/.test(await page.locator("#step-4 .auth-row.st-fail").first().textContent()));
+  check("rooms with a failure are open; the rest of the evidence is folded", (await page.locator("#step-4 details.auth-room[open] .st-fail").count()) > 0 && (await page.locator("#step-4 details.auth-folded:not([open])").count()) > 0);
   // ---- cross-authority gap report (Milestone 4)
   check("the gap report compares all six covered authorities", (await page.locator("#step-4 .scorecard").count()) === 6);
   check("the planner's two target markets are marked", (await page.locator("#step-4 .scorecard .target-badge").count()) === 2);
-  const groups = await page.locator("#step-4 .gap-group > h4").allTextContents();
-  check("gaps are grouped (mandatory / recommended / not yet classified / advisory)", groups.length > 0 && groups.every((g) => /Mandatory|Recommendations|Not yet classified|international standard/i.test(g)), groups.join(" | "));
+  const sev = await page.locator("#step-4 .gap-gaps .fix-row .sev-chip").allTextContents();
+  const rank = sev.map((t) => ["Critical", "Significant", "Minor"].findIndex((w) => t.includes(w)));
+  check("one fix list, most severe first", rank.length > 0 && rank.every((r, i) => r >= 0 && (i === 0 || rank[i - 1] <= r)), sev.join(" | "));
+  check("the page never says 'Partial'", !/\bPartial\b/.test(await page.textContent("#step-4 .results-page")));
   const changes = await page.locator("#step-4 .fix-row .fix-change").allTextContents();
   check("every gap shows a concrete suggested change", changes.length > 0 && changes.every((t) => /^(Increase|Decrease|Adjust|Upgrade|Add|Set|Change)\b/.test(t.trim())), changes.join(" | "));
   // ---- report export (Milestone 5): the downloaded file says what the screen says

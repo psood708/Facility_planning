@@ -655,14 +655,13 @@ function statusPillClass(status) {
   }[status] || "status-na";
 }
 
+// Check statuses and severities in the shared results vocabulary (ResultsModel.VOCAB).
 function statusLabel(status) {
-  return {
-    compliant: "Compliant",
-    non_compliant: "Non-Compliant",
-    not_regulated: "Not regulated here",
-    not_covered: "Not covered",
-    no_value: "No value entered",
-  }[status] || status;
+  return Object.prototype.hasOwnProperty.call(ResultsModel.VOCAB.status, status) ? ResultsModel.VOCAB.status[status] : status;
+}
+
+function severityLabel(sev) {
+  return Object.prototype.hasOwnProperty.call(ResultsModel.VOCAB.severity, sev) ? ResultsModel.VOCAB.severity[sev] : sev;
 }
 
 function severityTagClass(sev) {
@@ -708,9 +707,10 @@ function resultLabels() {
   };
 }
 
-// Results lead with one authority (Milestone 3): the project's primary
-// authority, or another chosen market picked with the switcher. The switcher
-// only changes what is shown; it never edits the project.
+// The primary authority's evidence tables (Milestone 3; last on the page since
+// the results redesign): the project's primary authority, or another chosen
+// market picked with the switcher. The switcher only changes what is shown;
+// it never edits the project.
 let viewingAuthority = null;
 
 // The planner's target markets as report authorities (EU-GMP and PIC/S are one).
@@ -838,7 +838,7 @@ function renderStep4() {
       detail.appendChild(
         h("div", { class: "recommendation rec-" + r.severity.toLowerCase() + (isFallback ? " rec-fallback" : "") }, [
           h("div", { class: "rec-title" }, [
-            h("span", { class: "severity-tag " + severityTagClass(r.severity) }, r.severity),
+            h("span", { class: "severity-tag " + severityTagClass(r.severity) }, severityLabel(r.severity)),
             obligationBadge(r.obligation, r.obligationStatus),
             isFallback ? h("span", { class: "fallback-tag" }, "International/industry standard (fallback)") : null,
           ]),
@@ -871,7 +871,7 @@ function renderStep4() {
       h("td", {}, row.room ? row.room.name : "Facility"),
       paramCell,
       h("td", {}, enteredDisplay),
-      h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, sev)),
+      h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, severityLabel(sev))),
     ]);
     evalState.targetMarkets.forEach((mk) => {
       const r = row.evalResult.perMarket[mk] || { status: "no_value" };
@@ -900,7 +900,7 @@ function renderStep4() {
           h("td", {}, br.room ? br.room.name : "Facility"),
           h("td", {}, br.threshold.parameter_name),
           h("td", {}, br.entered === true ? "Yes" : br.entered === false ? "No" : "—"),
-          h("td", {}, h("span", { class: "severity-tag " + severityTagClass(br.threshold.severity) }, br.threshold.severity)),
+          h("td", {}, h("span", { class: "severity-tag " + severityTagClass(br.threshold.severity) }, severityLabel(br.threshold.severity))),
           h("td", {}, h("span", { class: "status-pill " + statusPillClass(br.status) }, statusLabel(br.status))),
           h("td", {}, provenanceBlock(br.provenance)),
         ])

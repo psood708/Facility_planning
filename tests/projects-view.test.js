@@ -190,9 +190,10 @@ test("snapshotSummary: the saved snapshot renders through the same charts, read-
   const n = view.snapshotSummary(h, h, snap, labels);
   const t = text(n);
   assert.match(t, /Results as saved/);
-  assert.match(t, /India — Schedule M/);
-  assert.match(t, /Partial/);
-  assert.match(t, /EU GMP/);
+  assert.match(t, /India \(Schedule M\)/, "country-first names");
+  assert.match(t, /Has gaps/);
+  assert.doesNotMatch(t, /\bPartial\b/, "the shared vocabulary, also in the saved view");
+  assert.match(t, /European Union/);
   assert.match(t, /Non-compliant/);
   assert.match(t, /1 critical/);
   assert.match(t, /Detailed numeric comparison is available after re-evaluating/);

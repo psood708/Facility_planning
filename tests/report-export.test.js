@@ -205,3 +205,49 @@ test("every user-controlled field is escaped, including the title, attributes an
 test("the exported document's policy also forbids <base> and forms", () => {
   assert.match(exportFor().html, /content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"/);
 });
+
+// ---------------------------------------------------------------- results redesign, Phase 1: the export follows the screen
+
+const screenVerdicts = (st = demo()) => all(view.resultsPage(mk, mk, modelFor(st), { labels: LABELS }), cls("verdict-item"))
+  .map((li) => ({ place: text(find(li, cls("verdict-place"))).trim(), word: text(find(li, cls("verdict-word"))).trim(), detail: text(find(li, cls("verdict-detail"))).trim() }));
+const exportedVerdicts = (html) => [...html.matchAll(/<li class="verdict"[\s\S]*?<\/li>/g)]
+  .map((m) => ({ place: field(m[0], "verdict-place"), word: field(m[0], "verdict-word"), detail: field(m[0], "verdict-detail") }));
+
+test("the export opens with the same verdict per market as the screen, targets first", () => {
+  const { html } = exportFor();
+  const screen = screenVerdicts();
+  assert.equal(screen.length, 6);
+  assert.deepEqual(exportedVerdicts(html), screen);
+  assert.ok(html.indexOf('class="verdict"') < html.indexOf('class="gap"'), "verdicts come before the fixes");
+});
+
+test("the export states completeness and the headline in the screen's words", () => {
+  const m = modelFor(demo());
+  const html = buildReport({ model: m, project: { name: "P" }, facility: FACILITY(demo()), meta: META }).html;
+  const page = view.resultsPage(mk, mk, m, { labels: LABELS });
+  for (const c of ["completeness", "headline"]) {
+    const want = text(find(page, cls(c))).replace(/\s+/g, " ").trim();
+    assert.ok(want.length > 10, c);
+    assert.equal(field(html, c), want, c);
+  }
+  assert.match(html, /Labels marked draft await expert confirmation/);
+});
+
+test("the export uses the shared vocabulary: Has gaps, Minor, Needs value — never 'Partial'", () => {
+  const body = exportFor().html.replace(/<style>[\s\S]*?<\/style>/, "");
+  assert.doesNotMatch(body, /\bPartial\b/);
+  assert.match(body, /Has gaps/);
+  assert.match(body, /critical \/ significant \/ minor/i);
+  assert.match(body, /Needs value/);
+});
+
+test("the export keeps the advisory group apart, after the ranked list", () => {
+  const html = exportHtml(constructed([row("G1", "non_compliant"), row("A1", "not_regulated", "non_compliant")], [
+    { id: "G1", severity: "Significant", obligation: "mandatory", change: "Set G1 to the required value for every authority.", sources: ["Schedule M"], obligationStatus: "draft" },
+    { id: "A1", severity: "Partial", obligation: "unclassified", change: "Set A1 to the international reference value.", sources: ["ISO 14644"], obligationStatus: "fixed" }]));
+  const labels = exportedGaps(html).map((g) => g.label);
+  const firstAdvisory = labels.indexOf("Advisory (international standard)");
+  assert.ok(firstAdvisory > 0, labels.join(" | "));
+  assert.ok(labels.slice(firstAdvisory).every((l) => l === "Advisory (international standard)"));
+  assert.match(html, /<h3>Advisory: international standard only \(\d+\)<\/h3>/);
+});

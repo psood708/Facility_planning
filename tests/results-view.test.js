@@ -51,11 +51,43 @@ function live(st = demo()) {
   return view.resultsPage(h, s, m, { numeric: model.numericGaps(all_.rows, st.targetMarkets, LABELS), labels: LABELS });
 }
 
-test("hero states the headline in counts: frameworks met, gaps, critical", () => {
-  const page = live();
-  const hero = find(page, cls("results-hero"));
-  assert.match(text(hero), /Meets 0 of 4 frameworks/);
-  assert.match(text(hero), /4 gaps, 1 critical/);
+test("the page opens with a verdict per market, in plain words, with the planner's targets first", () => {
+  const page = report(demo({ targetMarkets: ["us_fda", "who_gmp"] }));
+  const sec = find(page, cls("results-verdicts"));
+  const items = all(sec, cls("verdict-item"));
+  assert.equal(items.length, 6);
+  assert.match(text(items[0]), /United States \(FDA\)/);
+  assert.match(text(items[1]), /WHO/);
+  assert.ok(/Your target/.test(text(items[0])) && /Your target/.test(text(items[1])) && !/Your target/.test(text(items[2])));
+  const nmpa = items.find((i) => /China \(NMPA\)/.test(text(i)));
+  assert.ok(nmpa, "country names, e.g. China (NMPA)");
+  for (const it of items) assert.ok(find(it, cls("glyph")) && find(it, cls("verdict-word")), "glyph + word");
+  assert.match(text(items.find((i) => /European Union/.test(text(i)))), /Non-compliant/);
+});
+
+test("headline: completeness next to the verdicts, then 'N changes (M authority-gaps)'", () => {
+  const sec = find(report(), cls("results-verdicts"));
+  assert.match(text(find(sec, cls("completeness"))), /^\d+ of \d+ checks have values/);
+  assert.match(text(find(sec, cls("headline"))), /^\d+ changes \(\d+ authority-gaps\), 1 critical/);
+  assert.doesNotMatch(text(sec), /Meets 0 of|\b0 of \d+ checks met/);
+});
+
+test("section order: verdicts, top fixes, room grid, range charts, per-authority detail, primary-authority evidence last", () => {
+  const page = view.resultsPage(h, s, model.build(snap.compact(engine.evaluateAll(DATA, demo()), demo()), LABELS), { labels: LABELS, authority: authorityOpts(), numeric: model.numericGaps(engine.evaluateAll(DATA, demo()).rows, demo().targetMarkets, LABELS) });
+  const order = ["results-verdicts", "fix-list", "room-grid", "numeric-section", "scorecards", "auth-view"];
+  const seen = all(page, (n) => order.some((c) => cls(c)(n))).map((n) => order.find((c) => cls(c)(n)));
+  assert.deepEqual(seen, order);
+  assert.equal(find(page, (n) => /Compare with other authorities/.test(text(n)) && n.tag === "h3"), null);
+});
+
+test("one vocabulary on screen: Has gaps / Minor / Needs value / No rule set — never 'Partial'", () => {
+  const t = text(view.resultsPage(h, s, model.build(snap.compact(engine.evaluateAll(DATA, demo()), demo()), LABELS), { labels: LABELS, authority: authorityOpts() }));
+  assert.doesNotMatch(t, /\bPartial\b/);
+  assert.match(t, /Has gaps/);
+  assert.match(t, /Minor/);
+  assert.match(t, /Needs value/i);
+  assert.match(t, /No rule set/i);
+  assert.doesNotMatch(t, /not regulated here|not covered by dataset|no value entered/i, "old status words are gone");
 });
 
 test("every chart is a figure with a caption, a labelled SVG and a table view", () => {
@@ -127,35 +159,75 @@ function report(st = demo(), opts = {}) {
   return view.resultsPage(h, s, m, { labels: LABELS, ...opts });
 }
 
-test("gap report: groups in order, each gap shows its suggested change and authorities satisfied", () => {
+test("fix list: one list, most severe first; each fix has a title, the change, a severity chip and a label tag", () => {
   const page = report();
-  const sections = all(find(page, cls("fix-list")), cls("gap-group"));
-  const heads = sections.map((g) => text(find(g, tag("h4"))));
-  const order = ["Mandatory", "Recommend", "Not yet classified", "international standard"];
-  const present = order.filter((o) => heads.some((hd) => new RegExp(o, "i").test(hd)));
-  assert.ok(present.length >= 2, `groups shown: ${heads.join(" | ")}`);
-  assert.deepEqual(heads.map((hd) => order.findIndex((o) => new RegExp(o, "i").test(hd))), heads.map((_, i) => order.findIndex((o) => new RegExp(o, "i").test(heads[i]))).sort((a, b) => a - b), "groups appear in the fixed order");
-  const items = all(page, cls("fix-row"));
-  assert.ok(items.length > 0);
-  for (const it of items) {
-    assert.ok(text(find(it, cls("fix-change"))).length > 25, "each gap states its suggested change");
-    assert.match(text(it), /Satisfies \d of 6 authorities|International standard only/);
+  const list = find(page, cls("fix-list"));
+  const rows = all(find(list, cls("gap-gaps")), cls("fix-row"));
+  assert.ok(rows.length >= 3);
+  const RANK = { Critical: 0, Significant: 1, Minor: 2 };
+  const sev = rows.map((r) => text(find(r, cls("sev-chip"))).replace(/[!\s]/g, ""));
+  assert.deepEqual(sev.map((x) => RANK[x]), sev.map((x) => RANK[x]).slice().sort((a, b) => a - b), sev.join(","));
+  for (const r of rows) {
+    assert.match(text(find(r, cls("fix-title"))), / · /);
+    assert.ok(text(find(r, cls("fix-change"))).length > 25, "each gap states its suggested change");
+    assert.match(text(find(r, cls("fix-obligation"))), /^(Mandatory|Recommended)( \(draft\))?$|^Not yet classified$/);
+    assert.match(text(r), /Satisfies \d of 6 authorities/);
   }
+  assert.match(text(list), /Labels marked draft await expert confirmation/);
 });
 
-test("gap report: top 5 per group, the rest behind 'Show all'", () => {
+test("fix list: top 3, the rest behind 'Show all'", () => {
   const rooms = DATA.rooms.map((r) => r.id);
   const values = Object.fromEntries(rooms.map((id) => [id, { "HVAC-001": "Unclassified/CNC", "DIM-001": 1 }]));
-  const page = report(demo({ selectedRooms: rooms, roomValues: values }));
-  const big = all(page, cls("gap-group")).find((g) => all(g, cls("fix-row")).length > 5);
-  assert.ok(big, "a group with more than 5 gaps");
-  assert.equal(all(find(big, cls("fixes-top")), cls("fix-row")).length, 5);
-  assert.ok(find(big, (n) => n.tag === "details" && /Show all/.test(text(find(n, tag("summary"))))));
+  const list = find(report(demo({ selectedRooms: rooms, roomValues: values })), cls("gap-gaps"));
+  assert.equal(all(find(list, cls("fixes-top")), cls("fix-row")).length, 3);
+  const more = find(list, (n) => n.tag === "details" && /Show all \d+ changes/.test(text(find(n, tag("summary")))));
+  assert.ok(more);
+  assert.equal(find(more, tag("ol")).attrs.start, "4");
 });
 
-test("advisory suggestions say they don't affect any verdict", () => {
-  const adv = all(report(demo({ facilityValues: { "UTIL-001": "Class 2" } })), cls("gap-group")).find((g) => /international standard/i.test(text(find(g, tag("h4")))));
-  if (adv) assert.match(text(adv), /does not affect/i);
+// Seven gaps: five recommended ones outrank the two mandatory ones.
+function mixedList() {
+  const SIX = ["schedule_m", "us_fda", "eu_gmp", "who_gmp", "china_nmpa", "japan_pmda"];
+  const ids = ["R1", "R2", "R3", "R4", "R5", "M1", "M2"];
+  const row = (t) => ({ room: null, param: t, threshold: t, markets: Object.fromEntries(SIX.map((mk) => [mk, { status: mk === "schedule_m" ? "non_compliant" : "not_regulated", fallback: null }])) });
+  const m = model.build({ rollup: Object.fromEntries(SIX.map((mk) => [mk, "Partial"])), checklist: [], evaluations: ids.map(row),
+    recommendations: ids.map((id) => ({ id, severity: id[0] === "R" ? "Critical" : "Partial", obligation: id[0] === "R" ? "recommended" : "mandatory", change: `Set ${id} to the value every authority requires.` })) }, LABELS);
+  return find(view.fixList(h, m, LABELS), cls("gap-gaps"));
+}
+const rowIds = (n) => all(n, cls("fix-row")).map((r) => text(find(r, cls("fix-change"))).split(" ")[1]);
+
+test("fix list: 'Mandatory only' rebuilds the list from the mandatory changes, announces it, and can be undone", () => {
+  const list = mixedList();
+  const btn = find(list, (n) => n.tag === "button" && /Mandatory only/.test(text(n)));
+  assert.ok(btn, "filter button");
+  assert.equal(btn.attrs["aria-pressed"], "false");
+  const status = find(list, cls("fix-filter-status"));
+  assert.equal(status.attrs.role, "status");
+  const ev = { currentTarget: { setAttribute: (k, v) => (btn.attrs[k] = v) } };
+  btn.attrs.onclick(ev);
+  assert.equal(btn.attrs["aria-pressed"], "true");
+  // The two mandatory changes, ranked 6th and 7th overall, now lead a visible list.
+  assert.deepEqual(rowIds(find(list, cls("fixes-top"))), ["M1", "M2"]);
+  assert.equal(find(list, cls("show-all")), null, "nothing left folded away");
+  assert.match(text(find(list, cls("fix-filter-status"))), /Showing 2 mandatory changes/);
+  btn.attrs.onclick(ev);
+  assert.equal(btn.attrs["aria-pressed"], "false");
+  assert.deepEqual(rowIds(find(list, cls("fixes-top"))), ["R1", "R2", "R3"]);
+  assert.match(text(find(find(list, cls("show-all")), tag("summary"))), /Show all 7 changes/);
+  assert.match(text(find(list, cls("fix-filter-status"))), /Showing all 7 changes/);
+});
+
+test("advisory suggestions are a quiet, collapsed group that says it affects no verdict", () => {
+  const mkRow = (threshold, status, fallback) => ({ room: null, param: "UTIL-001", threshold, markets: { schedule_m: { status, fallback: fallback || null } } });
+  const m = model.build({ rollup: { schedule_m: "Partial" }, checklist: [],
+    evaluations: [mkRow("G1", "non_compliant"), mkRow("A1", "not_regulated", "non_compliant")],
+    recommendations: [{ id: "G1", severity: "Significant", obligation: "mandatory", change: "Set G1 to the required value for this authority." }, { id: "A1", severity: "Partial", obligation: "unclassified", change: "Set A1 to the international reference value." }] }, LABELS);
+  const adv = find(view.resultsPage(h, s, m, { labels: LABELS }), cls("gap-advisory"));
+  assert.ok(adv);
+  assert.equal(adv.tag, "details");
+  assert.equal(adv.attrs.open, undefined);
+  assert.match(text(adv), /does not affect/i);
 });
 
 test("scorecards cover all six authorities and mark the planner's target markets", () => {
@@ -181,6 +253,7 @@ test("room grid: scrollable labelled region, glyph + text in cells, capped at 15
   const fail = find(region, cls("cell-fail"));
   assert.match(text(fail), /✗/);
   assert.match(text(fail), /not met/);
+  assert.doesNotMatch(text(find(page, cls("grid-legend"))), /not checked here|no value entered/);
   // Sticky first column = row headers.
   rows.forEach((r) => assert.equal(r.children[0].tag, "th"));
 });
@@ -235,30 +308,31 @@ test("no gaps: positive message instead of empty charts", () => {
 
 test("partial data: no-value count is shown with a note", () => {
   const page = live();
-  assert.match(text(page), /no value entered/i);
+  assert.match(text(page), /needs value/i);
   assert.match(text(page), /not counted as met or not met/i);
-  assert.match(text(find(page, cls("results-hero"))), /Based on \d+ checked values?; \d+ checks? have no value entered/);
+  assert.match(text(find(page, cls("completeness"))), /\d+ of \d+ checks have values — this is not a full assessment/);
 });
 
 test("everything not covered: never green, says nothing was checked", () => {
   const page = live(demo({ targetMarkets: ["uk_mhra", "sfda"] }));
   assert.equal(find(page, cls("verdict-compliant")), null);
-  assert.match(text(find(page, cls("results-hero"))), /not covered/i);
+  assert.match(text(find(page, cls("results-verdicts"))), /Not covered/);
   assert.doesNotMatch(text(page), /within each authority's range/, "no false all-clear");
-  assert.match(text(find(page, cls("numeric-section"))), /no number to compare/i);
-  assert.match(text(find(page, cls("fix-list"))), /Nothing was checked/i);
+  assert.match(text(find(page, cls("empty-panel"))), /Nothing was checked yet/i);
+  assert.equal(find(page, cls("fix-list")), null, "no empty fix list or grid");
+  assert.equal(find(page, cls("room-grid")), null);
 });
 
 test("no markets / empty model: a message only", () => {
   const page = view.resultsPage(h, s, model.build({ rollup: {} }, LABELS), {});
-  assert.match(text(page), /No results to show/i);
+  assert.match(text(find(page, cls("empty-panel"))), /No results yet/i);
   assert.equal(all(page, (n) => n.tag === "svg").length, 0);
 });
 
 test("single market renders without a grid comparison problem", () => {
   const page = live(demo({ targetMarkets: ["eu_gmp"] }));
   assert.equal(all(page, cls("scorecard")).length, 1);
-  assert.match(text(find(page, cls("results-hero"))), /of 1 framework\b/);
+  assert.equal(all(page, cls("verdict-item")).length, 1);
 });
 
 test("stale (as saved): no numeric charts, re-evaluate note, labelled as saved", () => {
@@ -319,7 +393,7 @@ test("authorityView: one captioned table per room with glyph + word per requirem
   }
   const cells = all(sec, cls("auth-status"));
   assert.ok(cells.length > 0);
-  for (const c of cells) assert.match(text(c), /^(✓ Pass|✗ Fail|⊘ Not covered|\? No value)/);
+  for (const c of cells) assert.match(text(c), /^(✓ Met|✗ Not met|– No rule set|\? Needs value)$/);
 });
 
 test("authorityView: the switcher offers the chosen authorities and marks the current one", () => {
@@ -329,24 +403,37 @@ test("authorityView: the switcher offers the chosen authorities and marks the cu
     ["schedule_m", "us_fda", "eu_gmp", "who_gmp"].map((k) => [LABELS.market(k), String(k === "us_fda")]));
 });
 
-test("resultsPage leads with the primary authority, then 'Compare with other authorities'", () => {
-  const page = view.resultsPage(h, s, model.build(snap.compact(engine.evaluateAll(DATA, demo()), demo()), LABELS), { labels: LABELS, authority: authorityOpts() });
-  // Headings stay under Step 4's h2: the comparison heading is an h3 like the sections it introduces.
-  const order = all(page, (n) => n.tag === "h3" || cls("auth-view")(n));
-  const iAuth = order.findIndex(cls("auth-view"));
-  const iCompare = order.findIndex((n) => n.tag === "h3" && /Compare with other authorities/.test(text(n)));
-  assert.ok(iAuth > -1 && iCompare > iAuth, `auth ${iAuth}, compare ${iCompare}`);
-  assert.ok(find(page, cls("scorecards")) || all(page, tag("figure")).length > 0, "comparison charts still render");
+test("evidence tables: one <details> per room with status counts; rooms with failures open; rows without a result folded", () => {
+  const sec = view.authorityView(h, authorityOpts());
+  const rooms = all(sec, cls("auth-room"));
+  assert.ok(rooms.length >= 2);
+  for (const r of rooms) {
+    assert.equal(r.tag, "details");
+    const summary = text(find(r, tag("summary")));
+    const hasFail = all(r, cls("st-fail")).length > 0;
+    assert.equal(r.attrs.open === "open", hasFail, summary);
+    assert.match(summary, /\d+ (not met|met|needs value|no rule set)/);
+  }
+  const folded = all(sec, cls("auth-folded"));
+  assert.ok(folded.length > 0, "needs-value / no-rule rows are folded away");
+  for (const f of folded) {
+    assert.equal(f.tag, "details");
+    for (const row of all(f, cls("auth-row"))) assert.ok(cls("st-no_value")(row) || cls("st-not_covered")(row));
+  }
+  for (const r of rooms) {
+    const open = r.children.filter((c) => typeof c !== "string" && !cls("auth-folded")(c));
+    for (const row of all({ attrs: {}, children: open }, cls("auth-row"))) assert.ok(cls("st-fail")(row) || cls("st-pass")(row));
+  }
+});
+
+test("with nothing to compare, only the empty panel and the authority section show", () => {
+  const page = view.resultsPage(h, s, model.build({ rollup: {} }, LABELS), { authority: authorityOpts() });
+  assert.ok(find(page, cls("empty-panel")));
+  assert.ok(find(page, cls("auth-view")), "the authority section still shows");
 });
 
 test("authorityView notes are short enough for a phone column", () => {
   for (const n of all(view.authorityView(h, authorityOpts()), cls("auth-note"))) assert.ok(text(n).length <= 60, text(n));
-});
-
-test("with nothing to compare, the 'Compare with other authorities' heading is not shown", () => {
-  const page = view.resultsPage(h, s, model.build({ rollup: {} }, LABELS), { authority: authorityOpts() });
-  assert.equal(find(page, (n) => n.tag === "h3" && /Compare with other authorities/.test(text(n))), null);
-  assert.ok(find(page, cls("auth-view")), "the authority section still shows");
 });
 
 test("wording reflects that every covered authority is compared", () => {

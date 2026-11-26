@@ -7,6 +7,8 @@
  *
  *   buildReport({ model, project: { name }, facility: { category, forms, targets, primary },
  *                 meta: { dataDate, dataHash, engineVersion, generatedAt }, labels }) -> { filename, html }
+ * Its words and order follow the results page (results redesign, Phase 1):
+ * verdict per market first, then the fix list ranked by severity.
  * Browser: window.ReportExport; Node: module.exports.
  */
 (function (root, factory) {
@@ -27,7 +29,8 @@
   const slug = (s) => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "project";
 
-  const VERDICT_WORD = { compliant: "Compliant", partial: "Partial", non_compliant: "Non-compliant", insufficient: "Not enough data", not_covered: "Not covered" };
+  const RM = typeof ResultsModel !== "undefined" ? ResultsModel : require("./results-model.js");
+  const V = RM.VOCAB;
 
   const DISCLAIMER_HEAD = "Advisory only — this report is not a regulatory sign-off.";
   const DISCLAIMER_BODY = "It compares the facility design entered by the planner with benchmark data compiled from regulatory guidance; it does not certify compliance with any authority. Mandatory/recommended labels marked “draft” and sources marked “pending” are awaiting expert review. Confirm every requirement with the relevant authority and a qualified professional before acting.";
@@ -41,6 +44,15 @@
     h3 { font-size: 15px; margin: 20px 0 6px; }
     .project { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
     .meta { color: #5b6b7a; margin: 0; }
+    ul.verdicts { list-style: none; padding: 0; margin: 0 0 8px; }
+    li.verdict { padding: 6px 0; border-bottom: 1px solid #eceff2; }
+    .verdict-place { font-weight: 600; }
+    .verdict-word { font-weight: 700; margin-left: 8px; }
+    .verdict-detail { color: #5b6b7a; margin-left: 8px; }
+    .completeness, .headline { margin: 6px 0; }
+    .headline { font-weight: 600; }
+    .gap-title { color: #5b6b7a; margin: 0 0 2px; font-size: 13px; }
+    .note { color: #5b6b7a; font-size: 13px; margin: 0 0 8px; }
     .disclaimer { border: 2px solid #a3281c; border-radius: 8px; padding: 10px 14px; margin: 16px 0; }
     .disclaimer strong { color: #a3281c; }
     dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
@@ -69,13 +81,14 @@
     const rows = (model.markets || []).map((m) => {
       const c = m.counts || {};
       const g = m.gapsBySeverity || {};
-      return `<tr class="authority-row"><td>${esc(m.label)}${m.target ? ` <span class="target">Your target</span>` : ""}</td>` +
-        `<td>${esc(VERDICT_WORD[m.verdictKey] || VERDICT_WORD.insufficient)}</td>` +
+      return `<tr class="authority-row"><td>${esc(m.place || m.label)}${m.target ? ` <span class="target">Your target</span>` : ""}</td>` +
+        `<td>${esc(V.verdict[m.verdictKey] || V.verdict.insufficient)}</td>` +
         `<td>${esc(c.compliant || 0)}</td><td>${esc(c.non_compliant || 0)}</td><td>${esc(c.no_value || 0)}</td>` +
         `<td>${esc(g.Critical || 0)} / ${esc(g.Significant || 0)} / ${esc(g.Partial || 0)}</td></tr>`;
     }).join("");
+    const sev = ["Critical", "Significant", "Partial"].map((k) => RM.severityWord(k).toLowerCase()).join(" / ");
     return `<table><caption>The verdict is set by the worst gap; the counts are checks.</caption>` +
-      `<thead><tr><th scope="col">Authority</th><th scope="col">Verdict</th><th scope="col">Met</th><th scope="col">Not met</th><th scope="col">No value</th><th scope="col">Gaps (critical / significant / partial)</th></tr></thead>` +
+      `<thead><tr><th scope="col">Authority</th><th scope="col">Verdict</th><th scope="col">${esc(V.status.compliant)}</th><th scope="col">${esc(V.status.non_compliant)}</th><th scope="col">${esc(V.status.no_value)}</th><th scope="col">Gaps (${esc(sev)})</th></tr></thead>` +
       `<tbody>${rows}</tbody></table>`;
   }
 
@@ -84,32 +97,41 @@
       ? `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`
       : "International standard only — misses it for";
     const names = (f.marketsFailing || []).map((mk) => (labels && labels.market ? labels.market(mk) : mk)).join(", ");
-    return `<li class="gap" data-id="${esc(f.id)}"><p class="gap-change">${esc(f.change || "")}</p><dl>` +
+    return `<li class="gap" data-id="${esc(f.id)}"><p class="gap-title">${esc(f.title || "")}</p><p class="gap-change">${esc(f.change || "")}</p><dl>` +
       `<dt>Requirement</dt><dd class="gap-requirement">${esc(f.label)} · ${esc(f.roomLabel)}</dd>` +
       `<dt>Label</dt><dd class="gap-label">${esc(f.labelText || "")}</dd>` +
-      `<dt>Severity</dt><dd class="gap-severity">${esc(f.severity)}</dd>` +
+      `<dt>Severity</dt><dd class="gap-severity">${esc(RM.severityWord(f.severity))}</dd>` +
       `<dt>Source</dt><dd class="gap-source">${esc(f.sources && f.sources.length ? f.sources.join("; ") : "No source recorded")}</dd>` +
       `<dt>Reach</dt><dd><span class="gap-satisfies">${esc(reach)}</span>${names ? ` — ${esc(names)}` : ""}</dd>` +
       `</dl></li>`;
   }
 
-  // The same wording as the results page in each state (nothing checked,
-  // nothing to fix, or gaps), so the document never says more than the screen.
+  // Verdict per market, in the screen's order and words, with completeness and the headline.
+  function verdicts(model) {
+    const items = (model.verdicts || []).map((v) => `<li class="verdict"><span class="verdict-place">${esc(v.place)}</span>` +
+      (v.target ? ` <span class="target">Your target</span>` : "") +
+      `<span class="verdict-word">${esc(v.word)}</span><span class="verdict-detail">${esc(v.detail)}</span></li>`).join("");
+    return `<ul class="verdicts">${items}</ul>` +
+      `<p class="completeness">${esc(RM.completenessText(model))}</p><p class="headline">${esc(RM.fixSummary(model))}</p>`;
+  }
+
+  // The fix list as the screen shows it: one list ranked by severity, then
+  // the advisory group. Every fix is listed (the screen folds all but 3).
   function gapReport(model, labels) {
-    const groups = (model.gapGroups || []).filter((g) => g.fixes.length);
-    const markets = model.markets || [];
-    const hasAuthorityGaps = (model.fixes || []).some((f) => f.basis === "authority");
-    let lede;
-    if (!hasAuthorityGaps && markets.every((m) => !m.checked)) {
-      lede = "Nothing was checked yet, so there is nothing to fix. Enter values, or choose authorities this dataset covers.";
-    } else if (!hasAuthorityGaps) {
-      lede = "Nothing to fix against any covered authority among the values checked." + (markets.some((m) => (m.counts || {}).no_value) ? " Some checks have no value entered yet." : "");
-    } else {
-      const of = model.authorityCount || markets.length;
-      lede = `Every gap with a suggested change. Mandatory gaps first; within each group, the change that satisfies the most of the ${of} authorities comes first, then by severity.`;
+    const groups = model.gapGroups || [];
+    const main = (groups.find((g) => g.key === "gaps") || { fixes: [] }).fixes;
+    const advisory = groups.find((g) => g.key === "advisory") || { label: "", fixes: [] };
+    let out;
+    if (!main.length) out = `<p class="lede">${esc(RM.fixSummary(model))}</p>`;
+    else {
+      out = `<p class="lede">${esc(RM.NOTES.order)}</p>` + (main.some((f) => f.draft) ? `<p class="note">${esc(RM.NOTES.draft)}</p>` : "") +
+        `<ol class="gaps">${main.map((f) => gapItem(f, labels)).join("")}</ol>`;
     }
-    return `<p class="lede">${esc(lede)}</p>` +
-      groups.map((g) => `<h3>${esc(g.label)} (${esc(g.fixes.length)})</h3><ol class="gaps">${g.fixes.map((f) => gapItem(f, labels)).join("")}</ol>`).join("");
+    if (advisory.fixes.length) {
+      out += `<h3>${esc(advisory.label)} (${esc(advisory.fixes.length)})</h3><p class="note">${esc(RM.NOTES.advisory)}</p>` +
+        `<ol class="gaps">${advisory.fixes.map((f) => gapItem(f, labels)).join("")}</ol>`;
+    }
+    return out;
   }
 
   function buildReport({ model, project = {}, facility = {}, meta = {}, labels = null }) {
@@ -132,14 +154,15 @@
 <p class="meta">Generated ${esc(formatDay(generated))} · Benchmark data as of ${esc(meta.dataDate ? formatDay(meta.dataDate) : "date unknown")} · Rules engine ${esc(meta.engineVersion)} · Data version ${esc(String(meta.dataHash || "").slice(0, 12))}</p>
 </header>
 <section class="disclaimer" role="note">${disclaimer}</section>
+<section><h2>Verdict by market</h2>${verdicts(model)}</section>
+<section><h2>What to fix first</h2>${gapReport(model, labels)}</section>
 <section><h2>Facility</h2>${facts([
       ["Dosage form category", facility.category || "—"],
       ["Specific forms", (facility.forms || []).join(", ") || "—"],
       ["Target markets", (facility.targets || []).join(", ") || "—"],
       ["Primary authority", facility.primary || "—"],
     ])}</section>
-<section><h2>Performance by authority</h2>${authorityTable(model)}</section>
-<section><h2>Gap report</h2>${gapReport(model, labels)}</section>
+<section><h2>By authority</h2>${authorityTable(model)}</section>
 <footer class="disclaimer" role="note">${disclaimer}</footer>
 </body>
 </html>

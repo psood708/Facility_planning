@@ -9,7 +9,9 @@
  *  - colour is never alone: a swatch or mark always sits beside a glyph and
  *    a word; text is in ink colours, never the status colour;
  *  - no SVG text (labels live in HTML), no inline styles (CSS classes only),
- *    SVG geometry uses percentages so it never has to be measured.
+ *    SVG geometry uses percentages so it never has to be measured;
+ *  - every word people read comes from ResultsModel.VOCAB, shared with the
+ *    exported report (results redesign, Phase 1).
  * Browser: window.ResultsView; Node: module.exports.
  */
 (function (root, factory) {
@@ -19,30 +21,33 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  const RM = typeof ResultsModel !== "undefined" ? ResultsModel : require("./results-model.js");
+  const V = RM.VOCAB;
+  const lower = (w) => w.charAt(0).toLowerCase() + w.slice(1);
+
   // Shared status glyphs (the status pills elsewhere use the same set).
-  const GLYPH = { compliant: "✓", non_compliant: "✗", no_value: "?", not_regulated: "–", not_covered: "⊘" };
-  const STATUS_WORD = { compliant: "met", non_compliant: "not met", no_value: "no value entered", not_regulated: "not regulated here", not_covered: "not covered by dataset" };
-  const BAR_ORDER = ["compliant", "non_compliant", "no_value", "not_regulated", "not_covered"];
-  const VERDICT = {
-    compliant: { glyph: "✓", word: "Compliant" },
-    partial: { glyph: "!", word: "Partial" },
-    non_compliant: { glyph: "✗", word: "Non-compliant" },
-    insufficient: { glyph: "?", word: "Not enough data" },
-    not_covered: { glyph: "⊘", word: "Not covered" },
-  };
+  const GLYPH = { compliant: "✓", non_compliant: "✗", no_value: "?", not_regulated: "–", not_covered: "⊘", no_rule: "–" };
+  const STATUS_WORD = Object.fromEntries(Object.entries(V.status).map(([k, w]) => [k, lower(w)]));
+  STATUS_WORD.no_rule = lower(V.status.not_regulated);
+  // "No rule set" covers both "the authority sets no figure" and "no data".
+  const BAR_ORDER = ["compliant", "non_compliant", "no_value", "no_rule"];
+  const BAR_CLASS = { compliant: "compliant", non_compliant: "non_compliant", no_value: "no_value", no_rule: "not_regulated" };
+  const VERDICT_GLYPH = { compliant: "✓", partial: "!", non_compliant: "✗", insufficient: "?", not_covered: "⊘" };
+  const VERDICT = Object.fromEntries(Object.keys(VERDICT_GLYPH).map((k) => [k, { glyph: VERDICT_GLYPH[k], word: V.verdict[k] }]));
   const SEVERITIES = ["Critical", "Significant", "Partial"];
   const SEV_GLYPH = { Critical: "!!!", Significant: "!!", Partial: "!" };
+  const sevWord = RM.severityWord;
   const CELL = {
-    fail: { glyph: "✗", word: "not met" },
-    pass: { glyph: "✓", word: "met" },
-    empty: { glyph: "?", word: "no value entered" },
-    na: { glyph: "–", word: "not checked here" },
+    fail: { glyph: "✗", word: STATUS_WORD.non_compliant },
+    pass: { glyph: "✓", word: STATUS_WORD.compliant },
+    empty: { glyph: "?", word: STATUS_WORD.no_value },
+    na: { glyph: "–", word: STATUS_WORD.not_regulated },
   };
   const SHORT = {
     schedule_m: "Sch M", us_fda: "FDA", eu_gmp: "EU", uk_mhra: "MHRA", pics: "PIC/S", who_gmp: "WHO",
     tga_australia: "TGA", china_nmpa: "NMPA", japan_pmda: "PMDA", sahpra: "SAHPRA", sfda: "SFDA",
   };
-  const FIX_LIMIT = 5;
+  const FIX_LIMIT = 3;
   const ROOM_LIMIT = 15;
   const NUMERIC_LIMIT = 12;
 
@@ -140,20 +145,7 @@
       h("figcaption", {}, [h("span", { class: "fig-title" }, title), takeaway ? h("span", { class: "fig-takeaway" }, takeaway) : null]),
     ].concat(body));
 
-  // ------------------------------------------------------------ hero
-
-  function heroSentence(model) {
-    const n = model.markets.length;
-    const covered = model.markets.filter((m) => m.verdictKey !== "not_covered");
-    if (!covered.length) return `${n === 1 ? "The selected framework is" : "The selected frameworks are"} not covered by this dataset — nothing was checked`;
-    const uncovered = n - covered.length;
-    const tail = uncovered ? ` · ${uncovered} not covered by this dataset` : "";
-    if (covered.every((m) => m.verdictKey === "insufficient")) return `Not enough values entered to judge any framework yet${tail}`;
-    const met = model.markets.filter((m) => m.verdictKey === "compliant").length;
-    const gaps = model.severity.total;
-    const gapText = gaps ? ` · ${plural(gaps, "gap")}${model.severity.Critical ? `, ${model.severity.Critical} critical` : ""}` : " · no gaps found";
-    return `Meets ${met} of ${plural(n, "framework")}${gapText}${tail}`;
-  }
+  // ------------------------------------------------------------ verdict per market
 
   function severityChart(h, s, model) {
     const sev = model.severity;
@@ -162,32 +154,37 @@
     const takeaway = sev.Critical
       ? `${sev.Critical} of ${plural(sev.total, "gap")} ${sev.Critical === 1 ? "is" : "are"} critical — fix these first.`
       : `None of the ${plural(sev.total, "gap")} is critical.`;
-    const desc = SEVERITIES.map((k) => `${sev[k]} ${k.toLowerCase()}`).join(", ") + ".";
+    const desc = SEVERITIES.map((k) => `${sev[k]} ${sevWord(k).toLowerCase()}`).join(", ") + ".";
     return figure(h, "severity-chart", title, takeaway, [
       segmentedBar(s, SEVERITIES.map((k) => ({ value: sev[k], cls: "sev-fill-" + k.toLowerCase() })), { title, desc, height: 12, className: "severity-bar" }),
-      h("ul", { class: "legend" }, SEVERITIES.filter((k) => sev[k]).map((k) => legendItem(h, "sw-sev-" + k.toLowerCase(), SEV_GLYPH[k], `${sev[k]} ${k.toLowerCase()}`))),
-      tableView(h, "Gaps by severity", ["Severity", "Gaps"], SEVERITIES.map((k) => [k, sev[k]])),
+      h("ul", { class: "legend" }, SEVERITIES.filter((k) => sev[k]).map((k) => legendItem(h, "sw-sev-" + k.toLowerCase(), SEV_GLYPH[k], `${sev[k]} ${sevWord(k).toLowerCase()}`))),
+      tableView(h, "Gaps by severity", ["Severity", "Gaps"], SEVERITIES.map((k) => [sevWord(k), sev[k]])),
     ]);
   }
 
-  function hero(h, s, model, { stale }) {
-    const noValue = model.markets.filter((m) => m.verdictKey !== "not_covered").reduce((a, m) => Math.max(a, m.counts.no_value), 0);
-    const met = model.markets.filter((m) => m.verdictKey === "compliant").length;
-    const checked = model.markets.reduce((a, m) => Math.max(a, m.checked), 0);
-    const stat = (label, value, extra) => h("div", { class: "stat" + (extra ? " " + extra : "") }, [h("dt", {}, label), h("dd", {}, String(value))]);
-    return h("section", { class: "results-hero", "aria-label": "Summary" }, [
+  // The answer first: one plain line per market (targets first), how much of
+  // the facility was actually checked, and how many changes are needed.
+  function verdictSection(h, s, model, { stale } = {}) {
+    const id = nextId("verdicts");
+    return h("section", { class: "results-verdicts", "aria-labelledby": id }, [
       h("p", { class: "hero-kicker" }, stale ? "Read-only · as saved" : "Summary"),
-      h("p", { class: "hero-sentence" }, heroSentence(model)),
-      noValue ? h("p", { class: "hero-note" }, `Based on ${plural(checked, "checked value")}; ${plural(noValue, "check")} ${noValue === 1 ? "has" : "have"} no value entered, so this is not a full assessment.`) : null,
-      h("dl", { class: "hero-stats" }, [
-        stat("Frameworks met", `${met} of ${model.markets.length}`),
-        stat("Gaps", model.severity.total),
-        stat("Critical", model.severity.Critical, model.severity.Critical ? "stat-critical" : null),
-        model.totals.advisory ? stat("Advisory", model.totals.advisory) : null,
-        noValue ? stat("No value entered", noValue) : null,
-      ]),
+      h("h3", { id }, "Verdict by market"),
+      h("ul", { class: "verdict-list" }, model.verdicts.map((v) => h("li", { class: "verdict-item verdict-" + v.verdictKey }, [
+        glyph(h, VERDICT_GLYPH[v.verdictKey] || "?", "verdict-glyph"),
+        h("span", { class: "verdict-place" }, v.place),
+        v.target ? h("span", { class: "target-badge" }, "Your target") : null,
+        h("span", { class: "verdict-word" }, v.word),
+        h("span", { class: "verdict-detail" }, v.detail),
+      ]))),
+      h("p", { class: "completeness" }, RM.completenessText(model)),
+      h("p", { class: "headline" }, RM.fixSummary(model)),
       severityChart(h, s, model),
     ]);
+  }
+
+  function emptyPanel(h, title, body) {
+    const id = nextId("empty");
+    return h("section", { class: "empty-panel", "aria-labelledby": id }, [h("h3", { id }, title), h("p", {}, body)]);
   }
 
   // ------------------------------------------------------------ scorecards
@@ -195,68 +192,69 @@
   function scorecard(h, s, m) {
     const v = VERDICT[m.verdictKey] || VERDICT.insufficient;
     const head = h("div", { class: "sc-head" }, [
-      h("h4", { class: "sc-name" }, m.label),
+      h("h4", { class: "sc-name" }, m.place),
       m.target ? h("span", { class: "target-badge" }, "Your target") : null,
       h("span", { class: "verdict-badge verdict-" + m.verdictKey }, [glyph(h, v.glyph), h("span", { class: "verdict-word" }, v.word)]),
     ]);
     if (m.verdictKey === "not_covered") {
       return h("li", { class: "scorecard sc-not_covered" }, [
         head,
-        segmentedBar(s, [{ value: 1, cls: "st-not_covered", hatched: true }], { title: `${m.label}: not covered`, desc: "This dataset has no requirements for this authority; nothing was checked.", className: "status-bar" }),
+        segmentedBar(s, [{ value: 1, cls: "st-not_covered", hatched: true }], { title: `${m.place}: not covered`, desc: "This dataset has no requirements for this authority; nothing was checked.", className: "status-bar" }),
         h("p", { class: "sc-met" }, "Nothing checked"),
-        h("p", { class: "sc-note" }, `This dataset has no requirements for ${m.label}, so nothing was checked. This is not a pass.`),
+        h("p", { class: "sc-note" }, `This dataset has no requirements for ${m.place}, so nothing was checked. This is not a pass.`),
       ]);
     }
-    const c = m.counts;
+    const c = { ...m.counts, no_rule: m.counts.not_regulated + m.counts.not_covered };
     const present = BAR_ORDER.filter((k) => c[k]);
     const desc = present.map((k) => `${c[k]} ${STATUS_WORD[k]}`).join(", ") + ".";
     const gaps = SEVERITIES.filter((k) => m.gapsBySeverity[k]);
     return h("li", { class: "scorecard sc-" + m.verdictKey }, [
       head,
-      segmentedBar(s, BAR_ORDER.map((k) => ({ value: c[k], cls: "st-" + k, hatched: k === "not_covered" })), { title: `${m.label}: ${m.met} of ${m.checked} checks met`, desc, className: "status-bar" }),
-      h("p", { class: "sc-met" }, [h("strong", {}, `${m.met} of ${plural(m.checked, "check")} met`)]),
-      h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + k, GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))),
+      segmentedBar(s, BAR_ORDER.map((k) => ({ value: c[k], cls: "st-" + BAR_CLASS[k] })), { title: m.checked ? `${m.place}: ${m.met} of ${m.checked} checks met` : `${m.place}: nothing checked yet`, desc, className: "status-bar" }),
+      h("p", { class: "sc-met" }, [h("strong", {}, m.checked ? `${m.met} of ${plural(m.checked, "check")} met` : "Nothing checked yet")]),
+      h("ul", { class: "legend sc-legend" }, present.map((k) => legendItem(h, "sw-" + BAR_CLASS[k], GLYPH[k], `${c[k]} ${STATUS_WORD[k]}`))),
       h("p", { class: "sc-gaps" }, gaps.length
-        ? [h("span", {}, "Gaps:")].concat(gaps.map((k, i) => h("span", { class: "sc-gap" }, [h("span", { class: "swatch sw-sev-" + k.toLowerCase(), "aria-hidden": "true" }), `${m.gapsBySeverity[k]} ${k.toLowerCase()}${i < gaps.length - 1 ? "," : ""}`])))
+        ? [h("span", {}, "Gaps:")].concat(gaps.map((k, i) => h("span", { class: "sc-gap" }, [h("span", { class: "swatch sw-sev-" + k.toLowerCase(), "aria-hidden": "true" }), `${m.gapsBySeverity[k]} ${sevWord(k).toLowerCase()}${i < gaps.length - 1 ? "," : ""}`])))
         : m.checked ? "No gaps against this authority." : "No checks with a value yet."),
     ]);
   }
 
   function scorecards(h, s, model) {
     const withNoValue = model.markets.filter((m) => m.counts.no_value).length;
-    const worst = model.markets.filter((m) => m.verdictKey === "non_compliant").map((m) => m.label);
+    const worst = model.markets.filter((m) => m.verdictKey === "non_compliant").map((m) => m.place);
     const takeaway = worst.length
       ? `${worst.join(", ")} ${worst.length === 1 ? "has" : "have"} at least one critical gap.`
       : model.markets.some((m) => m.verdictKey === "partial") ? "No critical gaps; some authorities have gaps to close." : "One strip per authority.";
-    const c = (m, k) => m.counts[k];
+    const c = (m, k) => (k === "no_rule" ? m.counts.not_regulated + m.counts.not_covered : m.counts[k]);
     return h("section", { class: "scorecards" }, [
       h("h3", {}, "By authority"),
       figure(h, "scorecard-figure", "How the facility performs against each authority", takeaway, [
         h("ul", { class: "scorecard-list" }, model.markets.map((m) => scorecard(h, s, m))),
-        h("p", { class: "chart-note" }, "The verdict is set by the worst gap severity, not by the bar: any critical gap makes it Non-compliant; other gaps make it Partial. The bar counts checks." +
-          (withNoValue ? " Checks with no value entered are not counted as met or not met." : "") +
+        h("p", { class: "chart-note" }, `The verdict is set by the worst gap severity, not by the bar: any critical gap makes it ${V.verdict.non_compliant}; any other gap means it ${lower(V.verdict.partial)}. The bar counts checks.` +
+          (withNoValue ? " Checks that need a value are not counted as met or not met." : "") +
           " International-standard (advisory) results never count toward an authority's verdict."),
         tableView(h, "Checks by authority",
-          ["Authority", "Verdict", "Met", "Not met", "No value", "Not regulated", "Not covered", "Critical gaps", "Significant gaps", "Partial gaps"],
-          model.markets.map((m) => [m.label, (VERDICT[m.verdictKey] || VERDICT.insufficient).word, c(m, "compliant"), c(m, "non_compliant"), c(m, "no_value"), c(m, "not_regulated"), c(m, "not_covered"), m.gapsBySeverity.Critical, m.gapsBySeverity.Significant, m.gapsBySeverity.Partial])),
+          ["Authority", "Verdict", V.status.compliant, V.status.non_compliant, V.status.no_value, V.status.not_regulated].concat(SEVERITIES.map((k) => `${sevWord(k)} gaps`)),
+          model.markets.map((m) => [m.place, (VERDICT[m.verdictKey] || VERDICT.insufficient).word, c(m, "compliant"), c(m, "non_compliant"), c(m, "no_value"), c(m, "no_rule")].concat(SEVERITIES.map((k) => m.gapsBySeverity[k])))),
       ]),
     ]);
   }
 
   // ------------------------------------------------------------ fixes
 
+  // One fix: severity and label tag, a short title, the full suggested
+  // change, how many authorities it satisfies, and its source as a footnote.
   function fixItem(h, f, labels) {
     const sev = f.severity.toLowerCase();
     const markets = h("span", { class: "fix-markets" }, f.marketsFailing.map((mk) => h("span", { class: "market-chip", title: marketName(labels, mk) }, short(mk))));
     const source = Array.isArray(f.sources) ? h("p", { class: "fix-source" }, "Source: " + (f.sources.length ? f.sources.join("; ") : "No source recorded")) : null;
-    return h("li", { class: "fix fix-row fix-" + f.basis }, [
-      h("p", { class: "fix-change" + (f.change ? "" : " fix-change-missing") }, f.change || "Re-evaluate with current data to see the suggested change."),
+    return h("li", { class: "fix fix-row fix-" + f.basis + (f.mandatory ? " fix-mandatory" : "") }, [
       h("div", { class: "fix-head" }, [
-        h("span", { class: "sev-chip" }, [h("span", { class: "swatch sw-sev-" + sev, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[f.severity]), f.severity]),
+        h("span", { class: "sev-chip" }, [h("span", { class: "swatch sw-sev-" + sev, "aria-hidden": "true" }), glyph(h, SEV_GLYPH[f.severity]), sevWord(f.severity)]),
         h("span", { class: "fix-obligation ob-" + f.group }, f.labelText || ""),
-        h("span", { class: "fix-label" }, f.label),
-        h("span", { class: "fix-room" }, f.roomLabel),
       ]),
+      h("p", { class: "fix-title" }, f.title || `${f.label} · ${f.roomLabel}`),
+      h("p", { class: "fix-change" + (f.change ? "" : " fix-change-missing") }, f.change || "Re-evaluate with current data to see the suggested change."),
       h("div", { class: "fix-meta" }, f.basis === "authority"
         ? [h("span", { class: "fix-satisfies" }, `Satisfies ${f.satisfies} of ${plural(f.of, "authority", "authorities")}`), markets]
         : [h("span", { class: "fix-satisfies" }, "International standard only — misses it for"), markets]),
@@ -264,42 +262,72 @@
     ]);
   }
 
-  const GROUP_LEDE = {
-    unclassified: "These requirements have no mandatory/recommended label yet; the domain expert's review will classify them.",
-    advisory: "Where an authority gives no number, the value is compared with the international/industry standard. This advisory group does not affect any authority's verdict.",
+
+  // The ranked list: top 3, the rest behind "Show all", and a "Mandatory
+  // only" filter when the list mixes mandatory and other gaps.
+  // Swap a built node's children: the real DOM in the browser, the plain
+  // objects h() returns in unit tests.
+  const setKids = (node, kids) => {
+    if (typeof node.replaceChildren === "function") node.replaceChildren(...kids);
+    else node.children = kids;
   };
 
-  function gapGroup(h, g, labels) {
-    const n = g.fixes.length;
-    const body = [h("h4", {}, `${g.label} (${n})`)];
-    if (GROUP_LEDE[g.key]) body.push(h("p", { class: "section-lede" }, GROUP_LEDE[g.key]));
-    body.push(h("ol", { class: "fixes fixes-top" }, g.fixes.slice(0, FIX_LIMIT).map((f) => fixItem(h, f, labels))));
-    if (n > FIX_LIMIT) {
-      body.push(h("details", { class: "show-all" }, [
-        h("summary", {}, `Show all ${n}`),
-        h("ol", { class: "fixes fixes-more", start: String(FIX_LIMIT + 1) }, g.fixes.slice(FIX_LIMIT).map((f) => fixItem(h, f, labels))),
-      ]));
-    }
-    return h("div", { class: `gap-group gap-${g.key}` }, body);
+  // The ranked list: top 3, the rest behind "Show all", and a "Mandatory
+  // only" filter when the list mixes mandatory and other gaps. Filtering
+  // rebuilds the list from the matching changes (so they lead it, numbered
+  // from 1) and announces how many are shown.
+  function rankedList(h, fixes, labels) {
+    const lists = (subset, noun) => {
+      const rows = subset.map((f) => fixItem(h, f, labels));
+      return [
+        h("ol", { class: "fixes fixes-top" }, rows.slice(0, FIX_LIMIT)),
+        rows.length > FIX_LIMIT ? h("details", { class: "show-all" }, [
+          h("summary", {}, `Show all ${rows.length} ${noun}`),
+          h("ol", { class: "fixes fixes-more", start: String(FIX_LIMIT + 1) }, rows.slice(FIX_LIMIT)),
+        ]) : null,
+      ].filter(Boolean);
+    };
+    const holder = h("div", { class: "fix-lists" }, lists(fixes, "changes"));
+    if (!(fixes.some((f) => f.mandatory) && fixes.some((f) => !f.mandatory))) return h("div", { class: "gap-group gap-gaps" }, [holder]);
+    const status = h("p", { class: "sr-only fix-filter-status", role: "status" }, "");
+    let on = false;
+    const button = h("button", {
+      type: "button", class: "secondary small fix-filter", "aria-pressed": "false",
+      onclick: (e) => {
+        on = !on;
+        const subset = on ? fixes.filter((f) => f.mandatory) : fixes;
+        setKids(holder, lists(subset, on ? "mandatory changes" : "changes"));
+        setKids(status, [on ? `Showing ${plural(subset.length, "mandatory change")}.` : `Showing all ${plural(subset.length, "change")}.`]);
+        if (e && e.currentTarget) e.currentTarget.setAttribute("aria-pressed", String(on));
+      },
+    }, "Mandatory only");
+    return h("div", { class: "gap-group gap-gaps" }, [button, status, holder]);
   }
 
-  // Cross-authority gap report (Milestone 4): every gap with its suggested
-  // change, mandatory first, ranked by how many authorities it satisfies.
+  // Cross-authority fix list: one list ranked by severity (results redesign),
+  // the legal label as a tag; advisory suggestions in a quiet group after it.
   function fixList(h, model, labels) {
-    const auth = model.fixes.filter((f) => f.basis === "authority");
+    const groups = model.gapGroups || [];
+    const main = (groups.find((g) => g.key === "gaps") || { fixes: [] }).fixes;
+    const advisory = groups.find((g) => g.key === "advisory") || { label: "", fixes: [] };
     const body = [h("h3", {}, "What to fix first")];
-    if (!auth.length && model.markets.every((m) => !m.checked)) {
-      body.push(h("p", { class: "section-lede" }, "Nothing was checked yet, so there is nothing to fix. Enter values, or choose authorities this dataset covers."));
-    } else if (!auth.length) {
-      const noValue = model.markets.some((m) => m.counts.no_value);
-      body.push(h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), "Nothing to fix against any covered authority among the values checked." + (noValue ? " Some checks have no value entered yet." : "")]));
+    if (!main.length) {
+      const checked = model.markets.some((m) => m.checked);
+      body.push(checked
+        ? h("p", { class: "positive-note" }, [glyph(h, "✓", "glyph-ok"), RM.fixSummary(model)])
+        : h("p", { class: "section-lede" }, RM.fixSummary(model)));
     } else {
-      const of = model.authorityCount || model.markets.length;
-      body.push(h("p", { class: "section-lede" }, `Every gap with a suggested change. Mandatory gaps first; within each group, the change that satisfies the most of the ${of} authorities comes first, then by severity.`));
+      body.push(h("p", { class: "section-lede" }, RM.NOTES.order));
+      if (main.some((f) => f.draft)) body.push(h("p", { class: "chart-note fix-draft-note" }, RM.NOTES.draft));
+      body.push(rankedList(h, main, labels));
     }
-    // Only non-empty groups; mandatory/recommended/unclassified hold authority
-    // gaps only, so with none they are empty and the advisory group remains.
-    (model.gapGroups || []).filter((g) => g.fixes.length).forEach((g) => body.push(gapGroup(h, g, labels)));
+    if (advisory.fixes.length) {
+      body.push(h("details", { class: "gap-group gap-advisory" }, [
+        h("summary", {}, `${advisory.label} (${advisory.fixes.length})`),
+        h("p", { class: "section-lede" }, RM.NOTES.advisory),
+        h("ol", { class: "fixes" }, advisory.fixes.map((f) => fixItem(h, f, labels))),
+      ]));
+    }
     return h("section", { class: "fix-list" }, body);
   }
 
@@ -336,7 +364,7 @@
         h("div", { class: "grid-scroll", role: "region", tabindex: "0", "aria-label": "Room by authority grid — scrolls sideways on small screens" },
           h("table", { class: "room-table" }, [
             h("caption", {}, "Gaps by room and authority"),
-            h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col", title: m.label }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.label)]))))),
+            h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Room / area")].concat(markets.map((m) => h("th", { scope: "col", title: m.place }, [h("span", { "aria-hidden": "true" }, short(m.key)), srOnly(h, m.place)]))))),
             h("tbody", {}, rows),
           ])),
         extra > 0 ? h("p", { class: "chart-note" }, `Showing ${ROOM_LIMIT} of ${model.rooms.length} rows.`) : null,
@@ -476,11 +504,12 @@
   // ---------------------------------------------------------------- one authority (Milestone 3)
 
   const ONE_STATUS = {
-    pass: { glyph: "✓", word: "Pass" },
-    fail: { glyph: "✗", word: "Fail" },
-    not_covered: { glyph: "⊘", word: "Not covered" },
-    no_value: { glyph: "?", word: "No value" },
+    pass: { glyph: "✓", word: V.status.compliant },
+    fail: { glyph: "✗", word: V.status.non_compliant },
+    not_covered: { glyph: "–", word: V.status.not_regulated },
+    no_value: { glyph: "?", word: V.status.no_value },
   };
+  const ONE_ORDER = ["fail", "pass", "no_value", "not_covered"];
   const REASON = { no_figure: "Sets no figure", no_data: "No data in dataset" };
   const ADVISORY_WORD = { pass: "met", fail: "not met" };
 
@@ -497,30 +526,49 @@
           }, c.label)))
       : null;
     if (!v) {
-      return h("section", { class: "auth-view", "aria-labelledby": "auth-heading" }, [
-        h("h3", { id: "auth-heading" }, "Results against one authority"), switcher,
+      const id = nextId("auth");
+      return h("section", { class: "auth-view", "aria-labelledby": id }, [
+        h("h3", { id }, "Results against one authority"), switcher,
         h("p", { class: "empty-state" }, "Choose a primary authority in Step 1 to see each room and requirement against it."),
       ]);
     }
     const c = v.counts;
     const verdict = VERDICT[v.verdictKey] || null;
-    return h("section", { class: "auth-view", "aria-labelledby": "auth-heading" }, [
-      h("h3", { id: "auth-heading" }, `Against ${v.label}`),
+    const countText = (n) => ONE_ORDER.filter((k) => n[k]).map((k) => `${n[k]} ${lower(ONE_STATUS[k].word)}`).join(" · ");
+    const table = (caption, rows) => scrollRegion(h, `${caption}: requirements against ${v.label}`,
+      h("table", { class: "results-table auth-table" }, [
+        h("caption", {}, caption),
+        h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Requirement"), h("th", { scope: "col" }, "Status"), h("th", { scope: "col" }, "Note")])),
+        h("tbody", {}, rows.map((r) => h("tr", { class: "auth-row st-" + r.status }, [
+          h("th", { scope: "row" }, r.label),
+          h("td", { class: "auth-status st-" + r.status }, [h("span", { "aria-hidden": "true" }, ONE_STATUS[r.status].glyph), ONE_STATUS[r.status].word]),
+          h("td", { class: "auth-note" }, [r.reason ? REASON[r.reason] : "", r.advisory ? `International standard: ${ADVISORY_WORD[r.advisory]} (advisory)` : ""].filter(Boolean).join(". ")),
+        ]))),
+      ]));
+    // One <details> per room: rooms with a failure open; rows without a
+    // result (needs value / no rule set) folded away inside.
+    const room = (rm) => {
+      const n = Object.fromEntries(ONE_ORDER.map((k) => [k, rm.rows.filter((r) => r.status === k).length]));
+      const shown = rm.rows.filter((r) => r.status === "fail" || r.status === "pass");
+      const folded = rm.rows.filter((r) => r.status !== "fail" && r.status !== "pass");
+      return h("details", { class: "auth-room", open: n.fail ? "open" : null }, [
+        h("summary", {}, [h("span", { class: "auth-room-name" }, rm.label), " ", h("span", { class: "auth-room-counts" }, countText(n))]),
+        shown.length ? table(rm.label, shown) : h("p", { class: "chart-note" }, "No requirement here has a result yet."),
+        folded.length ? h("details", { class: "auth-folded" }, [
+          h("summary", {}, `${plural(folded.length, "requirement")} without a result (needs value or no rule set)`),
+          table(`${rm.label} — without a result`, folded),
+        ]) : null,
+      ]);
+    };
+    const headingId = nextId("auth");
+    return h("section", { class: "auth-view", "aria-labelledby": headingId }, [
+      h("h3", { id: headingId }, `Evidence against ${v.label}`),
       switcher,
       h("p", { class: "auth-summary" }, [
         verdict ? h("span", { class: "auth-verdict" }, [h("span", { "aria-hidden": "true" }, verdict.glyph + " "), verdict.word]) : null,
-        `${c.pass} pass · ${c.fail} fail · ${c.not_covered} not covered · ${c.no_value} no value entered`,
+        countText(c),
       ]),
-      ...v.rooms.map((room) => scrollRegion(h, `${room.label}: requirements against ${v.label}`,
-        h("table", { class: "results-table auth-table" }, [
-          h("caption", {}, room.label),
-          h("thead", {}, h("tr", {}, [h("th", { scope: "col" }, "Requirement"), h("th", { scope: "col" }, "Status"), h("th", { scope: "col" }, "Note")])),
-          h("tbody", {}, room.rows.map((r) => h("tr", { class: "auth-row st-" + r.status }, [
-            h("th", { scope: "row" }, r.label),
-            h("td", { class: "auth-status st-" + r.status }, [h("span", { "aria-hidden": "true" }, ONE_STATUS[r.status].glyph), ONE_STATUS[r.status].word]),
-            h("td", { class: "auth-note" }, [r.reason ? REASON[r.reason] : "", r.advisory ? `International standard: ${ADVISORY_WORD[r.advisory]} (advisory)` : ""].filter(Boolean).join(". ")),
-          ]))),
-        ]))),
+      ...v.rooms.map(room),
     ]);
   }
 
@@ -530,26 +578,26 @@
     return Number.isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   };
 
+  // Order (results redesign): verdict per market → top fixes → room grid →
+  // range charts → per-authority detail → primary-authority evidence last.
   function resultsPage(h, s, model, opts = {}) {
-    const labels = opts.labels || { market: (mk) => (model.markets.find((m) => m.key === mk) || {}).label || mk };
-    const hasComparison = !!model && !model.empty;
+    const labels = opts.labels || { market: (mk) => ((model && model.markets.find((m) => m.key === mk)) || {}).label || mk };
     const dataDate = opts.dataDate ? h("p", { class: "data-date" }, "Benchmark data as of " + formatDay(opts.dataDate)) : null;
-    const primary = opts.authority
-      ? [authorityView(h, opts.authority), hasComparison ? h("h3", { class: "compare-heading" }, "Compare with other authorities") : null]
-      : [];
-    primary.unshift(dataDate);
+    const evidence = opts.authority ? authorityView(h, opts.authority) : null;
     if (!model || model.empty) {
-      return h("div", { class: "results-page" }, primary.concat(h("p", { class: "empty-state" }, "No results to show yet — select at least one target market and room, then enter values.")));
+      return h("div", { class: "results-page" }, [dataDate, emptyPanel(h, "No results yet", "Select at least one target market and room, then enter values."), evidence]);
     }
+    const checked = model.markets.some((m) => m.checked);
     return h("div", { class: "results-page" + (opts.stale ? " results-stale" : "") }, [
-      ...primary,
-      hero(h, s, model, opts),
+      dataDate,
+      verdictSection(h, s, model, opts),
+      checked ? fixList(h, model, labels) : emptyPanel(h, "Nothing was checked yet", RM.fixSummary(model)),
+      checked ? roomGrid(h, model) : null,
+      checked ? numericSection(h, s, opts.numeric, { labels, stale: opts.stale }) : null,
       scorecards(h, s, model),
-      fixList(h, model, labels),
-      roomGrid(h, model),
-      numericSection(h, s, opts.numeric, { labels, stale: opts.stale }),
+      evidence,
     ]);
   }
 
-  return { GLYPH, formatDay, resultsPage, authorityView, heroSentence, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
+  return { GLYPH, formatDay, resultsPage, authorityView, verdictSection, scorecards, fixList, roomGrid, numericSection, segmentedBar, scrollRegion };
 });

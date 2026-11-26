@@ -126,7 +126,7 @@ async function scenes(page, viewport, projectId) {
   const shown = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
   check(`results grid starts capped (${shown} rows shown)`, shown <= 16, `${shown} rows`);
   await audit(page, `step 4 results, ${roomCount} rooms`);
-  await page.locator("#step-4 button:has-text('Show all')").first().click();
+  await page.locator("#step-4 button.show-rows").click();
   const after = await page.locator("#step-4 .grid-scroll tbody tr:not([hidden])").count();
   check(`"Show all" reveals every room row (${after})`, after > shown, `${shown} → ${after}`);
   await audit(page, `step 4 results, ${roomCount} rooms, all rows shown`);

@@ -30,6 +30,6 @@ Cost/effort per fix — needs new data from the domain expert.
 ## Status
 | Phase | Status |
 |---|---|
-| 1 | pending |
+| 1 | done (verdict per market first, shared vocabulary, severity-ranked fix list with tags + Mandatory-only filter, honest counts, folded evidence; export matches) |
 | 2 | pending |
 | 3 | pending |
