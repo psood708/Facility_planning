@@ -92,8 +92,7 @@ test("one vocabulary on screen: Has gaps / Minor / Needs value / No rule set —
 
 test("every chart is a figure with a caption, a labelled SVG and a table view", () => {
   const page = live();
-  const svgs = all(page, (n) => n.ns === "svg" && n.tag === "svg");
-  assert.ok(svgs.length >= 5, `found ${svgs.length} svgs`);
+  const svgs = all(page, (n) => n.ns === "svg" && n.tag === "svg").filter((n) => n.attrs["aria-hidden"] !== "true");
   for (const svg of svgs) {
     assert.equal(svg.attrs.role, "img");
     const [t, d] = svg.attrs["aria-labelledby"].split(" ");
@@ -106,6 +105,7 @@ test("every chart is a figure with a caption, a labelled SVG and a table view", 
   assert.ok(figures.length >= 3);
   for (const f of figures) {
     assert.ok(find(f, tag("figcaption")), "figcaption");
+    assert.equal(find(find(f, tag("figcaption")), cls("fig-title")).tag, "h4", "the figure title is a heading");
     const table = find(f, tag("table"));
     assert.ok(table, "figure has a table (or table view)");
     assert.ok(find(table, tag("caption")), "table caption");
@@ -301,13 +301,17 @@ const busy = () => {
 test("room grid: scrollable labelled region, glyph + text in cells, capped at 15 rows", () => {
   const page = live(busy());
   const region = find(page, cls("grid-scroll"));
-  assert.equal(region.attrs.role, "region");
-  assert.equal(region.attrs.tabindex, "0");
-  assert.ok(region.attrs["aria-label"]);
+  assert.ok(region.attrs["data-region-label"], "named once it scrolls (syncScrollRegions)");
   const rows = all(find(region, tag("tbody")), tag("tr"));
   assert.ok(rows.length > 15);
   assert.equal(rows.filter((r) => !r.attrs.hidden).length, 15);
-  assert.ok(find(page, (n) => n.tag === "button" && /Show all \d+ rooms/.test(text(n))));
+  const btn = find(page, (n) => n.tag === "button" && /Show all \d+ rooms/.test(text(n)));
+  assert.ok(btn);
+  assert.equal(rows[15].children[0].attrs.tabindex, "-1", "the first revealed row can take focus");
+  btn.attrs.onclick({ currentTarget: btn });
+  assert.equal(rows.filter((r) => r.hidden === false || !r.attrs.hidden).length, rows.length);
+  assert.match(text(find(page, cls("grid-status"))), new RegExp(`Showing all ${rows.length} rooms`));
+  assert.equal(find(page, cls("grid-status")).attrs.role, "status");
   const fail = find(region, cls("cell-fail"));
   assert.match(text(fail), /✗/);
   assert.match(text(fail), /not met/);
@@ -473,22 +477,67 @@ test("markup-looking labels stay text", () => {
   assert.ok(all(page, (n) => n.children.includes(evil)).length > 0);
 });
 
-// axe "scrollable-region-focusable" (found by e2e/a11y.e2e.js): anything that
-// can scroll sideways must be reachable by keyboard and named.
-test("every scrolling wrapper is a focusable, labelled region", () => {
-  const page = live();
-  const scrollers = all(page, (n) => cls("table-scroll")(n) || cls("grid-scroll")(n));
-  assert.ok(scrollers.length >= 2, "expected the table views and the room grid to scroll");
+// Regions only where a wrapper actually scrolls (Phase 3): views mark every
+// scroller with its name; syncScrollRegions() (browser) makes the ones that
+// overflow a focusable, named region and leaves the rest alone.
+test("scrollers carry their name but are not regions until they overflow", () => {
+  const scrollers = all(live(), (n) => cls("table-scroll")(n) || cls("grid-scroll")(n));
+  assert.ok(scrollers.length >= 2);
   for (const n of scrollers) {
-    assert.equal(n.attrs.role, "region", JSON.stringify(n.attrs));
-    assert.equal(String(n.attrs.tabindex), "0");
-    assert.ok((n.attrs["aria-label"] || "").trim().length > 0, "region needs a name");
+    assert.ok((n.attrs["data-region-label"] || "").trim(), "name ready for syncScrollRegions");
+    assert.equal(n.attrs.role, undefined);
+    assert.equal(n.attrs.tabindex, undefined);
   }
 });
 
-test("scrollRegion builds the same focusable, labelled wrapper for app.js detail tables", () => {
+test("syncScrollRegions: overflowing scrollers become focusable named regions; others stop being regions", () => {
+  const el = (scrollWidth, clientWidth) => {
+    const attrs = { role: "region", tabindex: "0", "aria-label": "old" };
+    return { scrollWidth, clientWidth, attrs, dataset: { regionLabel: "Gaps by room" },
+      setAttribute(k, v) { attrs[k] = v; }, removeAttribute(k) { delete attrs[k]; } };
+  };
+  const wide = el(900, 300), fits = el(300, 300);
+  view.syncScrollRegions({ querySelectorAll: () => [wide, fits] });
+  assert.deepEqual(wide.attrs, { role: "region", tabindex: "0", "aria-label": "Gaps by room" });
+  assert.deepEqual(fits.attrs, {});
+});
+
+test("scrollRegion builds the wrapper app.js uses for its detail tables", () => {
   const r = view.scrollRegion(h, "Detailed parameter status", h("table", {}, []));
-  assert.deepEqual([r.attrs.class, r.attrs.role, String(r.attrs.tabindex), r.attrs["aria-label"]], ["table-scroll", "region", "0", "Detailed parameter status"]);
+  assert.deepEqual([r.attrs.class, r.attrs["data-region-label"], r.attrs.role], ["table-scroll", "Detailed parameter status", undefined]);
+});
+
+test("every 'View as table' and 'Show all' has a unique name", () => {
+  const page = live(busy());
+  const names = (re) => all(page, (n) => (n.tag === "summary" || n.tag === "button") && re.test(text(n))).map((n) => text(n).replace(/\s+/g, " ").trim());
+  const views = names(/^View as table/);
+  assert.ok(views.length >= 3);
+  assert.equal(new Set(views).size, views.length, views.join(" | "));
+  views.forEach((v) => assert.match(v, /^View as table: \S/));
+  const shows = names(/^Show all/);
+  assert.ok(shows.length >= 2);
+  assert.equal(new Set(shows).size, shows.length, shows.join(" | "));
+});
+
+test("bars and range charts repeat their numbers in text, so their SVG is hidden from screen readers", () => {
+  const page = live();
+  for (const svg of all(find(page, cls("scorecards")), (n) => n.ns === "svg" && n.tag === "svg")) assert.equal(svg.attrs["aria-hidden"], "true");
+  for (const svg of all(find(page, cls("numeric-section")), (n) => n.ns === "svg" && n.tag === "svg")) assert.equal(svg.attrs["aria-hidden"], "true");
+  assert.equal(find(find(page, cls("scorecards")), cls("sc-name")).tag, "h5", "card names sit under the figure's h4");
+});
+
+test("authority names come from screen-reader text, never a title tooltip", () => {
+  const page = report(demo(), { authority: authorityOpts() });
+  assert.deepEqual(all(page, (n) => n.ns === "html" && n.attrs.title !== undefined).map((n) => n.tag), []);
+});
+
+test("range charts: a closed limit has a visible edge line; an open side has none", () => {
+  const g = [{ id: "o", room: null, roomLabel: "Facility", label: "Pressure", unit: "Pa", entered: 5, conflict: null, fallback: null, state: "fail", severity: "Partial",
+    bands: { eu_gmp: { min: 10, max: null, status: "non_compliant" }, us_fda: { min: 10, max: 20, status: "non_compliant" } } }];
+  const rows = all(find(view.numericSection(h, s, g, { labels: LABELS }), cls("bullet")), cls("bullet-row"));
+  const edges = (r) => all(r, (n) => n.ns === "svg" && cls("band-edge")(n)).length;
+  assert.equal(edges(rows.find((r) => /United States/.test(text(r)))), 2);
+  assert.equal(edges(rows.find((r) => /European Union/.test(text(r)))), 1);
 });
 
 // ---------------------------------------------------------------- one authority (Milestone 3)
