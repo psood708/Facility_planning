@@ -148,11 +148,15 @@ In the Supabase dashboard:
 - `SUPABASE_URL`: `https://<project-ref>.supabase.co`
 - `SUPABASE_ANON_KEY`: the anon / publishable key
 
-The build fails if it's given a secret or service-role key, a non-Supabase URL, or if anything secret-looking ends up in the output. **Never put the secret / service-role key in Vercel, the repo or the page.**
+- `TURNSTILE_SITE_KEY` (recommended): the Cloudflare Turnstile **site** key. This turns on the sign-in CAPTCHA, so nobody can use the form to flood inboxes. Put the matching **secret** key only in Supabase (**Authentication → Attack Protection → CAPTCHA → Turnstile**). Without a site key, no CAPTCHA is shown, as in local development.
+
+The build fails if it's given a secret or service-role key, a non-Supabase URL, a malformed Turnstile key, or if anything secret-looking ends up in the output. **Never put the secret / service-role key in Vercel, the repo or the page.**
+
+Each account can hold up to 200 saved projects (migration `20261126120000_project_cap.sql`). At the limit, the app asks the user to delete one before saving.
 
 ## Security notes
 
-- **Headers:** CSP: scripts and styles from the site only, no inline code, no framing; `connect-src` is limited to Supabase and pinned to your project at build time. `'wasm-unsafe-eval'` lets the in-browser OCR compile WebAssembly; it does not allow `eval()`. Also HSTS, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy and COOP.
+- **Headers:** CSP: scripts and styles from the site only (plus Cloudflare's Turnstile script and challenge frame for the sign-in CAPTCHA), no inline code, no framing of this site; `connect-src` is limited to Supabase and pinned to your project at build time. `'wasm-unsafe-eval'` lets the in-browser OCR compile WebAssembly; it does not allow `eval()`. Also HSTS, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy and COOP.
 - **Untrusted payloads:** saved payloads are validated before use (unknown keys, prototype keys, IDs not in the dataset, wrong value types and oversized fields are all rejected). The database repeats the size and format checks.
 - **PDF intake:** the chosen PDF stays in the browser (no request carries it, and the OCR model isn't cached). Document text is treated as untrusted: it is shown only as text, and values reach the project only through `validateInputs`.
 - **No HTML injection:** the page never turns text into HTML. A test fails if any script uses an HTML-parsing sink.

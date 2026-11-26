@@ -105,6 +105,20 @@ test("sendLink: rate limiting is reported so the UI can ask the user to wait", a
   assert.deepEqual(await createAuth({ client: sb, location }).sendLink("a@example.com"), { ok: false, reason: "rate_limited" });
 });
 
+// CAPTCHA (Cloudflare Turnstile, on when a site key is configured).
+test("sendLink: a CAPTCHA token goes to Supabase with the request; none is sent when there isn't one", async () => {
+  const sb = fakeSupabase();
+  await createAuth({ client: sb, location }).sendLink("a@example.com", { captchaToken: "tok-123" });
+  assert.equal(sb.calls[0][1].options.captchaToken, "tok-123");
+  await createAuth({ client: sb, location }).sendLink("a@example.com");
+  assert.equal("captchaToken" in sb.calls[1][1].options, false);
+});
+
+test("sendLink: a rejected CAPTCHA says so (it reveals nothing about the account)", async () => {
+  const sb = fakeSupabase({ error: { status: 400, code: "captcha_failed", message: "captcha protection: request disallowed" } });
+  assert.deepEqual(await createAuth({ client: sb, location }).sendLink("a@example.com", { captchaToken: "bad" }), { ok: false, reason: "captcha" });
+});
+
 test("signOut ends the session everywhere (revokes refresh tokens)", async () => {
   const sb = fakeSupabase();
   await createAuth({ client: sb, location }).signOut();
@@ -125,12 +139,13 @@ test("vendored supabase-js matches the pinned devDependency and index.html's int
   assert.equal(tag[1], "sha384-" + crypto.createHash("sha384").update(file).digest("base64"));
 });
 
-test("config.js holds only the public URL and a public (anon/publishable) key", () => {
+test("config.js holds only the public URL, a public (anon/publishable) key and the public CAPTCHA site key", () => {
   const src = fs.readFileSync(path.join(ROOT, "config.js"), "utf8");
   const ctx = { window: {} };
   vm.runInNewContext(src, ctx);
-  assert.deepEqual(Object.keys(ctx.window.APP_CONFIG).sort(), ["supabaseAnonKey", "supabaseUrl"]);
-  const { supabaseUrl, supabaseAnonKey } = ctx.window.APP_CONFIG;
+  assert.deepEqual(Object.keys(ctx.window.APP_CONFIG).sort(), ["supabaseAnonKey", "supabaseUrl", "turnstileSiteKey"]);
+  const { supabaseUrl, supabaseAnonKey, turnstileSiteKey } = ctx.window.APP_CONFIG;
+  assert.ok(turnstileSiteKey === null || /^[0-9]x[0-9A-Za-z_-]{10,80}$/.test(turnstileSiteKey), "site key (public) or null");
   assert.match(supabaseUrl, /^(https:\/\/[a-z0-9-]+\.supabase\.co|http:\/\/127\.0\.0\.1:54321)$/);
   if (supabaseAnonKey.startsWith("sb_")) assert.match(supabaseAnonKey, /^sb_publishable_/);
   else assert.equal(JSON.parse(Buffer.from(supabaseAnonKey.split(".")[1], "base64url")).role, "anon");

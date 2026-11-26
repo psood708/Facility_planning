@@ -40,7 +40,9 @@ test("R13: every response carries a strict CSP", () => {
   const d = Object.fromEntries(csp.split(";").map((s) => s.trim()).filter(Boolean).map((s) => { const [k, ...v] = s.split(/\s+/); return [k, v]; }));
   assert.deepEqual(d["default-src"], ["'self'"]);
   // 'wasm-unsafe-eval' lets the in-browser OCR compile WebAssembly; it does not allow eval().
-  assert.deepEqual(d["script-src"], ["'self'", "'wasm-unsafe-eval'"]);
+  // Cloudflare Turnstile (sign-in CAPTCHA) needs its script and challenge frame.
+  assert.deepEqual(d["script-src"], ["'self'", "'wasm-unsafe-eval'", "https://challenges.cloudflare.com"]);
+  assert.deepEqual(d["frame-src"], ["https://challenges.cloudflare.com"]);
   assert.deepEqual(d["worker-src"], ["'self'"]);
   assert.deepEqual(d["style-src"], ["'self'"]);
   assert.deepEqual(d["object-src"], ["'none'"]);
@@ -105,6 +107,17 @@ test("build writes config.js from the environment and pins connect-src to that o
   assert.ok(cfg.includes(PROD.SUPABASE_ANON_KEY));
   const html = fs.readFileSync(path.join(r.out, "index.html"), "utf8");
   assert.match(html, /<meta http-equiv="Content-Security-Policy" content="[^"]*connect-src 'self' https:\/\/abcdefghijklmnop\.supabase\.co;[^"]*">/);
+});
+
+test("build writes the Turnstile site key when set, null when not, and refuses a malformed one", () => {
+  const on = build({ ...PROD, TURNSTILE_SITE_KEY: "0x4AAAAAAABkMYinukE8nzYS" });
+  assert.equal(on.status, 0, on.stderr);
+  assert.match(fs.readFileSync(path.join(on.out, "config.js"), "utf8"), /turnstileSiteKey: "0x4AAAAAAABkMYinukE8nzYS"/);
+  const off = build(PROD);
+  assert.match(fs.readFileSync(path.join(off.out, "config.js"), "utf8"), /turnstileSiteKey: null/);
+  const bad = build({ ...PROD, TURNSTILE_SITE_KEY: "<script>" });
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /TURNSTILE_SITE_KEY/);
 });
 
 test("build refuses a secret key, a missing value or a non-Supabase URL", () => {

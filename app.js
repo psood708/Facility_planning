@@ -1318,7 +1318,30 @@ const SIGNIN_MESSAGES = {
   invalid_email: "Enter a valid email address.",
   rate_limited: "Too many requests. Wait a minute, then try again.",
   network: "Couldn't reach the server. Check your connection and try again.",
+  captcha: "The security check didn't pass. Complete it again, then send the link.",
+  captcha_needed: "Complete the security check above, then send the link.",
+  captcha_unavailable: "The security check couldn't load. Check your connection or turn off content blockers for this site, then reload the page.",
 };
+
+// Sign-in CAPTCHA (Cloudflare Turnstile): on only when the build sets a site
+// key, so local development and the tests run without it. Supabase checks
+// the token; it is single-use, so the widget resets after every attempt.
+let turnstileLoading = null;
+function loadTurnstile() {
+  if (!turnstileLoading) {
+    turnstileLoading = new Promise((resolve, reject) => {
+      if (window.turnstile) return resolve(window.turnstile);
+      const sc = document.createElement("script");
+      sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      sc.async = true;
+      sc.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error("captcha")));
+      sc.onerror = () => reject(new Error("captcha"));
+      document.head.appendChild(sc);
+    });
+    turnstileLoading.catch(() => { turnstileLoading = null; });
+  }
+  return turnstileLoading;
+}
 
 function renderSignIn() {
   const root = document.getElementById("view-signin");
@@ -1338,6 +1361,21 @@ function renderSignIn() {
     required: "required", maxlength: "254", spellcheck: "false", "aria-describedby": "signin-email-hint",
   });
   const button = h("button", { type: "submit" }, "Email me a sign-in link");
+  const siteKey = (window.APP_CONFIG || {}).turnstileSiteKey || null;
+  let captchaToken = null;
+  let widgetId = null;
+  const captchaBox = siteKey ? h("div", { class: "captcha-box", id: "signin-captcha" }) : null;
+  if (siteKey) {
+    loadTurnstile().then((t) => {
+      widgetId = t.render(captchaBox, {
+        sitekey: siteKey,
+        action: "signin",
+        callback: (token) => { captchaToken = token; },
+        "expired-callback": () => { captchaToken = null; },
+        "error-callback": () => { captchaToken = null; },
+      });
+    }).catch(() => setNotice(status, SIGNIN_MESSAGES.captcha_unavailable, true));
+  }
   const form = h(
     "form",
     {
@@ -1347,11 +1385,13 @@ function renderSignIn() {
       onsubmit: async (e) => {
         e.preventDefault();
         if (button.disabled) return;
+        if (siteKey && !captchaToken) { setNotice(status, SIGNIN_MESSAGES.captcha_needed, true); return; }
         button.disabled = true;
         button.setAttribute("aria-busy", "true");
         clear(button);
         button.appendChild(document.createTextNode("Sending…"));
-        const r = await AUTH.sendLink(input.value).catch(() => ({ ok: false, reason: "network" }));
+        const r = await AUTH.sendLink(input.value, { captchaToken }).catch(() => ({ ok: false, reason: "network" }));
+        if (siteKey) { captchaToken = null; if (window.turnstile && widgetId !== null) window.turnstile.reset(widgetId); }
         button.disabled = false;
         button.removeAttribute("aria-busy");
         clear(button);
@@ -1370,6 +1410,7 @@ function renderSignIn() {
         h("span", { class: "field-note", id: "signin-email-hint" }, "For example, name@company.com"),
         input,
       ]),
+      captchaBox,
       button,
     ]
   );

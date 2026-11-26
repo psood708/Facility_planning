@@ -838,3 +838,4 @@ details.threshold-detail { margin-top: var(--space-1); }
 .intake-apply { position: sticky; bottom: calc(var(--nav-h) + 1px); background: var(--neutral-bg); padding: var(--space-2) 0; margin-bottom: 0; z-index: 1; }
 .intake-from { color: var(--accent-dark); }
 @media (max-height: 520px) { .intake-apply { bottom: 0; } }
+.captcha-box { margin: var(--space-3) 0; min-height: 65px; }
