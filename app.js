@@ -1446,6 +1446,7 @@ function errorText(e) {
   if (e && e.code === "invalid") return "Can't save yet: " + e.errors.join("; ");
   if (e && e.code === "invalid_project") return "This saved project couldn't be loaded safely.";
   if (e && e.code === "too_large") return e.message;
+  if (e && e.code === "limit") return e.message;
   if (e && e.serverCode === "PGRST301") return "Your session has expired. Sign in again.";
   return "Couldn't reach the server. Check your connection and try again.";
 }

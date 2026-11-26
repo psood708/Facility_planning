@@ -87,6 +87,11 @@ test("server errors surface as StoreError with the server code", async () => {
 
 // ---------------------------------------------------------------- create / update
 
+test("create: the per-user project cap comes back as a clear 'limit' error", async () => {
+  const s = store(fakeClient(() => ({ data: null, error: { code: "54000", message: "project limit reached (200)" } })));
+  await assert.rejects(s.create({ name: "One more", notes: "", state: filled() }), (e) => e instanceof StoreError && e.code === "limit" && /200 saved projects/.test(e.message) && /Delete/.test(e.message));
+});
+
 test("create: validates before sending; invalid input never reaches the server", async () => {
   const c = fakeClient();
   await assert.rejects(store(c).create({ name: "", notes: "", state: filled() }), (e) => e.code === "invalid" && /name/.test(e.errors.join()));
