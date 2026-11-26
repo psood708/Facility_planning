@@ -27,6 +27,7 @@ function makeState(overrides = {}) {
     devStage: null,
     specificForms: [],
     targetMarkets: ["schedule_m"],
+    primaryAuthority: "schedule_m",
     scaleSize: "Medium",
     batchSize: "",
     selectedRooms: [],

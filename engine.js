@@ -10,6 +10,10 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // Bump (and match package.json "version") whenever evaluation logic changes:
+  // saved projects record it so results can be reproduced or flagged as stale.
+  const ENGINE_VERSION = "0.2.0";
+
   const GRADE_HIERARCHY = ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"];
   const GRADE_TAG_TO_LABEL = { A: "Grade A (ISO 5)", B: "Grade B", C: "Grade C (ISO 7)", D: "Grade D (ISO 8)", Unclassified: "Unclassified/CNC", Controlled: "Unclassified/CNC", Technical: "Unclassified/CNC" };
 
@@ -104,8 +108,40 @@
     return a ? a.label : mk;
   }
 
+  // ---------------------------------------------------------------- gap report (Milestone 4)
+  // The cross-authority report compares every covered authority, once per
+  // dataset: authorities that share a data key (EU-GMP and PIC/S) are one
+  // combined authority, represented by the first key in data order.
+  function reportAuthorities(DATA) {
+    const groups = new Map();
+    for (const a of DATA.authorities) {
+      if (!a.covered || !a.data_key) continue;
+      if (!groups.has(a.data_key)) groups.set(a.data_key, []);
+      groups.get(a.data_key).push(a);
+    }
+    return [...groups.values()].map((as) => ({ key: as[0].key, keys: as.map((a) => a.key), label: as.map((a) => a.label).join(" / ") }));
+  }
+
+  function reportKeyFor(DATA, mk) {
+    const r = reportAuthorities(DATA).find((a) => a.keys.includes(mk));
+    return r ? r.key : null;
+  }
+
+  function reportLabel(DATA, mk) {
+    const r = reportAuthorities(DATA).find((a) => a.keys.includes(mk));
+    return r ? r.label : marketLabel(DATA, mk);
+  }
+
+  // The state the report is evaluated with: every covered authority, whatever
+  // the planner ticked. A copy; the project's own state is never changed.
+  function reportState(DATA, state) {
+    return { ...state, targetMarkets: reportAuthorities(DATA).map((a) => a.key) };
+  }
+
+  // Authorities named in suggested changes, as the report names them
+  // ("EU-GMP / PIC/S" once, not twice).
   function labelList(DATA, keys) {
-    return keys.map((k) => marketLabel(DATA, k)).join(", ");
+    return [...new Set(keys.map((k) => reportLabel(DATA, k)))].join(", ");
   }
 
   // -------------------------------------------------------------------
@@ -538,7 +574,32 @@
     return active;
   }
 
+  // Everything the results page shows, computed once. Checklist (boolean)
+  // rows count towards each market's rollup with the same status everywhere.
+  function evaluateAll(DATA, state) {
+    const rows = buildEvaluationRows(DATA, state);
+    const booleanRows = buildBooleanRows(DATA, state);
+    const booleanAsRows = booleanRows.map((br) => ({
+      threshold: br.threshold,
+      param: br.param,
+      evalResult: { perMarket: Object.fromEntries(state.targetMarkets.map((mk) => [mk, { status: br.status }])) },
+    }));
+    return {
+      rows,
+      booleanRows,
+      rollup: computeMarketRollup(DATA, state, rows.concat(booleanAsRows)),
+      recommendations: buildRecommendations(DATA, state, rows),
+      structural: checkStructuralFlags(DATA, state),
+    };
+  }
+
   return {
+    ENGINE_VERSION,
+    evaluateAll,
+    reportAuthorities,
+    reportKeyFor,
+    reportLabel,
+    reportState,
     GRADE_HIERARCHY,
     GRADE_TAG_TO_LABEL,
     SEVERITY_RANK,

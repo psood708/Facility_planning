@@ -8,19 +8,9 @@
 // Constants not carried in the data files (UI-only groupings)
 // ---------------------------------------------------------------------
 
-const CATEGORY_DEFS = [
-  { key: "ext_prep", label: "External Preparations", desc: "Liquids, creams, ointments, gels, dusting powders" },
-  { key: "osd_production", label: "OSD Production", desc: "Commercial-scale tablets, capsules, oral powders, MDF, buccal film" },
-  { key: "osd_rnd_pilot", label: "OSD R&D / Pilot Plant", desc: "Non-commercial development & pilot-scale OSD work" },
-  { key: "sterile", label: "Sterile", desc: "Parenterals, ophthalmics, dry-powder reconstitution, implants" },
-];
-
-const SPECIFIC_FORMS = {
-  ext_prep: ["Liquid", "Emulsion", "Suspension", "Cream", "Ointment", "Gel", "Dusting Powder"],
-  osd_production: ["Tablet (Uncoated)", "Tablet (Coated)", "Tablet (Extended Release)", "Tablet (Modified Release)", "Capsule", "Oral Powder", "MDF (Mouth Dissolving Film)", "Buccal Film"],
-  osd_rnd_pilot: ["Tablet (Uncoated)", "Tablet (Coated)", "Tablet (Extended Release)", "Tablet (Modified Release)", "Capsule", "Oral Powder", "MDF (Mouth Dissolving Film)", "Buccal Film"],
-  sterile: ["Sterile Liquid (Vial)", "Sterile Liquid (Ampoule)", "Sterile Liquid (PFS)", "Sterile Liquid (Cartridge)", "Ophthalmic Drops", "Ophthalmic Ointment", "Dry Powder Reconstitution", "Implant"],
-};
+// Category and dosage-form lists are shared with saved-project validation.
+const { CATEGORY_DEFS, SPECIFIC_FORMS, resolveInputKind } = ProjectState;
+const WizardView = ProjectsView.wizard; // step validation, error summary, stepper, room filter
 
 const OPTION_OVERRIDES = {
   "UTIL-001": ["Class 1", "Class 1.2.1", "Class 2"],
@@ -61,10 +51,35 @@ function h(tag, attrs = {}, children = []) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === null || v === undefined) continue;
+    // No "html" option on purpose: every string reaches the page as text (R7/R8).
+    if (k === "html") throw new Error('h(): "html" is not supported; pass text or elements as children');
     if (k === "class") el.className = v;
-    else if (k === "html") el.innerHTML = v;
-    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
-    else el.setAttribute(k, v);
+    else if (k.startsWith("on")) {
+      if (typeof v !== "function") throw new Error(`h(): ${k} must be a function, not a string`);
+      el.addEventListener(k.slice(2), v);
+    } else el.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach((c) => {
+    if (c === null || c === undefined || c === false) return;
+    el.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+
+// SVG counterpart of h() for the results charts. Same rules: no "html", no
+// string event handlers, and no inline "style" (blocked by the CSP — colour
+// comes from CSS classes; geometry from SVG attributes).
+const SVG_NS = "http://www.w3.org/2000/svg";
+function s(tag, attrs = {}, children = []) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined) continue;
+    if (k === "html") throw new Error('s(): "html" is not supported; pass text or elements as children');
+    if (k === "style") throw new Error('s(): inline "style" is blocked by the CSP; use a class');
+    if (k.startsWith("on")) {
+      if (typeof v !== "function") throw new Error(`s(): ${k} must be a function, not a string`);
+      el.addEventListener(k.slice(2), v);
+    } else el.setAttribute(k, v);
   }
   (Array.isArray(children) ? children : [children]).forEach((c) => {
     if (c === null || c === undefined || c === false) return;
@@ -88,7 +103,124 @@ async function loadData() {
   files.forEach((f, i) => (data[f] = results[i]));
   // Optional: without provenance every result shows "Citation pending" / "Unclassified".
   data.provenance = await fetch("data/provenance.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // Content hash (saved projects) and the date the benchmark data last changed (reports).
+  data.manifest = await fetch("data/manifest.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   return FacilityEngine.indexData(data);
+}
+
+// ---------------------------------------------------------------------
+// Wizard step chrome: headings, inline validation errors
+// ---------------------------------------------------------------------
+
+// Errors from the last Next attempt: { step, issues }. Only fields that were
+// flagged stay flagged; fixing one removes it without waiting for Next.
+let stepErrors = null;
+
+function currentIssues(n) {
+  if (!stepErrors || stepErrors.step !== n) return [];
+  const flagged = new Set(stepErrors.issues.map((i) => i.field));
+  return WizardView.stepIssues(n, state).filter((i) => flagged.has(i.field));
+}
+const issueFor = (n, field) => currentIssues(n).find((i) => i.field === field) || null;
+
+// Step heading block. The h2 takes programmatic focus after Back/Next
+// (tabindex="-1"), and names the step's region via aria-labelledby.
+function stepHead(n, intro) {
+  const root = document.getElementById("step-" + n);
+  root.setAttribute("aria-labelledby", `step-${n}-title`);
+  return h("div", { class: "step-head" }, [
+    h("p", { class: "step-eyebrow" }, `Step ${n} of ${WizardView.STEP_COUNT}`),
+    h("h2", { id: `step-${n}-title`, tabindex: "-1" }, WizardView.STEP_TITLES[n - 1]),
+    intro ? h("p", { class: "step-intro" }, intro) : null,
+  ]);
+}
+
+function errorSummaryFor(n) {
+  return WizardView.errorSummary(h, currentIssues(n), { onSelect: focusField, idPrefix: "step-" + n });
+}
+
+// A fieldset that can carry an inline error: the message sits right after the
+// legend and is added to aria-describedby so it is read with the group name.
+function groupField(n, field, { legend, hint, extraClass, children }) {
+  const issue = issueFor(n, field);
+  const hintId = hint ? `hint-${field}` : null;
+  return h("fieldset", {
+    id: "fs-" + field,
+    class: ["field-set", extraClass, issue ? "has-error" : ""].filter(Boolean).join(" "),
+    "aria-describedby": WizardView.describedBy(issue ? "error-" + field : null, hintId),
+  }, [
+    h("legend", {}, legend),
+    issue ? WizardView.fieldError(h, issue) : null,
+    hint ? h("p", { class: "field-hint", id: hintId }, hint) : null,
+  ].concat(children));
+}
+
+// Summary item → its field: focus the checked option, else the first one.
+function focusField(field) {
+  const box = document.getElementById("fs-" + field);
+  if (!box) return;
+  const target = box.querySelector("input:checked") || box.querySelector("input, select, textarea, button");
+  if (target) target.focus();
+}
+
+// Live-update errors as the user fixes them (Next re-validates everything).
+function refreshStepErrors() {
+  if (!stepErrors || stepErrors.step !== state.step) return;
+  const issues = currentIssues(state.step);
+  const before = stepErrors.issues.map((i) => i.field).join();
+  if (issues.map((i) => i.field).join() === before) return;
+  stepErrors = issues.length ? { step: state.step, issues } : null;
+  const root = document.getElementById("step-" + state.step);
+  const remaining = new Set(issues.map((i) => i.field));
+  root.querySelectorAll(".field-error").forEach((el) => {
+    const field = el.id.replace(/^error-/, "");
+    if (remaining.has(field)) return;
+    const box = document.getElementById("fs-" + field);
+    if (box) {
+      box.classList.remove("has-error");
+      const rest = (box.getAttribute("aria-describedby") || "").split(" ").filter((id) => id && id !== el.id).join(" ");
+      if (rest) box.setAttribute("aria-describedby", rest); else box.removeAttribute("aria-describedby");
+    }
+    el.remove();
+  });
+  const old = root.querySelector(".error-summary");
+  if (old) {
+    const next = errorSummaryFor(state.step);
+    if (next) old.replaceWith(next); else old.remove();
+  }
+}
+
+// Re-rendering replaces the controls, so put focus back on the same one.
+function refocus(id) {
+  const el = document.getElementById(id);
+  if (el && el.focus) el.focus();
+}
+
+// Native radios styled as cards: the browser supplies role, arrow keys,
+// checked state and the group name (from the fieldset legend).
+function radioCards(name, options, selected, onPick, compact) {
+  return h("div", { class: "choice-grid" + (compact ? " compact" : "") }, options.map((o) => {
+    const id = `${name}-${o.key}`.replace(/[^A-Za-z0-9_-]/g, "_");
+    return h("label", { class: "choice-card" + (selected === o.key ? " selected" : ""), for: id }, [
+      h("input", {
+        type: "radio", name, id, value: o.key,
+        checked: selected === o.key ? "checked" : null,
+        "aria-describedby": o.desc ? id + "-desc" : null,
+        onchange: () => { onPick(o.key); refocus(id); },
+      }),
+      h("span", {}, [
+        h("span", { class: "choice-title" }, o.label),
+        o.desc ? h("span", { class: "choice-desc", id: id + "-desc" }, o.desc) : null,
+      ]),
+    ]);
+  }));
+}
+
+function checkRow(id, checked, onToggle, label, extras) {
+  return h("label", { class: "check-row" + (extras && extras.rowClass ? " " + extras.rowClass : ""), for: id }, [
+    h("input", { type: "checkbox", id, checked: checked ? "checked" : null, disabled: extras && extras.disabled ? "disabled" : null, onchange: (e) => onToggle(e.target.checked) }),
+    h("span", { class: "row-text" }, [h("span", { class: "row-label" }, label)].concat((extras && extras.children) || [])),
+  ]);
 }
 
 // ---------------------------------------------------------------------
@@ -96,125 +228,100 @@ async function loadData() {
 // ---------------------------------------------------------------------
 
 function renderStep1() {
+  const n = 1;
   const root = document.getElementById("step-1");
   clear(root);
 
   const panel = h("div", { class: "panel" });
-  panel.appendChild(h("h2", {}, "Step 1 — Classification"));
+  panel.appendChild(stepHead(n, "Describe the facility: what it makes, at what stage, and which regulators it must satisfy. This decides which rooms and parameters you'll be asked about."));
+  const summary = errorSummaryFor(n);
+  if (summary) panel.appendChild(summary);
 
-  panel.appendChild(h("h3", {}, "Dosage Form Category"));
-  const grid = h("div", { class: "choice-grid" });
-  CATEGORY_DEFS.forEach((c) => {
-    const card = h(
-      "button",
-      {
-        type: "button",
-        class: "choice-card" + (state.category === c.key ? " selected" : ""),
-        onclick: () => {
-          state.category = c.key;
-          state.specificForms = [];
-          state.devStage = null;
-          state.selectedRooms = [];
-          renderStep1();
-        },
-      },
-      [h("strong", {}, c.label), h("span", {}, c.desc)]
-    );
-    grid.appendChild(card);
-  });
-  panel.appendChild(grid);
+  panel.appendChild(h("div", { class: "section" }, groupField(n, "category", {
+    legend: "Dosage form category",
+    hint: "Switching category sets aside the forms and rooms chosen for the previous one; switch back to get them again.",
+    children: [radioCards("category", CATEGORY_DEFS, state.category, (key) => {
+      ProjectState.switchCategory(state, key, categoryMemory);
+      renderStep1();
+    })],
+  })));
 
   if (state.category === "osd_rnd_pilot") {
-    panel.appendChild(h("h3", {}, "Facility Development Stage"));
-    panel.appendChild(h("p", { class: "field-hint" }, "Schedule M has no dedicated chapter for either — this only affects the wording of the structural-gap notice in your results."));
-    const devGrid = h("div", { class: "choice-grid" });
-    ["R&D Lab", "Pilot Plant"].forEach((stg) => {
-      devGrid.appendChild(
-        h(
-          "button",
-          {
-            type: "button",
-            class: "choice-card" + (state.devStage === stg ? " selected" : ""),
-            onclick: () => {
-              state.devStage = stg;
-              renderStep1();
-            },
-          },
-          h("strong", {}, stg)
-        )
-      );
-    });
-    panel.appendChild(devGrid);
+    panel.appendChild(h("div", { class: "section" }, groupField(n, "devStage", {
+      legend: "Facility development stage",
+      hint: "Schedule M has no dedicated chapter for either — this only affects the wording of the structural-gap notice in your results.",
+      children: [radioCards("devStage", ["R&D Lab", "Pilot Plant"].map((s) => ({ key: s, label: s })), state.devStage, (stg) => {
+        state.devStage = stg;
+        renderStep1();
+      }, true)],
+    })));
   }
 
   if (state.category) {
-    panel.appendChild(h("h3", {}, "Specific Dosage Form(s)"));
-    panel.appendChild(h("p", { class: "field-hint" }, "Selecting MDF, Buccal Film, or Implant will flag a Schedule M regulatory vacuum in your results."));
-    const formGrid = h("div", { class: "checkbox-list" });
-    SPECIFIC_FORMS[state.category].forEach((form) => {
-      const id = "form-" + form.replace(/[^a-z0-9]/gi, "");
-      const row = h("label", { class: "check-row", for: id }, [
-        h("input", {
-          type: "checkbox",
-          id,
-          checked: state.specificForms.includes(form) ? "checked" : null,
-          onchange: (e) => {
-            if (e.target.checked) state.specificForms.push(form);
-            else state.specificForms = state.specificForms.filter((f) => f !== form);
-          },
-        }),
-        h("span", { class: "row-label" }, form),
-      ]);
-      formGrid.appendChild(row);
-    });
-    panel.appendChild(formGrid);
+    panel.appendChild(h("div", { class: "section" }, groupField(n, "specificForms", {
+      legend: "Specific dosage forms",
+      hint: "Select all that apply. MDF, Buccal Film or Implant will flag a Schedule M regulatory vacuum in your results.",
+      children: [h("div", { class: "checkbox-list" }, SPECIFIC_FORMS[state.category].map((form) =>
+        checkRow("form-" + form.replace(/[^a-z0-9]/gi, ""), state.specificForms.includes(form), (on) => {
+          if (on) state.specificForms.push(form);
+          else state.specificForms = state.specificForms.filter((f) => f !== form);
+        }, form)))],
+    })));
   }
 
-  panel.appendChild(h("h3", {}, "Target Regulatory Market(s)"));
-  panel.appendChild(h("p", { class: "field-hint" }, "Schedule M is pre-selected as the home authority. Markets marked “not covered” have no data in this dataset — they'll show as such rather than being silently guessed."));
-  const marketGrid = h("div", { class: "market-grid" });
-  DATA.authorities.forEach((a) => {
-    const id = "mkt-" + a.key;
-    const row = h("label", { class: "check-row" + (a.covered ? "" : " uncovered"), for: id }, [
-      h("input", {
-        type: "checkbox",
-        id,
-        checked: state.targetMarkets.includes(a.key) ? "checked" : null,
-        onchange: (e) => {
-          if (e.target.checked) state.targetMarkets.push(a.key);
-          else state.targetMarkets = state.targetMarkets.filter((k) => k !== a.key);
-        },
-      }),
-      h("span", {}, [
-        h("span", { class: "row-label" }, a.label),
-        !a.covered ? h("span", { class: "badge uncovered" }, "not covered") : null,
-        a.shared_note ? h("span", { class: "row-meta" }, a.shared_note) : null,
-      ]),
-    ]);
-    marketGrid.appendChild(row);
-  });
-  panel.appendChild(marketGrid);
+  // The primary authority is chosen from the covered markets ticked above, so
+  // its group re-renders in place when the markets change (focus stays put).
+  const primaryBox = h("div", { class: "section" });
+  const fillPrimary = () => {
+    clear(primaryBox);
+    const choices = WizardView.primaryChoices(DATA.authorities, state);
+    primaryBox.appendChild(groupField(n, "primaryAuthority", {
+      legend: "Primary authority",
+      hint: "Results lead with this authority: every room and requirement, pass or fail. The other markets are compared below it.",
+      children: [choices.length
+        ? radioCards("primaryAuthority", choices.map((c) => ({ key: c.key, label: c.label })), state.primaryAuthority, (key) => { state.primaryAuthority = key; fillPrimary(); }, true)
+        : h("p", { class: "field-hint" }, "Select at least one target market above first.")],
+    }));
+  };
 
-  panel.appendChild(h("h3", {}, "Facility Scale"));
-  const scaleRow = h("div", { class: "field-row" });
-  scaleRow.appendChild(
-    h("div", { class: "field-block narrow" }, [
-      h("label", {}, "Scale"),
-      h(
-        "select",
-        { onchange: (e) => (state.scaleSize = e.target.value) },
-        ["Small", "Medium", "Large"].map((s) => h("option", { value: s, selected: state.scaleSize === s ? "selected" : null }, s))
-      ),
-    ])
-  );
-  scaleRow.appendChild(
-    h("div", { class: "field-block narrow" }, [
-      h("label", {}, "Batch size (kg or units)"),
-      h("input", { type: "text", value: state.batchSize, oninput: (e) => (state.batchSize = e.target.value), placeholder: "e.g. 50,000 tablets" }),
-    ])
-  );
-  panel.appendChild(scaleRow);
-  panel.appendChild(h("p", { class: "field-hint" }, "No authority prescribes a room-area formula from batch size — this is captured for context only."));
+  panel.appendChild(h("div", { class: "section" }, groupField(n, "targetMarkets", {
+    legend: "Target regulatory markets",
+    hint: "India — Schedule M is pre-selected as the home authority. Markets marked “No data yet” have no data in this dataset, so they can't be chosen yet.",
+    children: [h("div", { class: "market-grid" }, WizardView.marketChoices(DATA.authorities, state).map((m) => {
+      const a = DATA.authorityByKey[m.key];
+      return checkRow("mkt-" + m.key, m.checked, (on) => {
+        if (on && !state.targetMarkets.includes(m.key)) state.targetMarkets.push(m.key);
+        if (!on) state.targetMarkets = state.targetMarkets.filter((k) => k !== m.key);
+        ProjectState.ensurePrimary(state);
+        fillPrimary();
+      }, m.label, {
+        rowClass: m.disabled ? "uncovered" : "",
+        disabled: m.disabled,
+        children: [
+          m.note ? h("span", { class: "badge uncovered" }, [h("span", { "aria-hidden": "true" }, "⊘"), m.note]) : null,
+          a && a.shared_note ? h("span", { class: "row-meta" }, a.shared_note) : null,
+        ],
+      });
+    }))],
+  })));
+  fillPrimary();
+  panel.appendChild(primaryBox);
+
+  panel.appendChild(h("div", { class: "section" }, h("fieldset", { class: "field-set", "aria-describedby": "hint-scale" }, [
+    h("legend", {}, "Facility scale"),
+    h("div", { class: "field-row" }, [
+      h("div", { class: "field-block narrow" }, [
+        h("label", { for: "scale-size" }, "Scale"),
+        h("select", { id: "scale-size", onchange: (e) => (state.scaleSize = e.target.value) },
+          ["Small", "Medium", "Large"].map((s) => h("option", { value: s, selected: state.scaleSize === s ? "selected" : null }, s))),
+      ]),
+      h("div", { class: "field-block narrow" }, [
+        h("label", { for: "batch-size" }, "Batch size (kg or units)"),
+        h("input", { type: "text", id: "batch-size", value: state.batchSize, maxlength: "120", autocomplete: "off", oninput: (e) => (state.batchSize = e.target.value), placeholder: "e.g. 50,000 tablets" }),
+      ]),
+    ]),
+    h("p", { class: "field-hint", id: "hint-scale" }, "Captured for context only — no authority prescribes a room-area formula from batch size."),
+  ])));
 
   root.appendChild(panel);
 }
@@ -223,53 +330,126 @@ function renderStep1() {
 // Step 2 — Room / Zone selection
 // ---------------------------------------------------------------------
 
+let roomFilter = ""; // text in the room filter box; kept while moving between steps
+
 function applicableRooms() {
   if (!state.category) return [];
   return DATA.rooms.filter((r) => r.applies_to[state.category]);
 }
 
 function renderStep2() {
+  const n = 2;
   const root = document.getElementById("step-2");
   clear(root);
   const panel = h("div", { class: "panel" });
-  panel.appendChild(h("h2", {}, "Step 2 — Rooms & Zones"));
-  panel.appendChild(h("p", { class: "field-hint" }, "Select every room/zone you want assessed. Grouped by process stage, filtered to what applies to " + (CATEGORY_DEFS.find((c) => c.key === state.category) || {}).label + "."));
+  const cat = (CATEGORY_DEFS.find((c) => c.key === state.category) || {}).label;
+  panel.appendChild(stepHead(n, cat
+    ? `Select every room or zone you want assessed. Only rooms that apply to ${cat} are listed, grouped by process stage.`
+    : "Select every room or zone you want assessed."));
+  const summary = errorSummaryFor(n);
+  if (summary) panel.appendChild(summary);
 
   const rooms = applicableRooms();
-  const byStage = {};
-  rooms.forEach((r) => {
-    byStage[r.process_stage] = byStage[r.process_stage] || [];
-    byStage[r.process_stage].push(r);
-  });
+  if (!rooms.length) {
+    panel.appendChild(h("p", { class: "empty-hint" }, "No rooms found for this category — go back and pick a dosage form category first."));
+    root.appendChild(panel);
+    return;
+  }
 
-  Object.keys(byStage).forEach((stage) => {
-    const group = h("div", { class: "room-group" });
-    group.appendChild(h("h4", {}, stage));
-    const list = h("div", { class: "checkbox-list" });
-    byStage[stage].forEach((r) => {
+  const selectionCount = h("p", { class: "selection-count", id: "room-selection-count", "aria-live": "polite" });
+  const filterCount = h("p", { class: "filter-count", id: "room-filter-count", role: "status" });
+  const filterInput = h("input", {
+    type: "search", id: "room-filter", value: roomFilter, autocomplete: "off", spellcheck: "false",
+    "aria-describedby": "room-filter-hint room-filter-count", "aria-controls": "fs-selectedRooms",
+    oninput: (e) => { roomFilter = e.target.value; applyRoomFilter(); },
+  });
+  panel.appendChild(h("div", { class: "rooms-toolbar" }, [
+    h("div", { class: "field-block rooms-filter" }, [
+      h("label", { for: "room-filter" }, "Filter rooms"),
+      filterInput,
+      h("span", { class: "field-note", id: "room-filter-hint" }, "Matches room name, stage, grade or ID. Hidden rooms stay selected."),
+    ]),
+    h("div", { class: "rooms-counts" }, [selectionCount, filterCount]),
+  ]));
+
+  const groups = WizardView.groupByStage(rooms).map((g, gi) => {
+    const countId = `stage-count-${gi}`;
+    const rows = g.rooms.map((r) => {
       const id = "room-" + r.id;
-      list.appendChild(
-        h("label", { class: "check-row", for: id }, [
-          h("input", {
-            type: "checkbox",
-            id,
-            checked: state.selectedRooms.includes(r.id) ? "checked" : null,
-            onchange: (e) => {
-              if (e.target.checked) state.selectedRooms.push(r.id);
-              else state.selectedRooms = state.selectedRooms.filter((x) => x !== r.id);
-            },
-          }),
-          h("span", {}, [h("span", { class: "row-label" }, r.name), h("span", { class: "row-meta" }, r.typical_grade)]),
-        ])
-      );
+      const row = h("li", { "data-room": r.id }, checkRow(id, state.selectedRooms.includes(r.id), (on) => {
+        if (on) state.selectedRooms.push(r.id);
+        else state.selectedRooms = state.selectedRooms.filter((x) => x !== r.id);
+        updateRoomCounts();
+      }, r.name, { children: [h("span", { class: "row-meta" }, [r.typical_grade, h("span", { class: "visually-hidden" }, ` (${r.id})`)])] }));
+      row._room = r;
+      return row;
     });
-    group.appendChild(list);
-    panel.appendChild(group);
+    // "Select all" / "Clear" act on the rooms currently shown in this group.
+    const setGroup = (on) => {
+      rows.filter((li) => !li.hidden).forEach((li) => {
+        const id = li._room.id;
+        const has = state.selectedRooms.includes(id);
+        if (on && !has) state.selectedRooms.push(id);
+        if (!on && has) state.selectedRooms = state.selectedRooms.filter((x) => x !== id);
+        li.querySelector("input").checked = on;
+      });
+      updateRoomCounts();
+      refreshStepErrors();
+    };
+    return h("fieldset", { class: "room-group", "data-group": String(gi) }, [
+      h("legend", {}, [g.stage, h("span", { class: "legend-count", id: countId }, "")]),
+      h("div", { class: "room-group-actions" }, [
+        h("button", { type: "button", class: "secondary small", onclick: () => setGroup(true) }, ["Select all", h("span", { class: "visually-hidden" }, " in " + g.stage)]),
+        h("button", { type: "button", class: "secondary small", onclick: () => setGroup(false) }, ["Clear", h("span", { class: "visually-hidden" }, " " + g.stage)]),
+      ]),
+      h("ul", { class: "checkbox-list" }, rows),
+    ]);
   });
 
-  if (!rooms.length) panel.appendChild(h("p", { class: "empty-hint" }, "No rooms found for this category — go back and pick a dosage form category first."));
+  const issue = issueFor(n, "selectedRooms");
+  panel.appendChild(h("div", {
+    id: "fs-selectedRooms", class: "room-groups" + (issue ? " has-error" : ""), role: "group", "aria-label": "Rooms and zones",
+    "aria-describedby": issue ? "error-selectedRooms" : null,
+  }, [issue ? WizardView.fieldError(h, issue) : null].concat(groups)));
 
   root.appendChild(panel);
+  applyRoomFilter();
+}
+
+// Counts are text (tabular numbers) next to each stage and in the toolbar.
+function updateRoomCounts() {
+  const rooms = applicableRooms();
+  const sel = new Set(state.selectedRooms);
+  const out = document.getElementById("room-selection-count");
+  if (out) { clear(out); out.appendChild(document.createTextNode(WizardView.selectionText(rooms.filter((r) => sel.has(r.id)).length, rooms.length))); }
+  WizardView.groupByStage(rooms).forEach((g, gi) => {
+    const el = document.getElementById(`stage-count-${gi}`);
+    if (!el) return;
+    clear(el);
+    el.appendChild(document.createTextNode(` · ${g.rooms.filter((r) => sel.has(r.id)).length} of ${g.rooms.length} selected`));
+  });
+}
+
+function applyRoomFilter() {
+  const root = document.getElementById("step-2");
+  let shown = 0;
+  let total = 0;
+  root.querySelectorAll(".room-group").forEach((group) => {
+    let visible = 0;
+    group.querySelectorAll("li[data-room]").forEach((li) => {
+      total++;
+      li.hidden = !WizardView.roomMatches(li._room, roomFilter);
+      if (!li.hidden) visible++;
+    });
+    group.hidden = visible === 0;
+    shown += visible;
+  });
+  const fc = document.getElementById("room-filter-count");
+  if (fc) {
+    clear(fc);
+    if (String(roomFilter).trim()) fc.appendChild(document.createTextNode(WizardView.filterText(shown, total)));
+  }
+  updateRoomCounts();
 }
 
 // ---------------------------------------------------------------------
@@ -282,17 +462,6 @@ function relevantParams() {
 
 const appliesAtNormalized = FacilityEngine.appliesAtNormalized;
 
-function resolveInputKind(param) {
-  if (param.id === "DFS-003") return "number";
-  const dt = (param.data_type || "").toLowerCase();
-  if (dt.includes("boolean") && (dt.includes("text") || dt.includes("categorical"))) return "boolean-text";
-  if (dt === "boolean") return "boolean";
-  if (dt.startsWith("numeric range")) return "number-range";
-  if (dt === "numeric") return "number";
-  if (dt.includes("categorical")) return "select";
-  return "text";
-}
-
 function optionsFor(param) {
   if (OPTION_OVERRIDES[param.id]) return OPTION_OVERRIDES[param.id];
   const raw = param.unit_options || "";
@@ -300,183 +469,181 @@ function optionsFor(param) {
   return [raw];
 }
 
-function renderParamField(param, value, onChange) {
+const numberOrNull = (v) => (v === "" ? null : parseFloat(v));
+
+// Unit shown as a suffix box next to the input; long unit strings become a note.
+function unitNode(unit, id) {
+  if (!unit) return null;
+  return h("span", { class: "unit" + (unit.length > 14 ? " unit-long" : ""), id }, unit);
+}
+
+function yesNoSelect(id, value, onPick, describedBy) {
+  return h("select", { id, "aria-describedby": describedBy, onchange: (e) => onPick(e.target.value === "" ? null : e.target.value === "true") }, [
+    h("option", { value: "" }, "— select —"),
+    h("option", { value: "true", selected: value === true ? "selected" : null }, "Yes"),
+    h("option", { value: "false", selected: value === false ? "selected" : null }, "No"),
+  ]);
+}
+
+// Every control gets a programmatic label (for/id) and its unit and notes via
+// aria-describedby; ids are unique per room (scope).
+function renderParamField(param, value, onChange, scope) {
   const kind = resolveInputKind(param);
+  const id = WizardView.fieldId(scope || "facility", param.id);
+  const hintId = param.notes ? id + "-hint" : null;
+  const hint = param.notes ? h("span", { class: "field-note", id: hintId }, param.notes) : null;
+
+  if (kind === "number-range") {
+    // Group name = parameter (+ unit); the two inputs are labelled Min / Max.
+    const v = value || {};
+    const unit = param.unit_options;
+    return h("fieldset", { class: "field-block range-field", "aria-describedby": hintId }, [
+      h("legend", {}, unit ? `${param.name} (${unit})` : param.name),
+      h("div", { class: "range-row" }, [
+        h("div", { class: "range-part" }, [
+          h("label", { for: id + "-min" }, "Min"),
+          h("input", { type: "number", step: "any", inputmode: "decimal", id: id + "-min", value: v.min ?? "", oninput: (e) => onChange({ ...v, min: numberOrNull(e.target.value) }) }),
+        ]),
+        h("span", { class: "range-sep", "aria-hidden": "true" }, "–"),
+        h("div", { class: "range-part" }, [
+          h("label", { for: id + "-max" }, "Max"),
+          h("input", { type: "number", step: "any", inputmode: "decimal", id: id + "-max", value: v.max ?? "", oninput: (e) => onChange({ ...v, max: numberOrNull(e.target.value) }) }),
+        ]),
+        unit && unit.length <= 14 ? h("span", { class: "unit", "aria-hidden": "true" }, unit) : null,
+      ]),
+      hint,
+    ]);
+  }
+
   const wrap = h("div", { class: "field-block" });
-  wrap.appendChild(h("label", {}, param.name));
+  wrap.appendChild(h("label", { for: id }, param.name));
 
   if (kind === "number") {
     const unit = param.id === "DFS-003" ? "% RH" : param.unit_options;
-    const input = h("input", {
-      type: "number",
-      step: "any",
-      value: value === undefined || value === null ? "" : value,
-      placeholder: unit || "",
-      oninput: (e) => onChange(e.target.value === "" ? null : parseFloat(e.target.value)),
-    });
-    wrap.appendChild(input);
-    if (unit) wrap.appendChild(h("span", { class: "field-note" }, unit));
-  } else if (kind === "number-range") {
-    const rowWrap = h("div", { style: "display:flex;gap:8px;align-items:center;" });
-    const v = value || {};
-    rowWrap.appendChild(
+    const unitId = unit ? id + "-unit" : null;
+    wrap.appendChild(h("div", { class: "input-unit" }, [
       h("input", {
-        type: "number", step: "any", placeholder: "min", value: v.min ?? "",
-        oninput: (e) => onChange({ ...v, min: e.target.value === "" ? null : parseFloat(e.target.value) }),
-      })
-    );
-    rowWrap.appendChild(h("span", {}, "–"));
-    rowWrap.appendChild(
-      h("input", {
-        type: "number", step: "any", placeholder: "max", value: v.max ?? "",
-        oninput: (e) => onChange({ ...v, max: e.target.value === "" ? null : parseFloat(e.target.value) }),
-      })
-    );
-    wrap.appendChild(rowWrap);
-    if (param.unit_options) wrap.appendChild(h("span", { class: "field-note" }, param.unit_options));
+        type: "number", step: "any", inputmode: "decimal", id,
+        value: value === undefined || value === null ? "" : value,
+        "aria-describedby": WizardView.describedBy(unitId, hintId),
+        oninput: (e) => onChange(numberOrNull(e.target.value)),
+      }),
+      unitNode(unit, unitId),
+    ]));
   } else if (kind === "select") {
-    const opts = optionsFor(param);
-    const sel = h(
-      "select",
-      { onchange: (e) => onChange(e.target.value) },
-      [h("option", { value: "" }, "— select —")].concat(opts.map((o) => h("option", { value: o, selected: value === o ? "selected" : null }, o)))
-    );
-    wrap.appendChild(sel);
+    wrap.appendChild(h("select", { id, "aria-describedby": hintId, onchange: (e) => onChange(e.target.value) },
+      [h("option", { value: "" }, "— select —")].concat(optionsFor(param).map((o) => h("option", { value: o, selected: value === o ? "selected" : null }, o)))));
   } else if (kind === "boolean") {
-    const sel = h(
-      "select",
-      { onchange: (e) => onChange(e.target.value === "" ? null : e.target.value === "true") },
-      [
-        h("option", { value: "" }, "— select —"),
-        h("option", { value: "true", selected: value === true ? "selected" : null }, "Yes"),
-        h("option", { value: "false", selected: value === false ? "selected" : null }, "No"),
-      ]
-    );
-    wrap.appendChild(sel);
+    wrap.appendChild(yesNoSelect(id, value, onChange, hintId));
   } else if (kind === "boolean-text") {
     const v = value || {};
-    const sel = h(
-      "select",
-      { onchange: (e) => onChange({ ...v, value: e.target.value === "" ? null : e.target.value === "true" }) },
-      [
-        h("option", { value: "" }, "— select —"),
-        h("option", { value: "true", selected: v.value === true ? "selected" : null }, "Yes"),
-        h("option", { value: "false", selected: v.value === false ? "selected" : null }, "No"),
-      ]
-    );
-    wrap.appendChild(sel);
-    wrap.appendChild(
-      h("input", { type: "text", placeholder: "Detail (method / zone rating / etc.)", value: v.text || "", oninput: (e) => onChange({ ...v, text: e.target.value }) })
-    );
+    wrap.appendChild(yesNoSelect(id, v.value, (b) => onChange({ ...v, value: b }), hintId));
+    wrap.appendChild(h("label", { for: id + "-detail", class: "field-label sub-label" }, "Details"));
+    wrap.appendChild(h("input", { type: "text", id: id + "-detail", placeholder: "Method, zone rating, etc.", value: v.text || "", oninput: (e) => onChange({ ...v, text: e.target.value }) }));
   } else {
-    wrap.appendChild(h("textarea", { oninput: (e) => onChange(e.target.value) }, value || ""));
+    wrap.appendChild(h("textarea", { id, rows: "2", "aria-describedby": hintId, oninput: (e) => onChange(e.target.value) }, value || ""));
   }
 
-  if (param.notes) wrap.appendChild(h("span", { class: "field-note" }, param.notes));
+  if (hint) wrap.appendChild(hint);
   return wrap;
 }
 
+// Parameters grouped under their category name.
+function paramGroups(params, valueOf, setValue, scope) {
+  const grouped = {};
+  params.forEach((p) => (grouped[p.category] = grouped[p.category] || []).push(p));
+  return Object.keys(grouped).map((cat) => h("div", { class: "field-group" }, [
+    h("h4", { class: "field-group-title" }, cat),
+    h("div", { class: "field-row" }, grouped[cat].map((p) => renderParamField(p, valueOf(p.id), (val) => setValue(p.id, val), scope))),
+  ]));
+}
+
 function renderStep3() {
+  const n = 3;
   const root = document.getElementById("step-3");
   clear(root);
-  const panel = h("div", { class: "panel" });
-  panel.appendChild(h("h2", {}, "Step 3 — Facility & Room Parameters"));
 
   const params = relevantParams();
   const facilityParams = params.filter((p) => appliesAtNormalized(p) === "facility");
   const roomParams = params.filter((p) => appliesAtNormalized(p) === "room");
+  const selectedRooms = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
+
+  const intro = h("div", { class: "panel" }, [
+    stepHead(n, "Enter the design values you know. Blank fields are reported as “no value” — nothing is guessed. Facility-wide values are entered once; the rest are per room."),
+    selectedRooms.length > 1 ? h("nav", { "aria-label": "Rooms on this page" }, [
+      h("p", { class: "field-note" }, `${selectedRooms.length} rooms — jump to:`),
+      h("ul", { class: "jump-list" }, selectedRooms.map((room) => h("li", {}, h("button", {
+        type: "button", class: "link-button",
+        onclick: () => { const t = document.getElementById("room-title-" + room.id); if (t) { t.setAttribute("tabindex", "-1"); t.focus(); } },
+      }, room.name)))),
+    ]) : null,
+  ]);
+  root.appendChild(intro);
 
   if (facilityParams.length) {
-    panel.appendChild(h("h3", {}, "Facility-level parameters (entered once)"));
-    const grouped = {};
-    facilityParams.forEach((p) => {
-      grouped[p.category] = grouped[p.category] || [];
-      grouped[p.category].push(p);
-    });
-    Object.keys(grouped).forEach((cat) => {
-      const row = h("div", { class: "field-row" });
-      grouped[cat].forEach((p) => {
-        row.appendChild(
-          renderParamField(p, state.facilityValues[p.id], (val) => {
-            state.facilityValues[p.id] = val;
-          })
-        );
-      });
-      panel.appendChild(row);
-    });
+    root.appendChild(h("section", { class: "panel", "aria-labelledby": "facility-params-title" }, [
+      h("div", { class: "room-panel-head" }, [
+        h("h3", { id: "facility-params-title" }, "Facility-wide parameters"),
+        h("span", { class: "room-sub" }, "Entered once for the whole facility"),
+      ]),
+    ].concat(paramGroups(facilityParams, (id) => state.facilityValues[id], (id, val) => (state.facilityValues[id] = val), "facility"))));
   }
 
-  const selectedRooms = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
   if (!selectedRooms.length) {
-    panel.appendChild(h("p", { class: "empty-hint" }, "No rooms selected — go back to Step 2."));
+    root.appendChild(h("div", { class: "panel" }, h("p", { class: "empty-hint" }, "No rooms selected — go back to Step 2 to choose the rooms to assess.")));
   }
 
   selectedRooms.forEach((room) => {
     state.roomValues[room.id] = state.roomValues[room.id] || {};
-    const section = h("div", { class: "room-param-section" });
-    section.appendChild(h("div", { class: "room-title" }, room.name));
-    section.appendChild(h("div", { class: "room-sub" }, `${room.process_stage} · Typical grade: ${room.typical_grade}`));
+    const values = state.roomValues[room.id];
+    const titleId = "room-title-" + room.id;
+    const section = h("section", { class: "panel room-panel", "aria-labelledby": titleId });
+    section.appendChild(h("div", { class: "room-panel-head" }, [
+      h("h3", { id: titleId }, room.name),
+      h("span", { class: "room-sub" }, `${room.process_stage} · Typical grade: ${room.typical_grade}`),
+    ]));
 
     if (room.bundled_area_note) {
-      section.appendChild(h("p", { class: "field-hint" }, "⚠ " + room.bundled_area_note));
+      section.appendChild(h("p", { class: "room-note" }, [h("span", { "aria-hidden": "true" }, "⚠"), h("span", {}, [h("span", { class: "visually-hidden" }, "Note: "), room.bundled_area_note])]));
     }
 
-    // Room Net Area (special-cased: per-room Schedule M minimum lives on the room record)
-    const areaWrap = h("div", { class: "field-row" });
-    areaWrap.appendChild(
-      h("div", { class: "field-block" }, [
-        h("label", {}, "Room Net Area (m²)"),
-        h("input", {
-          type: "number", step: "any",
-          value: state.roomValues[room.id]["DIM-001"] ?? "",
-          oninput: (e) => (state.roomValues[room.id]["DIM-001"] = e.target.value === "" ? null : parseFloat(e.target.value)),
-        }),
-        h("span", { class: "field-note" }, room.min_area_sqm != null ? `Schedule M minimum: ${room.min_area_sqm} m²` : "Schedule M gives no numeric minimum for this room"),
-      ])
-    );
-    section.appendChild(areaWrap);
+    // Room Net Area is special-cased: the per-room Schedule M minimum lives on the room record.
+    const areaId = WizardView.fieldId(room.id, "DIM-001");
+    section.appendChild(h("div", { class: "field-group" }, [
+      h("h4", { class: "field-group-title" }, "Area"),
+      h("div", { class: "field-row" }, h("div", { class: "field-block" }, [
+        h("label", { for: areaId }, "Room net area"),
+        h("div", { class: "input-unit" }, [
+          h("input", {
+            type: "number", step: "any", inputmode: "decimal", id: areaId,
+            value: values["DIM-001"] ?? "",
+            "aria-describedby": `${areaId}-unit ${areaId}-hint`,
+            oninput: (e) => (values["DIM-001"] = numberOrNull(e.target.value)),
+          }),
+          h("span", { class: "unit", id: areaId + "-unit" }, "m²"),
+        ]),
+        h("span", { class: "field-note", id: areaId + "-hint" }, room.min_area_sqm != null ? `Schedule M minimum: ${room.min_area_sqm} m²` : "Schedule M gives no numeric minimum for this room"),
+      ])),
+    ]));
 
     const applicableRoomParams = roomParams.filter((p) => {
       if (p.id === "DIM-001") return false; // rendered as a special-cased field above (tied to room.min_area_sqm)
       const filter = PARAM_ROOM_FILTERS[p.id];
       return filter ? filter(room) : true;
     });
+    paramGroups(applicableRoomParams, (id) => values[id], (id, val) => (values[id] = val), room.id).forEach((g) => section.appendChild(g));
 
-    const grouped = {};
-    applicableRoomParams.forEach((p) => {
-      grouped[p.category] = grouped[p.category] || [];
-      grouped[p.category].push(p);
-    });
-    Object.keys(grouped).forEach((cat) => {
-      const row = h("div", { class: "field-row" });
-      grouped[cat].forEach((p) => {
-        row.appendChild(
-          renderParamField(p, state.roomValues[room.id][p.id], (val) => {
-            state.roomValues[room.id][p.id] = val;
-          })
-        );
-      });
-      section.appendChild(row);
-    });
-
-    panel.appendChild(section);
+    root.appendChild(section);
   });
-
-  root.appendChild(panel);
 }
 
 // ---------------------------------------------------------------------
 // Rules engine
 // ---------------------------------------------------------------------
 
-// Evaluation logic lives in engine.js (pure, tested). These wrappers bind it
-// to the wizard's DATA and state.
+// Evaluation logic lives in engine.js (pure, tested); renderStep4 calls
+// FacilityEngine.evaluateAll(DATA, state).
 const marketLabel = (mk) => FacilityEngine.marketLabel(DATA, mk);
-const buildEvaluationRows = () => FacilityEngine.buildEvaluationRows(DATA, state);
-const buildBooleanRows = () => FacilityEngine.buildBooleanRows(DATA, state);
-const computeMarketRollup = (rows) => FacilityEngine.computeMarketRollup(DATA, state, rows);
-const buildRecommendations = (rows) => FacilityEngine.buildRecommendations(DATA, state, rows);
-const checkStructuralFlags = () => FacilityEngine.checkStructuralFlags(DATA, state);
 
 function statusPillClass(status) {
   return {
@@ -488,14 +655,13 @@ function statusPillClass(status) {
   }[status] || "status-na";
 }
 
+// Check statuses and severities in the shared results vocabulary (ResultsModel.VOCAB).
 function statusLabel(status) {
-  return {
-    compliant: "Compliant",
-    non_compliant: "Non-Compliant",
-    not_regulated: "Not regulated here",
-    not_covered: "Not covered",
-    no_value: "No value entered",
-  }[status] || status;
+  return Object.prototype.hasOwnProperty.call(ResultsModel.VOCAB.status, status) ? ResultsModel.VOCAB.status[status] : status;
+}
+
+function severityLabel(sev) {
+  return Object.prototype.hasOwnProperty.call(ResultsModel.VOCAB.severity, sev) ? ResultsModel.VOCAB.severity[sev] : sev;
 }
 
 function severityTagClass(sev) {
@@ -531,46 +697,177 @@ function fallbackBlock(fallback) {
   ]);
 }
 
+// Labels for ResultsModel: ids in the compact snapshot -> display names.
+function resultLabels() {
+  return {
+    market: (mk) => FacilityEngine.reportLabel(DATA, mk), // "EU-GMP / PIC/S" combined, as in the report
+    room: (id) => (DATA.roomById[id] || {}).name || id,
+    param: (id) => (DATA.paramById[id] || {}).name || (id === "DIM-001-area" ? "Room Net Area" : id),
+    threshold: (id) => (DATA.boolean_thresholds.find((b) => b.id === id) || {}).parameter_name || id,
+  };
+}
+
+// The primary authority's evidence tables (Milestone 3; last on the page since
+// the results redesign): the project's primary authority, or another chosen
+// market picked with the switcher. The switcher only changes what is shown;
+// it never edits the project.
+let viewingAuthority = null;
+
+// The planner's target markets as report authorities (EU-GMP and PIC/S are one).
+function reportTargets() {
+  return [...new Set(state.targetMarkets.map((k) => FacilityEngine.reportKeyFor(DATA, k)).filter(Boolean))];
+}
+
+function authorityOpts(snapshot) {
+  const choices = [];
+  WizardView.primaryChoices(DATA.authorities, state).forEach((c) => {
+    const key = FacilityEngine.reportKeyFor(DATA, c.key);
+    if (key && !choices.some((x) => x.key === key)) choices.push({ key, label: FacilityEngine.reportLabel(DATA, key) });
+  });
+  const current = choices.some((c) => c.key === viewingAuthority) ? viewingAuthority : FacilityEngine.reportKeyFor(DATA, state.primaryAuthority);
+  return {
+    view: current ? ResultsModel.forAuthority(snapshot, current, resultLabels()) : null,
+    choices,
+    onSwitch: (key) => {
+      viewingAuthority = key;
+      renderStep4();
+      const pressed = document.querySelector('#step-4 .auth-choice[aria-pressed="true"]');
+      if (pressed && pressed.focus) pressed.focus();
+      announce("Showing evidence against " + FacilityEngine.reportLabel(DATA, key));
+    },
+  };
+}
+
+// ---------------------------------------------------------------------
+// Report export (Milestone 5)
+// ---------------------------------------------------------------------
+
+// "Download report": a self-contained HTML gap report built from the model on
+// screen. model is null for read-only saved results, which must be
+// re-evaluated first (their suggested changes are recomputed, not saved).
+function exportBar(model) {
+  if (!model || model.empty) {
+    const why = !model ? "Re-evaluate with current data to download a report." : "Select at least one market and room, then enter values, to download a report.";
+    return h("div", { class: "export-bar" }, [
+      h("button", { type: "button", class: "secondary", disabled: "disabled", "aria-describedby": "export-note" }, "Download report"),
+      h("span", { class: "field-hint", id: "export-note" }, why),
+    ]);
+  }
+  return h("div", { class: "export-bar" }, [
+    h("button", { type: "button", class: "secondary", id: "download-report", onclick: () => downloadReport(model) }, "Download report"),
+    h("span", { class: "field-hint" }, "A shareable HTML file that opens in any browser and prints to PDF."),
+  ]);
+}
+
+// "YYYY-MM-DDTHH:MM" in the viewer's time zone.
+const localTimestamp = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+function downloadReport(model) {
+  const category = (CATEGORY_DEFS.find((c) => c.key === state.category) || {}).label || "";
+  const { filename, html } = ReportExport.buildReport({
+    model,
+    labels: resultLabels(),
+    project: { name: CURRENT ? CURRENT.name : "" },
+    facility: {
+      category,
+      forms: state.specificForms.slice(),
+      targets: reportTargets().map((k) => FacilityEngine.reportLabel(DATA, k)),
+      primary: state.primaryAuthority ? FacilityEngine.reportLabel(DATA, state.primaryAuthority) : "",
+    },
+    meta: {
+      dataDate: (DATA.manifest || {}).data_date,
+      dataHash: (DATA.manifest || {}).content_hash,
+      engineVersion: FacilityEngine.ENGINE_VERSION,
+      generatedAt: localTimestamp(), // the planner's own date, not UTC (India is UTC+5:30)
+    },
+  });
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const link = h("a", { href: url, download: filename, hidden: "hidden" }, "Download");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  announce("Report downloaded: " + filename);
+}
+
+// Step 4, then mark the wrappers that really scroll as focusable regions.
 function renderStep4() {
+  renderResults();
+  syncResultsRegions();
+}
+
+// Scroll wrappers become named, focusable regions only while they overflow
+// (results redesign, Phase 3). Re-checked after render and whenever Step 4
+// changes size — a resize, "Show all", a <details> opening, fonts loading,
+// or the step becoming visible — via a ResizeObserver (window resize as a
+// fallback), plus <details> toggles.
+let resultsRegionsBound = false;
+function syncResultsRegions() {
+  const root = document.getElementById("step-4");
+  if (!root) return;
+  ResultsView.syncScrollRegions(root);
+  if (resultsRegionsBound) return;
+  resultsRegionsBound = true;
+  let frame = 0;
+  const later = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => { frame = 0; ResultsView.syncScrollRegions(root); });
+  };
+  root.addEventListener("toggle", later, true);
+  if (typeof ResizeObserver === "function") new ResizeObserver(later).observe(root);
+  else window.addEventListener("resize", later);
+}
+
+function renderResults() {
   const root = document.getElementById("step-4");
   clear(root);
 
-  const rows = buildEvaluationRows();
-  const booleanRows = buildBooleanRows();
-  const rollup = computeMarketRollup(rows.concat(booleanRows.map((br) => ({ threshold: br.threshold, evalResult: { perMarket: Object.fromEntries(state.targetMarkets.map((mk) => [mk, { status: br.status }])) }, param: br.param }))));
-  const recs = buildRecommendations(rows);
-  const structural = checkStructuralFlags();
+  // A saved project whose data/engine changed shows its results as saved,
+  // read-only, until the user re-evaluates (banner in the project bar). It
+  // renders through the same ResultsModel/ResultsView as the live page.
+  if (CURRENT && !CURRENT.reevaluated && CURRENT.results && CURRENT.results.status === "stale") {
+    root.appendChild(exportBar(null));
+    if (CURRENT.results.snapshot) root.appendChild(ProjectsView.snapshotSummary(h, s, CURRENT.results.snapshot, resultLabels(), authorityOpts(CURRENT.results.snapshot), reportTargets()));
+    return;
+  }
 
-  const panel = h("div", { class: "panel" });
+  // The cross-authority report evaluates every covered authority, whatever
+  // was ticked; the project's own state is not changed.
+  const evalState = FacilityEngine.reportState(DATA, state);
+  const all = FacilityEngine.evaluateAll(DATA, evalState);
+  const { rows, booleanRows, recommendations: recs, structural } = all;
+  const labels = resultLabels();
+
+  const panel = h("div", { class: "panel results-panel" });
   panel.appendChild(h("h2", {}, "Step 4 — Compliance Results"));
 
   structural.forEach((f) => {
     panel.appendChild(h("div", { class: "structural-banner" }, [h("strong", {}, "Regulatory vacuum flagged"), f.message]));
   });
 
-  panel.appendChild(h("h3", {}, "Which frameworks does this facility qualify under?"));
-  const marketGrid = h("div", { class: "market-summary-grid" });
-  state.targetMarkets.forEach((mk) => {
-    const status = rollup[mk];
-    const cls = { Compliant: "overall-compliant", Partial: "overall-partial", "Non-Compliant": "overall-noncompliant", "Insufficient Data": "overall-insufficient", "Not Covered by Dataset": "overall-notcovered" }[status];
-    marketGrid.appendChild(h("div", { class: "market-summary-card " + cls }, [h("div", { class: "market-name" }, marketLabel(mk)), h("div", {}, status)]));
-  });
-  panel.appendChild(marketGrid);
-
   panel.appendChild(
     h("div", { class: "advisory-note" }, "Advisory only — not a regulatory sign-off. Mandatory/Recommended labels marked “draft” and sources marked “pending” are awaiting domain-expert review. “International/industry standard (fallback)” is shown where an authority gives no number, and never counts toward that authority's verdict.")
   );
 
-  panel.appendChild(h("h3", {}, "Recommended Modifications"));
+  const compact = ResultsSnapshot.compact(all, evalState);
+  const model = ResultsModel.build(compact, labels, { targets: reportTargets() });
+  panel.appendChild(exportBar(model));
+  panel.appendChild(ResultsView.resultsPage(h, s, model, { numeric: ResultsModel.numericGaps(rows, evalState.targetMarkets, labels), labels, authority: authorityOpts(compact), dataDate: (DATA.manifest || {}).data_date }));
+
+  // The full tables, recommendation text and sources stay available, collapsed.
+  const detail = h("div", { class: "full-detail-body" });
+  panel.appendChild(h("details", { class: "full-detail" }, [h("summary", {}, "Full detail — every check, recommendation text and source"), detail]));
+
+  detail.appendChild(h("h3", {}, "Recommended Modifications"));
   if (!recs.length) {
-    panel.appendChild(h("p", { class: "empty-hint" }, "No non-compliant parameters found among selected markets — either everything entered checks out, or no values have been entered yet."));
+    detail.appendChild(h("p", { class: "empty-hint" }, "No non-compliant parameters found among selected markets — either everything entered checks out, or no values have been entered yet."));
   } else {
     recs.forEach((r) => {
       const isFallback = r.basis === "fallback";
-      panel.appendChild(
+      detail.appendChild(
         h("div", { class: "recommendation rec-" + r.severity.toLowerCase() + (isFallback ? " rec-fallback" : "") }, [
           h("div", { class: "rec-title" }, [
-            h("span", { class: "severity-tag " + severityTagClass(r.severity) }, r.severity),
+            h("span", { class: "severity-tag " + severityTagClass(r.severity) }, severityLabel(r.severity)),
             obligationBadge(r.obligation, r.obligationStatus),
             isFallback ? h("span", { class: "fallback-tag" }, "International/industry standard (fallback)") : null,
           ]),
@@ -581,10 +878,10 @@ function renderStep4() {
     });
   }
 
-  panel.appendChild(h("h3", {}, "Detailed Parameter Status"));
-  const tableScroll = h("div", { class: "table-scroll" });
+  detail.appendChild(h("h3", {}, "Detailed Parameter Status"));
+  const tableScroll = ResultsView.scrollRegion(h, "Detailed parameter status", null);
   const table = h("table", { class: "results-table" });
-  const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(state.targetMarkets.map((mk) => h("th", {}, marketLabel(mk)))));
+  const headRow = h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Parameter"), h("th", {}, "Entered"), h("th", {}, "Severity")].concat(evalState.targetMarkets.map((mk) => h("th", {}, labels.market(mk)))));
   table.appendChild(h("thead", {}, headRow));
   const tbody = h("tbody");
   rows.forEach((row) => {
@@ -603,9 +900,9 @@ function renderStep4() {
       h("td", {}, row.room ? row.room.name : "Facility"),
       paramCell,
       h("td", {}, enteredDisplay),
-      h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, sev)),
+      h("td", {}, h("span", { class: "severity-tag " + severityTagClass(sev) }, severityLabel(sev))),
     ]);
-    state.targetMarkets.forEach((mk) => {
+    evalState.targetMarkets.forEach((mk) => {
       const r = row.evalResult.perMarket[mk] || { status: "no_value" };
       const cell = h("td", {}, h("span", { class: "status-pill " + statusPillClass(r.status) }, statusLabel(r.status)));
       if (r.note) cell.appendChild(h("div", { class: "field-note" }, r.note));
@@ -619,10 +916,10 @@ function renderStep4() {
   });
   table.appendChild(tbody);
   tableScroll.appendChild(table);
-  panel.appendChild(tableScroll);
+  detail.appendChild(tableScroll);
 
   if (booleanRows.length) {
-    panel.appendChild(h("h3", {}, "Required-Feature Checklist"));
+    detail.appendChild(h("h3", {}, "Required-Feature Checklist"));
     const btable = h("table", { class: "results-table" });
     btable.appendChild(h("thead", {}, h("tr", {}, [h("th", {}, "Room"), h("th", {}, "Feature"), h("th", {}, "Entered"), h("th", {}, "Severity"), h("th", {}, "Status"), h("th", {}, "Requirement & source")])));
     const btbody = h("tbody");
@@ -632,14 +929,14 @@ function renderStep4() {
           h("td", {}, br.room ? br.room.name : "Facility"),
           h("td", {}, br.threshold.parameter_name),
           h("td", {}, br.entered === true ? "Yes" : br.entered === false ? "No" : "—"),
-          h("td", {}, h("span", { class: "severity-tag " + severityTagClass(br.threshold.severity) }, br.threshold.severity)),
+          h("td", {}, h("span", { class: "severity-tag " + severityTagClass(br.threshold.severity) }, severityLabel(br.threshold.severity))),
           h("td", {}, h("span", { class: "status-pill " + statusPillClass(br.status) }, statusLabel(br.status))),
           h("td", {}, provenanceBlock(br.provenance)),
         ])
       );
     });
     btable.appendChild(btbody);
-    panel.appendChild(h("div", { class: "table-scroll" }, btable));
+    detail.appendChild(ResultsView.scrollRegion(h, "Required-feature checklist", btable));
   }
 
   const scoredIds = new Set(
@@ -649,11 +946,11 @@ function renderStep4() {
   );
   const infoParams = relevantParams().filter((p) => !scoredIds.has(p.id));
   if (infoParams.length) {
-    panel.appendChild(h("h3", {}, "Captured, Not Auto-Checked (free text / no comparable regulatory value in this dataset)"));
+    detail.appendChild(h("h3", {}, "Captured, Not Auto-Checked (free text / no comparable regulatory value in this dataset)"));
     const selectedRoomsForInfo = state.selectedRooms.map((id) => DATA.roomById[id]).filter(Boolean);
     infoParams.forEach((p) => {
       const renderCard = (label, val) =>
-        panel.appendChild(
+        detail.appendChild(
           h("div", { class: "info-card" }, [
             h("span", { class: "info-label" }, label + ": "),
             h("span", {}, val === null || val === undefined || val === "" ? "(not entered)" : typeof val === "object" ? JSON.stringify(val) : String(val)),
@@ -679,15 +976,36 @@ function renderStep4() {
 // Navigation
 // ---------------------------------------------------------------------
 
+// Stepper: state shown by marker glyph (✓ / number), weight, underline and a
+// hidden "(completed)" / "(current step)" text — never by colour alone.
 function updateStepIndicator() {
+  const states = WizardView.stepperStates(state.step);
   document.querySelectorAll("#step-indicator li").forEach((li) => {
     const n = parseInt(li.dataset.step, 10);
-    li.classList.toggle("active", n === state.step);
-    li.classList.toggle("done", n < state.step);
+    const s = states[n - 1];
+    ["is-done", "is-current", "is-upcoming"].forEach((c) => li.classList.toggle(c, c === "is-" + s));
+    if (s === "current") li.setAttribute("aria-current", "step");
+    else li.removeAttribute("aria-current");
+    const marker = li.querySelector(".stepper-marker");
+    if (marker) marker.textContent = s === "done" ? "✓" : String(n);
+    const label = li.querySelector(".stepper-state");
+    if (label) label.textContent = ` (${WizardView.stepStateLabel(s)})`;
   });
 }
 
-function showStep(n) {
+// Polite announcement through the page's persistent live region. Cleared
+// first so the same text said twice is still read.
+function announce(text) {
+  const el = document.getElementById("app-status");
+  if (!el) return;
+  clear(el);
+  setTimeout(() => el.appendChild(document.createTextNode(text)), 50);
+}
+
+// opts.focus: move focus to the new step's heading (after Back/Next), so
+// keyboard and screen-reader users start at the top of the new content.
+function showStep(n, opts = {}) {
+  if (!stepErrors || stepErrors.step !== n) stepErrors = null;
   state.step = n;
   [1, 2, 3, 4].forEach((i) => {
     document.getElementById("step-" + i).hidden = i !== n;
@@ -698,40 +1016,546 @@ function showStep(n) {
   if (n === 3) renderStep3();
   if (n === 4) renderStep4();
 
-  document.getElementById("btn-back").disabled = n === 1;
-  document.getElementById("btn-next").hidden = n === 4;
+  const back = document.getElementById("btn-back");
+  const next = document.getElementById("btn-next");
+  back.disabled = n === 1;
+  next.hidden = n === 4;
+  if (n < 4) { clear(next); next.appendChild(document.createTextNode(WizardView.nextLabel(n))); }
   document.getElementById("btn-restart").hidden = n !== 4;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const pos = document.getElementById("wizard-position");
+  if (pos) { clear(pos); pos.appendChild(document.createTextNode(`Step ${n} of ${WizardView.STEP_COUNT}`)); }
+  renderProjectBar();
+  scrollToTop();
+  if (opts.focus) {
+    const heading = document.querySelector(`#step-${n} h2`);
+    if (heading) {
+      if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    }
+    announce(WizardView.stepAnnouncement(n));
+  }
 }
 
+// First blocking problem as a sentence (null when the step is complete).
 function validateStep(n) {
-  if (n === 1) {
-    if (!state.category) return "Pick a dosage form category first.";
-    if (!state.specificForms.length) return "Select at least one specific dosage form.";
-    if (!state.targetMarkets.length) return "Select at least one target regulatory market.";
-    if (state.category === "osd_rnd_pilot" && !state.devStage) return "Select the facility development stage.";
-  }
-  if (n === 2) {
-    if (!state.selectedRooms.length) return "Select at least one room/zone.";
-  }
-  return null;
+  const issues = WizardView.stepIssues(n, state);
+  return issues.length ? issues[0].message : null;
+}
+
+// Inline error summary instead of a browser dialog: re-render the step with
+// the problems marked, then move focus to the summary (role="alert").
+function showStepErrors(n) {
+  stepErrors = { step: n, issues: WizardView.stepIssues(n, state) };
+  showStep(n);
+  const summary = document.querySelector(`#step-${n} .error-summary`);
+  if (summary) summary.focus();
 }
 
 function wireNav() {
   document.getElementById("btn-back").addEventListener("click", () => {
-    if (state.step > 1) showStep(state.step - 1);
+    if (state.step > 1) showStep(state.step - 1, { focus: true });
   });
   document.getElementById("btn-next").addEventListener("click", () => {
-    const err = validateStep(state.step);
-    if (err) { alert(err); return; }
-    showStep(Math.min(4, state.step + 1));
+    if (validateStep(state.step)) return showStepErrors(state.step);
+    showStep(Math.min(4, state.step + 1), { focus: true });
   });
   document.getElementById("btn-restart").addEventListener("click", () => {
-    Object.assign(state, {
-      step: 1, category: null, devStage: null, specificForms: [], targetMarkets: ["schedule_m"],
-      scaleSize: "Medium", batchSize: "", selectedRooms: [], facilityValues: {}, roomValues: {},
-    });
-    showStep(1);
+    // In a saved project "Start Over" opens a new project rather than
+    // blanking this one (a later Save would overwrite it).
+    if (CURRENT) return go("#/projects/new");
+    categoryMemory = {}; viewingAuthority = null;
+    ProjectState.resetState(state);
+    showStep(1, { focus: true });
+  });
+  // Errors disappear as soon as the flagged field is fixed.
+  const wizard = document.getElementById("view-wizard");
+  wizard.addEventListener("change", () => setTimeout(refreshStepErrors, 0));
+  // The skip link targets <main>; handled here because a #fragment would be
+  // read as a route by the hash router.
+  const skip = document.getElementById("skip-link");
+  skip.addEventListener("click", (e) => {
+    e.preventDefault();
+    const main = document.getElementById("main");
+    if (main && main.focus) main.focus();
+  });
+}
+
+// ---------------------------------------------------------------------
+// Accounts, routing and views
+// ---------------------------------------------------------------------
+
+let SB = null; // supabase-js client; null when config.js is absent (wizard only, no saving)
+let AUTH = null;
+let SESSION = null;
+let AUTH_LINK_ERROR = false; // the email link that opened the app was invalid or expired
+let currentView = null;
+
+// Smooth scrolling unless the user asked for reduced motion.
+function scrollToTop() {
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+}
+
+const VIEWS = ["view-signin", "view-projects", "view-message", "view-wizard"];
+
+const VIEW_TITLES = { "view-signin": "Sign in", "view-projects": "Your projects", "view-wizard": "Project" };
+
+function showView(id) {
+  currentView = id;
+  VIEWS.forEach((v) => (document.getElementById(v).hidden = v !== id));
+  const wizard = id === "view-wizard";
+  document.getElementById("step-indicator").hidden = !wizard;
+  document.getElementById("wizard-nav").hidden = !wizard;
+  // Each view gets its own page title (WCAG 2.4.2).
+  document.title = (VIEW_TITLES[id] ? VIEW_TITLES[id] + " — " : "") + "Facility Compliance";
+}
+
+// After a route change, start screen readers at the new view's heading.
+function focusHeading(root) {
+  const heading = root && root.querySelector && root.querySelector("h2");
+  if (!heading) return;
+  heading.setAttribute("tabindex", "-1");
+  heading.focus({ preventScroll: true });
+}
+
+function go(hash) {
+  if (window.location.hash === hash) render();
+  else window.location.hash = hash; // triggers render via hashchange
+}
+
+function setNotice(el, text, isError) {
+  clear(el);
+  el.appendChild(document.createTextNode(text));
+  el.className = "notice" + (isError ? " notice-error" : " notice-ok");
+  el.hidden = false;
+}
+
+function render() {
+  const route = Router.routeFor(window.location.hash, { configured: !!SB, signedIn: !!SESSION });
+  const stayingOnProject = route.name === "project" && CURRENT && route.id === CURRENT.id;
+  if (currentView === "view-wizard" && !stayingOnProject && hasUnsavedChanges()) {
+    // Put the address back and ask first; navigate only if the user agrees.
+    const target = window.location.hash;
+    window.history.replaceState(null, "", lastHash || "#/projects");
+    return confirmLeave(() => go(target));
+  }
+  lastHash = window.location.hash;
+  renderToken++;
+  renderAccountBar();
+  if (route.name !== "new" && route.name !== "project") CURRENT = null;
+  switch (route.name) {
+    case "wizard-only":
+      if (currentView !== "view-wizard") { showView("view-wizard"); showStep(state.step); }
+      return;
+    case "signin":
+      return renderSignIn();
+    case "projects":
+      return renderProjects();
+    case "new":
+      return startNewProject();
+    case "project":
+      if (CURRENT && CURRENT.id === route.id && currentView === "view-wizard") return; // already open (e.g. just saved)
+      return openProject(route.id);
+    default:
+      return renderMessage("Page not found", "That address doesn't match anything in the app.");
+  }
+}
+
+function renderAccountBar() {
+  const bar = document.getElementById("account-bar");
+  clear(bar);
+  if (!SB) {
+    bar.appendChild(h("span", { class: "account-note" }, "Saving is off — no account service configured"));
+    bar.hidden = false;
+    return;
+  }
+  if (!SESSION) { bar.hidden = true; return; }
+  bar.appendChild(h("a", { href: "#/projects" }, "My projects"));
+  bar.appendChild(h("span", { class: "account-email" }, [h("span", { class: "visually-hidden" }, "Signed in as "), SESSION.user.email || ""]));
+  bar.appendChild(
+    h("button", {
+      type: "button",
+      class: "secondary small",
+      onclick: () => confirmLeave(async () => {
+        await AUTH.signOut().catch(() => {});
+        SESSION = null;
+        CURRENT = null;
+        go("#/signin");
+      }),
+    }, "Sign out")
+  );
+  bar.hidden = false;
+}
+
+const SIGNIN_MESSAGES = {
+  ok: "Check your inbox — a sign-in link is on its way. It works once and expires after 1 hour.",
+  invalid_email: "Enter a valid email address.",
+  rate_limited: "Too many requests. Wait a minute, then try again.",
+  network: "Couldn't reach the server. Check your connection and try again.",
+};
+
+function renderSignIn() {
+  const root = document.getElementById("view-signin");
+  clear(root);
+  showView("view-signin");
+  const panel = h("div", { class: "panel narrow-panel signin-panel" });
+  panel.appendChild(h("h2", {}, "Sign in"));
+  panel.appendChild(h("p", { class: "field-hint" }, "We'll email you a one-time sign-in link — no password needed. Your saved projects are private to your account."));
+  if (AUTH_LINK_ERROR) {
+    panel.appendChild(h("div", { class: "notice notice-error", role: "alert" }, "That sign-in link has expired or was already used. Request a new one below."));
+  }
+  // One status region for every outcome (role="status": announced politely,
+  // and kept in place so repeated messages are read again).
+  const status = h("div", { class: "notice", id: "signin-status", role: "status", hidden: "hidden" });
+  const input = h("input", {
+    type: "email", id: "signin-email", name: "email", autocomplete: "email", inputmode: "email",
+    required: "required", maxlength: "254", spellcheck: "false", "aria-describedby": "signin-email-hint",
+  });
+  const button = h("button", { type: "submit" }, "Email me a sign-in link");
+  const form = h(
+    "form",
+    {
+      class: "signin-form",
+      novalidate: "novalidate",
+      "aria-labelledby": "signin-title",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        if (button.disabled) return;
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        clear(button);
+        button.appendChild(document.createTextNode("Sending…"));
+        const r = await AUTH.sendLink(input.value).catch(() => ({ ok: false, reason: "network" }));
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        clear(button);
+        button.appendChild(document.createTextNode(r.ok ? "Send another link" : "Email me a sign-in link"));
+        setNotice(status, SIGNIN_MESSAGES[r.ok ? "ok" : r.reason] || SIGNIN_MESSAGES.network, !r.ok);
+        // A bad address: mark the field and put the cursor back in it.
+        const bad = !r.ok && r.reason === "invalid_email";
+        if (bad) input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid");
+        input.setAttribute("aria-describedby", bad ? "signin-email-hint signin-status" : "signin-email-hint");
+        if (bad) input.focus();
+      },
+    },
+    [
+      h("div", { class: "field-block" }, [
+        h("label", { for: "signin-email" }, "Work email"),
+        h("span", { class: "field-note", id: "signin-email-hint" }, "For example, name@company.com"),
+        input,
+      ]),
+      button,
+    ]
+  );
+  panel.firstChild.setAttribute("id", "signin-title");
+  panel.appendChild(form);
+  panel.appendChild(status);
+  panel.appendChild(h("p", { class: "signin-footnote" }, "Results are advisory and are not a regulatory sign-off. Projects not edited for 6 months are deleted, with a 30-day warning first."));
+  root.appendChild(panel);
+  input.focus && input.focus();
+}
+
+function renderMessage(title, text) {
+  const root = document.getElementById("view-message");
+  clear(root);
+  showView("view-message");
+  root.appendChild(
+    h("div", { class: "panel narrow-panel" }, [
+      h("h2", {}, title),
+      text ? h("p", {}, text) : null,
+      SB && SESSION ? h("a", { href: "#/projects" }, "Back to my projects") : null,
+    ])
+  );
+  focusHeading(root);
+}
+
+// ---------------------------------------------------------------------
+// Saved projects
+// ---------------------------------------------------------------------
+
+let STORE = null;
+let CURRENT = null; // open project { id|null, name, notes, results, retention, reevaluated }; null = wizard-only
+let renderToken = 0; // bumps on every route render so slow responses can't paint over a newer view
+let categoryMemory = {}; // per-category choices set aside by switchCategory (this wizard session only)
+let saveMessage = null; // shown once in the project bar after a save
+let pendingLeave = null; // navigation waiting on the unsaved-changes prompt
+let lastHash = ""; // hash of the view on screen, restored when leaving is put on hold
+
+// Unsaved changes: compare what Save would store now with what was last
+// opened or saved.
+const currentFingerprint = () => ProjectState.fingerprint({ name: CURRENT.name, notes: CURRENT.notes, state });
+const hasUnsavedChanges = () => !!(CURRENT && CURRENT.savedFingerprint !== currentFingerprint());
+
+function setCurrent(fields) {
+  CURRENT = { reevaluated: false, ...fields };
+  CURRENT.savedFingerprint = currentFingerprint();
+}
+
+function refreshUnsavedFlag() {
+  const flag = document.querySelector("#project-bar .unsaved-flag");
+  if (flag) flag.hidden = !hasUnsavedChanges();
+}
+
+// Run proceed() now, or after the user answers the unsaved-changes prompt.
+function confirmLeave(proceed) {
+  if (!hasUnsavedChanges()) return proceed();
+  pendingLeave = proceed;
+  renderProjectBar();
+  scrollToTop();
+  // role="alertdialog" expects focus inside it: start on its first action.
+  const first = document.querySelector("#project-bar .unsaved-guard button");
+  if (first) first.focus();
+}
+
+function leaveNow() {
+  const proceed = pendingLeave;
+  pendingLeave = null;
+  if (CURRENT) CURRENT.savedFingerprint = currentFingerprint(); // changes discarded on purpose
+  if (proceed) proceed();
+}
+
+const fmtDate = (d) => ProjectsView.formatDate(d);
+
+function errorText(e) {
+  if (e && e.code === "invalid") return "Can't save yet: " + e.errors.join("; ");
+  if (e && e.code === "invalid_project") return "This saved project couldn't be loaded safely.";
+  if (e && e.code === "too_large") return e.message;
+  if (e && e.serverCode === "PGRST301") return "Your session has expired. Sign in again.";
+  return "Couldn't reach the server. Check your connection and try again.";
+}
+
+async function renderProjects(announcement) {
+  const token = renderToken;
+  CURRENT = null;
+  const root = document.getElementById("view-projects");
+  clear(root);
+  showView("view-projects");
+  // Loading text is a status message so screen readers hear it finish.
+  const body = h("div", { class: "projects-body", "aria-busy": "true" }, h("p", { class: "loading-state", role: "status" }, "Loading your projects…"));
+  const summary = h("p", { class: "field-hint projects-summary" });
+  root.appendChild(
+    h("div", { class: "panel" }, [
+      h("div", { class: "projects-head" }, [
+        h("h2", {}, "Your projects"),
+        h("button", { type: "button", onclick: () => go("#/projects/new") }, "New project"),
+      ]),
+      h("p", { class: "field-hint" }, "A project is deleted 6 months after its last edit, with a 30-day warning first. Opening a project doesn't count as an edit."),
+      summary,
+      body,
+    ])
+  );
+  focusHeading(root);
+  if (announcement) announce(announcement);
+  try {
+    const items = await STORE.list();
+    if (token !== renderToken) return;
+    clear(body);
+    body.removeAttribute("aria-busy");
+    const text = ProjectsView.listSummary(items);
+    if (text) summary.appendChild(document.createTextNode(text));
+    body.appendChild(
+      ProjectsView.projectList(h, items, {
+        onKeep: (p) => STORE.keep(p.id).then(() => token === renderToken && renderProjects(`Kept “${p.name}” — the 6-month clock has restarted`), showListError),
+        onDelete: (p) => STORE.remove(p.id).then(() => token === renderToken && renderProjects(`Deleted “${p.name}”`), showListError),
+      }, fmtDate)
+    );
+  } catch (e) {
+    if (token === renderToken) showListError(e);
+  }
+  function showListError(e) {
+    clear(body);
+    body.removeAttribute("aria-busy");
+    body.appendChild(h("div", { class: "notice notice-error", role: "alert" }, [
+      h("span", {}, errorText(e)),
+      h("div", { class: "notice-actions" }, h("button", { type: "button", class: "secondary small", onclick: () => renderProjects() }, "Try again")),
+    ]));
+  }
+}
+
+function startNewProject() {
+  categoryMemory = {}; viewingAuthority = null;
+  ProjectState.resetState(state);
+  roomFilter = "";
+  stepErrors = null;
+  setCurrent({ id: null, name: "", notes: "", results: null, retention: null });
+  showView("view-wizard");
+  showStep(1);
+}
+
+async function openProject(id) {
+  const token = renderToken;
+  renderMessage("Opening project…", "");
+  let p;
+  try {
+    p = await STORE.get(id);
+  } catch (e) {
+    if (token === renderToken) renderMessage("Couldn't open this project", errorText(e));
+    return;
+  }
+  if (token !== renderToken) return;
+  if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
+  categoryMemory = {}; viewingAuthority = null;
+  ProjectState.resetState(state, p.inputs);
+  roomFilter = "";
+  stepErrors = null;
+  setCurrent({ id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention });
+  showView("view-wizard");
+  // Complete projects open on their results; unfinished ones where they start.
+  showStep(!validateStep(1) && !validateStep(2) ? 4 : 1);
+}
+
+function renderProjectBar() {
+  const bar = document.getElementById("project-bar");
+  clear(bar);
+  if (!CURRENT) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const status = h("span", { class: "save-status", role: "status" }, saveMessage || "");
+  if (saveMessage) announce(saveMessage); // the persistent live region is read reliably; a new one may not be
+  saveMessage = null;
+  const save = h("button", { type: "button", id: "btn-save", onclick: () => saveCurrent(save, status) }, CURRENT.id ? "Save changes" : "Save project");
+  bar.appendChild(
+    h("div", { class: "panel project-bar" }, [
+      h("div", { class: "project-bar-row" }, [
+        h("a", { href: "#/projects", class: "back-link" }, [h("span", { "aria-hidden": "true" }, "← "), "My projects"]),
+        h("div", { class: "project-name-field" }, [
+          h("label", { for: "project-name" }, "Project name"),
+          h("input", {
+            type: "text", id: "project-name", maxlength: "120", value: CURRENT.name, autocomplete: "off",
+            placeholder: "e.g. Plant 2 — sterile block",
+            oninput: (e) => { CURRENT.name = e.target.value; refreshUnsavedFlag(); },
+          }),
+        ]),
+        save,
+        h("div", { class: "project-bar-status" }, [
+          // Text plus a dot, not colour alone; toggled by refreshUnsavedFlag().
+          h("span", { class: "unsaved-flag", hidden: hasUnsavedChanges() ? null : "hidden" }, "Unsaved changes"),
+          status,
+        ]),
+      ]),
+      pendingLeave ? unsavedGuard() : null,
+      h("details", { class: "project-notes" }, [
+        h("summary", {}, CURRENT.notes ? "Notes (added)" : "Add notes"),
+        h("label", { for: "project-notes", class: "visually-hidden" }, "Project notes"),
+        h("textarea", { id: "project-notes", maxlength: "2000", rows: "3", oninput: (e) => { CURRENT.notes = e.target.value; refreshUnsavedFlag(); } }, CURRENT.notes || ""),
+      ]),
+      ProjectsView.deletionNotice(h, CURRENT.retention, { onKeep: keepCurrent, fmt: fmtDate }),
+      CURRENT.reevaluated ? null : ProjectsView.resultsNotice(h, CURRENT.results, { onReevaluate: reevaluate }),
+    ])
+  );
+}
+
+// Re-rendering the bar replaces its buttons; keep keyboard focus in the bar.
+function focusSaveButton() {
+  const active = document.activeElement;
+  if (active && active !== document.body && document.contains(active)) return;
+  const btn = document.getElementById("btn-save");
+  if (btn) btn.focus();
+}
+
+// role="alertdialog" + aria-labelledby/describedby: announced as a question
+// that needs an answer; confirmLeave() moves focus to its first button.
+function unsavedGuard() {
+  const status = h("span", { class: "save-status", role: "status" });
+  const save = h("button", { type: "button", onclick: async () => { if (await saveCurrent(save, status)) leaveNow(); } }, "Save and leave");
+  return h("div", { class: "unsaved-guard", role: "alertdialog", "aria-labelledby": "unsaved-title", "aria-describedby": "unsaved-desc" }, [
+    h("div", { class: "banner-text" }, [
+      h("strong", { id: "unsaved-title" }, "You have unsaved changes."),
+      h("span", { id: "unsaved-desc" }, " Save them before leaving this project?"),
+    ]),
+    h("div", { class: "banner-actions" }, [
+      save,
+      h("button", { type: "button", class: "secondary", onclick: leaveNow }, "Discard changes"),
+      h("button", { type: "button", class: "secondary", onclick: () => { pendingLeave = null; renderProjectBar(); focusSaveButton(); } }, "Stay"),
+    ]),
+    status,
+  ]);
+}
+
+async function saveCurrent(button, status) {
+  button.disabled = true;
+  setNotice(status, "Saving…", false);
+  try {
+    const payload = { name: CURRENT.name, notes: CURRENT.notes, state };
+    const p = CURRENT.id ? await STORE.update(CURRENT.id, payload) : await STORE.create(payload);
+    if (!p) { renderMessage("Project not found", "It may have been deleted in another tab."); return false; }
+    const wasNew = !CURRENT.id;
+    setCurrent({ id: p.id, name: p.name, notes: p.notes, results: p.results, retention: p.retention });
+    // Give the new project its own address without re-running the router.
+    if (wasNew) {
+      window.history.replaceState(null, "", "#/projects/" + p.id);
+      lastHash = window.location.hash;
+    }
+    saveMessage = "Saved";
+    showStep(state.step);
+    focusSaveButton();
+    return true;
+  } catch (e) {
+    setNotice(status, errorText(e), true);
+    return false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function keepCurrent() {
+  try {
+    const p = await STORE.keep(CURRENT.id);
+    if (!p) return renderMessage("Project not found", "It may have been deleted in another tab.");
+    CURRENT.retention = p.retention;
+    saveMessage = "Kept — the 6-month clock has restarted";
+    renderProjectBar();
+    focusSaveButton();
+  } catch (e) {
+    renderProjectBar();
+    focusSaveButton();
+    setNotice(document.querySelector("#project-bar .save-status"), errorText(e), true);
+  }
+}
+
+function reevaluate() {
+  CURRENT.reevaluated = true;
+  saveMessage = "Showing results with the current data — save to update the project";
+  showStep(4);
+}
+
+async function initAccounts() {
+  const cfg = window.APP_CONFIG;
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase) return;
+  const href = window.location.href;
+  AUTH_LINK_ERROR = /[?&#]error(_code)?=/.test(href);
+  SB = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+    // PKCE: the email link comes back with a one-time ?code=, never tokens in the URL.
+    auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+  });
+  AUTH = Auth.createAuth({ client: SB, location: window.location });
+  const manifest = DATA.manifest;
+  // Saved projects are stamped with the data's content hash; without it,
+  // keep accounts off (wizard only) rather than save unverifiable results.
+  if (!manifest || !manifest.content_hash) {
+    console.error("data/manifest.json is missing or has no content_hash; saving is off.");
+    SB = null;
+    AUTH = null;
+    return;
+  }
+  STORE = ProjectStore.createStore({
+    client: SB,
+    DATA,
+    versions: { dataHash: manifest.content_hash, engineVersion: FacilityEngine.ENGINE_VERSION },
+    ProjectState,
+    ResultsSnapshot,
+  });
+  try {
+    const { data, error } = await SB.auth.getSession(); // completes an email-link sign-in if ?code= is present
+    if (error) AUTH_LINK_ERROR = true;
+    SESSION = (data && data.session) || null;
+  } finally {
+    const clean = Router.scrubAuthParams(href); // R15: no codes or tokens left in the address bar
+    if (clean !== href) window.history.replaceState(null, "", clean);
+  }
+  SB.auth.onAuthStateChange((_event, session) => {
+    const changed = !!session !== !!SESSION;
+    SESSION = session;
+    if (changed) setTimeout(render, 0); // never call back into supabase-js inside this callback
   });
 }
 
@@ -742,7 +1566,15 @@ function wireNav() {
 async function init() {
   DATA = await loadData();
   wireNav();
-  showStep(1);
+  await initAccounts();
+  window.addEventListener("hashchange", render);
+  // Closing or reloading the tab with unsaved changes: the browser's own prompt.
+  window.addEventListener("beforeunload", (e) => {
+    if (hasUnsavedChanges()) { e.preventDefault(); e.returnValue = ""; }
+  });
+  const wizard = document.getElementById("view-wizard");
+  if (wizard.addEventListener) ["input", "change", "click"].forEach((t) => wizard.addEventListener(t, () => setTimeout(refreshUnsavedFlag, 0)));
+  render();
 }
 
 init();

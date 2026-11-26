@@ -3,39 +3,81 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Facility Compliance Interface — Prototype</title>
+<title>Facility Compliance — Prototype</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="results.css">
 </head>
 <body>
 <div id="app">
+  <a class="skip-link" id="skip-link" href="#main">Skip to main content</a>
   <header class="app-header">
-    <h1>Facility Compliance Interface <span class="version-tag">prototype v1</span></h1>
-    <p class="subtitle">Enter your facility's design parameters and see which regulatory frameworks it satisfies — and exactly what to change where it doesn't.</p>
-    <ol class="step-indicator" id="step-indicator">
-      <li data-step="1">1. Classification</li>
-      <li data-step="2">2. Rooms &amp; Zones</li>
-      <li data-step="3">3. Parameters</li>
-      <li data-step="4">4. Results</li>
-    </ol>
+    <div class="shell header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">FC</span>
+        <h1 class="brand-name">Facility Compliance</h1>
+        <span class="version-tag">Prototype</span>
+      </div>
+      <nav id="account-bar" class="account-bar" aria-label="Account" hidden></nav>
+    </div>
   </header>
 
-  <main id="main">
-    <section id="step-1" class="step"></section>
-    <section id="step-2" class="step" hidden></section>
-    <section id="step-3" class="step" hidden></section>
-    <section id="step-4" class="step" hidden></section>
-  </main>
+  <div class="shell">
+    <!-- Stepper: aria-current="step" and hidden state text are set by
+         updateStepIndicator(); markers switch from number to a check mark. -->
+    <nav id="step-indicator" class="stepper" aria-label="Project steps">
+      <ol class="stepper-list">
+        <li class="stepper-item" data-step="1"><span class="stepper-marker" aria-hidden="true">1</span><span class="stepper-text"><span class="stepper-label">Classification</span><span class="stepper-state visually-hidden"></span></span></li>
+        <li class="stepper-item" data-step="2"><span class="stepper-marker" aria-hidden="true">2</span><span class="stepper-text"><span class="stepper-label">Rooms &amp; zones</span><span class="stepper-state visually-hidden"></span></span></li>
+        <li class="stepper-item" data-step="3"><span class="stepper-marker" aria-hidden="true">3</span><span class="stepper-text"><span class="stepper-label">Parameters</span><span class="stepper-state visually-hidden"></span></span></li>
+        <li class="stepper-item" data-step="4"><span class="stepper-marker" aria-hidden="true">4</span><span class="stepper-text"><span class="stepper-label">Results</span><span class="stepper-state visually-hidden"></span></span></li>
+      </ol>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <section id="view-signin" class="view" hidden></section>
+      <section id="view-projects" class="view" hidden></section>
+      <section id="view-message" class="view" hidden></section>
+      <div id="view-wizard">
+        <div id="project-bar" hidden></div>
+        <section id="step-1" class="step"></section>
+        <section id="step-2" class="step" hidden></section>
+        <section id="step-3" class="step" hidden></section>
+        <section id="step-4" class="step" hidden></section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Sticky step navigation (static on short viewports, see styles.css). -->
+  <div class="wizard-nav" id="wizard-nav" role="group" aria-label="Step navigation">
+    <div class="shell wizard-nav-inner">
+      <span class="wizard-position" id="wizard-position">Step 1 of 4</span>
+      <button id="btn-back" type="button" class="secondary">Back</button>
+      <button id="btn-next" type="button">Next</button>
+      <button id="btn-restart" type="button" class="secondary" hidden>Start over</button>
+    </div>
+  </div>
+  <!-- Polite live region for step changes and save/keep/delete confirmations. -->
+  <div id="app-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
   <footer class="app-footer">
-    <div class="footer-note">Data source: <em>Facility_Compliance_Parameter_Schema.xlsx</em> — a prototype rules engine, not a validated regulatory tool.</div>
-    <div class="nav-buttons">
-      <button id="btn-back" type="button">Back</button>
-      <button id="btn-next" type="button">Next</button>
-      <button id="btn-restart" type="button" class="secondary" hidden>Start Over</button>
+    <div class="shell footer-note">
+      <p>Data source: <em>Facility_Compliance_Parameter_Schema.xlsx</em>. Advisory output from a prototype rules engine — not a validated regulatory tool or sign-off.</p>
     </div>
   </footer>
 </div>
+<script src="vendor/supabase-js-2.119.0.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O"></script>
+<script src="config.js"></script>
 <script src="engine.js"></script>
+<script src="project-state.js"></script>
+<script src="results-snapshot.js"></script>
+<script src="results-model.js"></script>
+<script src="results-view.js"></script>
+<script src="report-export.js"></script>
+<script src="store.js"></script>
+<script src="router.js"></script>
+<script src="auth.js"></script>
+<script src="projects-view.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
