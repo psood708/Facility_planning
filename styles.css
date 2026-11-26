@@ -810,3 +810,32 @@ details.threshold-detail { margin-top: var(--space-1); }
   .table-scroll { overflow: visible; }
   .status-pill, .severity-tag, .badge, .obligation-tag { border: 1px solid #000; }
 }
+
+/* ---------------------------------------------------------------- PDF intake (fill from a document) */
+.intake-host { margin: 0 0 var(--space-5); }
+.intake-panel { border: 1px dashed var(--border-strong); border-radius: 8px; padding: var(--space-4); background: var(--neutral-bg); }
+.intake-panel h3 { margin: 0 0 var(--space-2); }
+.intake-panel h3:focus { outline: 3px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+.intake-lede, .intake-meta, .intake-progress-text { color: var(--ink-soft); font-size: var(--text-sm); margin: 0 0 var(--space-3); }
+.intake-progress { width: 100%; max-width: 420px; height: 12px; display: block; margin: 0 0 var(--space-2); }
+.intake-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
+.intake-group { margin: var(--space-4) 0 0; }
+.intake-group h4 { margin: 0 0 var(--space-2); }
+.intake-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.intake-row { padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.intake-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.intake-check label { font-weight: var(--weight-bold); }
+.intake-conf { font-size: var(--text-sm); color: var(--ink-soft); white-space: nowrap; }
+.intake-conf.conf-high { color: var(--aligned); }
+.intake-source { margin: 2px 0 0 28px; font-size: var(--text-sm); color: var(--ink-soft); overflow-wrap: anywhere; }
+.intake-row .intake-meta { margin: 2px 0 0 28px; }
+.intake-replaces .intake-meta { color: var(--ink); }
+.intake-conflict { border: 1px solid var(--border-strong); border-radius: 6px; padding: var(--space-2) var(--space-3); margin: var(--space-3) 0; background: var(--panel); }
+.intake-conflict legend { font-weight: var(--weight-bold); padding: 0 var(--space-1); }
+.intake-option { padding: var(--space-1) 0; }
+.intake-notes { margin: 0 0 var(--space-3); padding-left: var(--space-4); color: var(--ink-soft); font-size: var(--text-sm); }
+/* Stays in view above the sticky wizard footer (which is static on short screens). */
+.intake-apply { position: sticky; bottom: calc(var(--nav-h) + 1px); background: var(--neutral-bg); padding: var(--space-2) 0; margin-bottom: 0; z-index: 1; }
+.intake-from { color: var(--accent-dark); }
+@media (max-height: 520px) { .intake-apply { bottom: 0; } }
+.captcha-box { margin: var(--space-3) 0; min-height: 65px; }

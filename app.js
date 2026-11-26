@@ -12,11 +12,8 @@
 const { CATEGORY_DEFS, SPECIFIC_FORMS, resolveInputKind } = ProjectState;
 const WizardView = ProjectsView.wizard; // step validation, error summary, stepper, room filter
 
-const OPTION_OVERRIDES = {
-  "UTIL-001": ["Class 1", "Class 1.2.1", "Class 2"],
-  "SHE-004": ["OEB 1", "OEB 2", "OEB 3", "OEB 4", "OEB 5"],
-  "HVAC-001": ["Unclassified/CNC", "Grade D (ISO 8)", "Grade C (ISO 7)", "Grade B", "Grade A (ISO 5)"],
-};
+// Select options for a parameter (shared with the PDF intake matcher).
+const optionsFor = ProjectState.optionsFor;
 
 const {
   GRADE_HIERARCHY, GRADE_TAG_TO_LABEL, SEVERITY_RANK, NON_SCORED_CATEGORY_EXCLUDE, PARAM_ROOM_FILTERS,
@@ -237,6 +234,11 @@ function renderStep1() {
   const summary = errorSummaryFor(n);
   if (summary) panel.appendChild(summary);
 
+  // Optional: fill the wizard from a PDF (read in the browser, reviewed before filling).
+  intakeHost = h("div", { class: "intake-host" });
+  panel.appendChild(intakeHost);
+  renderIntake();
+
   panel.appendChild(h("div", { class: "section" }, groupField(n, "category", {
     legend: "Dosage form category",
     hint: "Switching category sets aside the forms and rooms chosen for the previous one; switch back to get them again.",
@@ -453,6 +455,130 @@ function applyRoomFilter() {
 }
 
 // ---------------------------------------------------------------------
+// Fill from a document (PDF intake)
+// ---------------------------------------------------------------------
+// The PDF is read in this browser (DocReader), matched to the dataset
+// (IntakeMatch), reviewed by the planner (IntakeView), and only the ticked
+// values are applied — through ProjectState.validateInputs, like a saved project.
+
+let intake = { phase: "idle" };
+let intakeHost = null;
+// "<room id or facility>|<param id>" -> "From <file> p.N"; this session only, cleared on edit.
+const intakeNotes = new Map();
+const intakeNoteKey = (scope, paramId) => `${scope || "facility"}|${paramId}`;
+const INTAKE_ERRORS = {
+  too_large: "This file is over 25 MB. Split it or save a smaller copy.",
+  not_pdf: "This isn't a PDF. Save the document as PDF and try again.",
+  encrypted: "This PDF is password-protected. Save an unprotected copy and try again.",
+  unreadable: "This PDF couldn't be read.",
+};
+
+// A new, opened or restarted project (or signing out) starts with no PDF:
+// stop any read, drop a pending review and the "From <file>" notes.
+function resetIntake() {
+  if (intake.controller) intake.controller.abort();
+  intake = { phase: "idle" };
+  intakeNotes.clear();
+}
+
+function intakeLabels() {
+  return { param: (id) => (DATA.paramById[id] || {}).name || id, room: (id) => (DATA.roomById[id] || {}).name || id };
+}
+
+function focusIntakeHeading() {
+  const head = intakeHost && intakeHost.querySelector("h3[tabindex]");
+  if (head) head.focus();
+}
+
+function renderIntake() {
+  if (!intakeHost) return;
+  let node;
+  if (intake.phase === "reading") {
+    node = IntakeView.progress(h, { name: intake.name, ...intake.progress, onCancel: () => intake.controller && intake.controller.abort() });
+    intake.progressNode = node;
+  } else if (intake.phase === "review") {
+    node = IntakeView.review(h, {
+      items: intake.items, fileName: intake.name, labels: intakeLabels(), onApply: applyIntake,
+      onDiscard: () => { intake = { phase: "idle" }; renderIntake(); announce("Document set aside; nothing was filled."); },
+    });
+  } else if (intake.phase === "summary") {
+    node = IntakeView.summary(h, { fileName: intake.name, filled: intake.filled, skipped: intake.skipped, errors: intake.errors, onGo: (n) => { intake = { phase: "idle" }; showStep(n, { focus: true }); } });
+  } else {
+    node = IntakeView.uploadPanel(h, { onFile: readIntake, error: intake.error });
+  }
+  clear(intakeHost);
+  intakeHost.appendChild(node);
+}
+
+async function readIntake(file) {
+  const controller = new AbortController();
+  intake = { phase: "reading", name: file.name, controller, progress: { page: 0, pages: 1, source: "text" } };
+  renderIntake();
+  focusIntakeHeading();
+  announce(`Reading ${file.name}`);
+  const current = () => intake.controller === controller; // a reset or a new project replaces it
+  try {
+    const doc = await DocReader.read(file, {
+      signal: controller.signal,
+      onProgress: (p) => {
+        if (!current()) return;
+        intake.progress = p;
+        const node = intake.progressNode;
+        if (node && node.isConnected && node.intakeUpdate) node.intakeUpdate(p); // in place: focus stays on Cancel
+        else renderIntake();
+      },
+    });
+    if (!current()) return;
+    const pages = doc.pages.map((p) => ({ index: p.index, source: p.source, lines: DocLines.toLines(p.items) }));
+    const items = IntakeMatch.resolve(IntakeMatch.runAll({ name: doc.name, pages }, { DATA }), state, DATA);
+    intake = { phase: "review", name: file.name, items };
+    renderIntake();
+    focusIntakeHeading();
+    const offered = items.filter((i) => !i.note && !i.same).length;
+    const limits = [doc.truncated ? `only the first ${pages.length} of ${doc.totalPages} pages were read` : "", doc.ocrSkipped ? `${doc.ocrSkipped} scanned pages beyond the OCR limit were skipped` : ""].filter(Boolean).join("; ");
+    announce(`${offered} values found in ${file.name}${limits ? ` (${limits})` : ""}. Review them before filling.`);
+  } catch (e) {
+    if (!current()) return;
+    if (e && e.kind === "cancelled") {
+      intake = { phase: "idle" };
+      renderIntake();
+      announce("Reading cancelled; nothing was filled.");
+      return;
+    }
+    intake = { phase: "idle", error: INTAKE_ERRORS[e && e.kind] || INTAKE_ERRORS.unreadable };
+    renderIntake();
+  }
+}
+
+function applyIntake(accepted) {
+  const name = intake.name;
+  const r = IntakeMatch.buildInputs(state, accepted, DATA, categoryMemory);
+  if (!r.ok) {
+    intake = { phase: "summary", name, filled: 0, errors: r.errors };
+    renderIntake();
+    focusIntakeHeading();
+    return;
+  }
+  const step = state.step;
+  ProjectState.resetState(state, r.inputs);
+  state.step = step;
+  categoryMemory = r.memory;
+  // Only what was really applied counts and gets a note (rooms or forms the
+  // category doesn't use are left out).
+  const applied = new Set(r.applied);
+  for (const a of accepted) {
+    if (a.target.kind !== "param" || !applied.has(a.key)) continue;
+    const scope = a.target.scope === "room" ? a.target.roomId : "facility";
+    const page = a.sources && a.sources[0] ? a.sources[0].page : null;
+    intakeNotes.set(intakeNoteKey(scope, a.target.paramId), `From ${name}${page ? ` p.${page}` : ""} — check it`);
+  }
+  intake = { phase: "summary", name, filled: r.applied.length, skipped: r.skipped.length, errors: [] };
+  renderStep1();
+  focusIntakeHeading();
+  announce(`${r.applied.length} values filled from ${name}.${r.skipped.length ? ` ${r.skipped.length} left out because the category doesn't use them.` : ""}`);
+}
+
+// ---------------------------------------------------------------------
 // Step 3 — Parameter input
 // ---------------------------------------------------------------------
 
@@ -461,13 +587,6 @@ function relevantParams() {
 }
 
 const appliesAtNormalized = FacilityEngine.appliesAtNormalized;
-
-function optionsFor(param) {
-  if (OPTION_OVERRIDES[param.id]) return OPTION_OVERRIDES[param.id];
-  const raw = param.unit_options || "";
-  if (raw.includes(" / ")) return raw.split(" / ").map((s) => s.trim());
-  return [raw];
-}
 
 const numberOrNull = (v) => (v === "" ? null : parseFloat(v));
 
@@ -487,8 +606,11 @@ function yesNoSelect(id, value, onPick, describedBy) {
 
 // Every control gets a programmatic label (for/id) and its unit and notes via
 // aria-describedby; ids are unique per room (scope).
-function renderParamField(param, value, onChange, scope) {
+function renderParamField(param, value, onChangeValue, scope) {
   const kind = resolveInputKind(param);
+  const noteKey = intakeNoteKey(scope, param.id);
+  const onChange = (v) => { intakeNotes.delete(noteKey); onChangeValue(v); };
+  const fromPdf = intakeNotes.has(noteKey) ? h("span", { class: "field-note intake-from" }, intakeNotes.get(noteKey)) : null;
   const id = WizardView.fieldId(scope || "facility", param.id);
   const hintId = param.notes ? id + "-hint" : null;
   const hint = param.notes ? h("span", { class: "field-note", id: hintId }, param.notes) : null;
@@ -512,6 +634,7 @@ function renderParamField(param, value, onChange, scope) {
         unit && unit.length <= 14 ? h("span", { class: "unit", "aria-hidden": "true" }, unit) : null,
       ]),
       hint,
+      fromPdf,
     ]);
   }
 
@@ -545,6 +668,7 @@ function renderParamField(param, value, onChange, scope) {
   }
 
   if (hint) wrap.appendChild(hint);
+  if (fromPdf) wrap.appendChild(fromPdf);
   return wrap;
 }
 
@@ -618,11 +742,12 @@ function renderStep3() {
             type: "number", step: "any", inputmode: "decimal", id: areaId,
             value: values["DIM-001"] ?? "",
             "aria-describedby": `${areaId}-unit ${areaId}-hint`,
-            oninput: (e) => (values["DIM-001"] = numberOrNull(e.target.value)),
+            oninput: (e) => { intakeNotes.delete(intakeNoteKey(room.id, "DIM-001")); values["DIM-001"] = numberOrNull(e.target.value); },
           }),
           h("span", { class: "unit", id: areaId + "-unit" }, "m²"),
         ]),
         h("span", { class: "field-note", id: areaId + "-hint" }, room.min_area_sqm != null ? `Schedule M minimum: ${room.min_area_sqm} m²` : "Schedule M gives no numeric minimum for this room"),
+        intakeNotes.has(intakeNoteKey(room.id, "DIM-001")) ? h("span", { class: "field-note intake-from" }, intakeNotes.get(intakeNoteKey(room.id, "DIM-001"))) : null,
       ])),
     ]));
 
@@ -1063,7 +1188,7 @@ function wireNav() {
     // In a saved project "Start Over" opens a new project rather than
     // blanking this one (a later Save would overwrite it).
     if (CURRENT) return go("#/projects/new");
-    categoryMemory = {}; viewingAuthority = null;
+    categoryMemory = {}; viewingAuthority = null; resetIntake();
     ProjectState.resetState(state);
     showStep(1, { focus: true });
   });
@@ -1178,6 +1303,7 @@ function renderAccountBar() {
       class: "secondary small",
       onclick: () => confirmLeave(async () => {
         await AUTH.signOut().catch(() => {});
+        resetIntake();
         SESSION = null;
         CURRENT = null;
         go("#/signin");
@@ -1192,7 +1318,30 @@ const SIGNIN_MESSAGES = {
   invalid_email: "Enter a valid email address.",
   rate_limited: "Too many requests. Wait a minute, then try again.",
   network: "Couldn't reach the server. Check your connection and try again.",
+  captcha: "The security check didn't pass. Complete it again, then send the link.",
+  captcha_needed: "Complete the security check above, then send the link.",
+  captcha_unavailable: "The security check couldn't load. Check your connection or turn off content blockers for this site, then reload the page.",
 };
+
+// Sign-in CAPTCHA (Cloudflare Turnstile): on only when the build sets a site
+// key, so local development and the tests run without it. Supabase checks
+// the token; it is single-use, so the widget resets after every attempt.
+let turnstileLoading = null;
+function loadTurnstile() {
+  if (!turnstileLoading) {
+    turnstileLoading = new Promise((resolve, reject) => {
+      if (window.turnstile) return resolve(window.turnstile);
+      const sc = document.createElement("script");
+      sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      sc.async = true;
+      sc.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error("captcha")));
+      sc.onerror = () => reject(new Error("captcha"));
+      document.head.appendChild(sc);
+    });
+    turnstileLoading.catch(() => { turnstileLoading = null; });
+  }
+  return turnstileLoading;
+}
 
 function renderSignIn() {
   const root = document.getElementById("view-signin");
@@ -1212,6 +1361,21 @@ function renderSignIn() {
     required: "required", maxlength: "254", spellcheck: "false", "aria-describedby": "signin-email-hint",
   });
   const button = h("button", { type: "submit" }, "Email me a sign-in link");
+  const siteKey = (window.APP_CONFIG || {}).turnstileSiteKey || null;
+  let captchaToken = null;
+  let widgetId = null;
+  const captchaBox = siteKey ? h("div", { class: "captcha-box", id: "signin-captcha" }) : null;
+  if (siteKey) {
+    loadTurnstile().then((t) => {
+      widgetId = t.render(captchaBox, {
+        sitekey: siteKey,
+        action: "signin",
+        callback: (token) => { captchaToken = token; },
+        "expired-callback": () => { captchaToken = null; },
+        "error-callback": () => { captchaToken = null; },
+      });
+    }).catch(() => setNotice(status, SIGNIN_MESSAGES.captcha_unavailable, true));
+  }
   const form = h(
     "form",
     {
@@ -1221,11 +1385,13 @@ function renderSignIn() {
       onsubmit: async (e) => {
         e.preventDefault();
         if (button.disabled) return;
+        if (siteKey && !captchaToken) { setNotice(status, SIGNIN_MESSAGES.captcha_needed, true); return; }
         button.disabled = true;
         button.setAttribute("aria-busy", "true");
         clear(button);
         button.appendChild(document.createTextNode("Sending…"));
-        const r = await AUTH.sendLink(input.value).catch(() => ({ ok: false, reason: "network" }));
+        const r = await AUTH.sendLink(input.value, { captchaToken }).catch(() => ({ ok: false, reason: "network" }));
+        if (siteKey) { captchaToken = null; if (window.turnstile && widgetId !== null) window.turnstile.reset(widgetId); }
         button.disabled = false;
         button.removeAttribute("aria-busy");
         clear(button);
@@ -1244,6 +1410,7 @@ function renderSignIn() {
         h("span", { class: "field-note", id: "signin-email-hint" }, "For example, name@company.com"),
         input,
       ]),
+      captchaBox,
       button,
     ]
   );
@@ -1320,6 +1487,7 @@ function errorText(e) {
   if (e && e.code === "invalid") return "Can't save yet: " + e.errors.join("; ");
   if (e && e.code === "invalid_project") return "This saved project couldn't be loaded safely.";
   if (e && e.code === "too_large") return e.message;
+  if (e && e.code === "limit") return e.message;
   if (e && e.serverCode === "PGRST301") return "Your session has expired. Sign in again.";
   return "Couldn't reach the server. Check your connection and try again.";
 }
@@ -1373,7 +1541,7 @@ async function renderProjects(announcement) {
 }
 
 function startNewProject() {
-  categoryMemory = {}; viewingAuthority = null;
+  categoryMemory = {}; viewingAuthority = null; resetIntake();
   ProjectState.resetState(state);
   roomFilter = "";
   stepErrors = null;
@@ -1394,7 +1562,7 @@ async function openProject(id) {
   }
   if (token !== renderToken) return;
   if (!p) return renderMessage("Project not found", "It may have been deleted, or the link is wrong.");
-  categoryMemory = {}; viewingAuthority = null;
+  categoryMemory = {}; viewingAuthority = null; resetIntake();
   ProjectState.resetState(state, p.inputs);
   roomFilter = "";
   stepErrors = null;

@@ -29,7 +29,7 @@
     constructor(code, message, extra = {}) {
       super(message);
       this.name = "StoreError";
-      this.code = code; // "invalid" | "invalid_project" | "not_found" | "too_large" | "server"
+      this.code = code; // "invalid" | "invalid_project" | "not_found" | "too_large" | "limit" | "server"
       Object.assign(this, extra);
     }
   }
@@ -81,6 +81,8 @@
     const snapshotBytesMax = limits.snapshotBytes || SNAPSHOT_BYTES_MAX;
     async function run(query) {
       const { data, error } = await query;
+      // 54000: the per-user project cap (migration 20261126120000_project_cap.sql).
+      if (error && error.code === "54000") throw new StoreError("limit", "You've reached the limit of 200 saved projects. Delete one you no longer need, then save again.", { serverCode: error.code });
       if (error) throw new StoreError("server", error.message || "Server error", { serverCode: error.code });
       return data;
     }

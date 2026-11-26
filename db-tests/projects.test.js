@@ -155,3 +155,27 @@ test("database rejects malformed rows even if the browser validation is bypassed
     assert.equal(error.code, "23514", `${JSON.stringify(o).slice(0, 60)}: ${error.message}`);
   }
 });
+
+// ---------------------------------------------------------------- per-user cap (security review #2)
+
+test("each user can hold at most 200 projects; at the cap an insert fails with code 54000; deleting frees a slot", async () => {
+  const C = await signedInUser("cap");
+  try {
+    const rows = Array.from({ length: 200 }, (_, i) => ({ ...projectRow({ name: `P${i}` }), owner_id: C.id }));
+    const seeded = await admin.from("projects").insert(rows);
+    if (seeded.error) throw seeded.error;
+    const over = await C.client.from("projects").insert(projectRow({ name: "one too many" })).select();
+    assert.equal(over.error && over.error.code, "54000", JSON.stringify(over.error));
+    assert.match(over.error.message, /200/);
+    const { count } = await C.client.from("projects").select("id", { count: "exact", head: true });
+    assert.equal(count, 200, "nothing was added");
+    const one = await C.client.from("projects").select("id").limit(1).single();
+    await C.client.from("projects").delete().eq("id", one.data.id);
+    const fits = await C.client.from("projects").insert(projectRow({ name: "fits again" })).select();
+    assert.equal(fits.error, null);
+    const other = await A.client.from("projects").insert(projectRow({ name: "A is unaffected" })).select();
+    assert.equal(other.error, null, "the cap is per user");
+  } finally {
+    await deleteUser(C);
+  }
+});

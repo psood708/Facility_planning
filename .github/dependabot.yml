@@ -1,0 +1,17 @@
+# Weekly update PRs for npm packages and the SHA-pinned GitHub Actions.
+# Vendored copies (vendor/) are refreshed by hand after a bump:
+#   supabase-js: re-vendor and update the integrity hash in index.html
+#   pdfjs-dist / tesseract.js: node scripts/vendor-ocr.js (and the VENDOR paths in doc-reader.js)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

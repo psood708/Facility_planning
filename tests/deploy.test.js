@@ -39,14 +39,18 @@ test("R13: every response carries a strict CSP", () => {
   const csp = headersFor("/(.*)")["content-security-policy"];
   const d = Object.fromEntries(csp.split(";").map((s) => s.trim()).filter(Boolean).map((s) => { const [k, ...v] = s.split(/\s+/); return [k, v]; }));
   assert.deepEqual(d["default-src"], ["'self'"]);
-  assert.deepEqual(d["script-src"], ["'self'"]);
+  // 'wasm-unsafe-eval' lets the in-browser OCR compile WebAssembly; it does not allow eval().
+  // Cloudflare Turnstile (sign-in CAPTCHA) needs its script and challenge frame.
+  assert.deepEqual(d["script-src"], ["'self'", "'wasm-unsafe-eval'", "https://challenges.cloudflare.com"]);
+  assert.deepEqual(d["frame-src"], ["https://challenges.cloudflare.com"]);
+  assert.deepEqual(d["worker-src"], ["'self'"]);
   assert.deepEqual(d["style-src"], ["'self'"]);
   assert.deepEqual(d["object-src"], ["'none'"]);
   assert.deepEqual(d["base-uri"], ["'none'"]);
   assert.deepEqual(d["frame-ancestors"], ["'none'"]);
   assert.deepEqual(d["form-action"], ["'self'"]);
   assert.deepEqual(d["connect-src"], ["'self'", "https://*.supabase.co"]);
-  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*(?!\.supabase\.co)|http:/);
+  assert.doesNotMatch(csp, /'unsafe-inline'|'unsafe-eval'|\*(?!\.supabase\.co)|http:/);
 });
 
 test("R13: HSTS, nosniff, referrer policy and framing protection", () => {
@@ -86,7 +90,12 @@ test("build ships exactly the files the page loads, plus generated config", () =
   const styles = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(styles.includes("styles.css"));
   const data = fs.readdirSync(path.join(ROOT, "data")).filter((f) => f.endsWith(".json")).map((f) => "data/" + f);
-  assert.deepEqual(files, [...new Set(["index.html", ...styles, ...scripts, ...data])].sort());
+  // The PDF reader and OCR are loaded on demand, so they ship as whole vendored folders.
+  const lazy = fs.readdirSync(path.join(ROOT, "vendor"), { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^(pdfjs|tesseract)-\d/.test(e.name))
+    .flatMap((e) => listFiles(path.join(ROOT, "vendor", e.name)).map((f) => `vendor/${e.name}/${f}`));
+  assert.ok(lazy.some((f) => /pdf\.min\.mjs$/.test(f)) && lazy.some((f) => /eng\.traineddata\.gz$/.test(f)), "pdf.js and OCR files are vendored");
+  assert.deepEqual(files, [...new Set(["index.html", ...styles, ...scripts, ...data, ...lazy])].sort());
   for (const f of files) assert.doesNotMatch(f, /^(tests|db-tests|e2e|supabase|scripts|expert-review|node_modules|\.claude)\/|package|\.env/);
 });
 
@@ -98,6 +107,17 @@ test("build writes config.js from the environment and pins connect-src to that o
   assert.ok(cfg.includes(PROD.SUPABASE_ANON_KEY));
   const html = fs.readFileSync(path.join(r.out, "index.html"), "utf8");
   assert.match(html, /<meta http-equiv="Content-Security-Policy" content="[^"]*connect-src 'self' https:\/\/abcdefghijklmnop\.supabase\.co;[^"]*">/);
+});
+
+test("build writes the Turnstile site key when set, null when not, and refuses a malformed one", () => {
+  const on = build({ ...PROD, TURNSTILE_SITE_KEY: "0x4AAAAAAABkMYinukE8nzYS" });
+  assert.equal(on.status, 0, on.stderr);
+  assert.match(fs.readFileSync(path.join(on.out, "config.js"), "utf8"), /turnstileSiteKey: "0x4AAAAAAABkMYinukE8nzYS"/);
+  const off = build(PROD);
+  assert.match(fs.readFileSync(path.join(off.out, "config.js"), "utf8"), /turnstileSiteKey: null/);
+  const bad = build({ ...PROD, TURNSTILE_SITE_KEY: "<script>" });
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /TURNSTILE_SITE_KEY/);
 });
 
 test("build refuses a secret key, a missing value or a non-Supabase URL", () => {
@@ -157,7 +177,8 @@ test("secret scan finds nothing in the committed repository", () => {
 
 test(".env.example documents only public client settings, with no values", () => {
   const lines = fs.readFileSync(path.join(ROOT, ".env.example"), "utf8").split("\n").filter((l) => l && !l.startsWith("#"));
-  assert.deepEqual(lines.map((l) => l.split("=")[0]).sort(), ["SUPABASE_ANON_KEY", "SUPABASE_URL"]);
+  // All public: the Supabase URL and anon key, and the Turnstile *site* key (its secret lives only in Supabase).
+  assert.deepEqual(lines.map((l) => l.split("=")[0]).sort(), ["SUPABASE_ANON_KEY", "SUPABASE_URL", "TURNSTILE_SITE_KEY"]);
   for (const l of lines) assert.match(l, /^[A-Z_]+=$/);
   assert.match(fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8"), /^dist\/$/m);
 });

@@ -15,6 +15,8 @@ A static site, with no server of its own. The browser talks directly to Supabase
 | `project-state.js` | Saving and loading wizard inputs; validates every saved payload before use |
 | `results-snapshot.js` | Compact saved results; detects when data or the engine changed since saving |
 | `results-model.js`, `results-view.js`, `results.css` | Step 4 charts: a pure model built from the compact snapshot (so live and saved results share one path), and the views: summary, a scorecard per authority, ranked fixes, room × authority grid, numeric range charts |
+| `doc-reader.js`, `doc-lines.js`, `intake-vocab.js`, `intake-match.js`, `intake-view.js` | Fill from a PDF: read in the browser (pdf.js text layer, Tesseract OCR for scans), rebuild lines and tables, match to the dataset, review screen (see below) |
+| `vendor/pdfjs-<version>/`, `vendor/tesseract-<version>/` | Self-hosted PDF reader and OCR engine, loaded only when a PDF is chosen (`scripts/vendor-ocr.js` refreshes them) |
 | `store.js` | The only code that reads/writes projects in Supabase |
 | `router.js`, `auth.js` | Hash routes, sign-in guard, email-link sign-in |
 | `projects-view.js` | Projects list, banners, wizard validation/stepper helpers (pure, unit-tested) |
@@ -61,17 +63,43 @@ Without `config.js` (or without Supabase reachable at startup) the app runs as t
 
 For the browser tests, set `CHROME_PATH`, or run `npx playwright install chromium`. CI (`.github/workflows/ci.yml`) runs the unit tests, audit, secret scan, a placeholder production build and the database tests on every push. It does not run the browser tests yet.
 
+## Filling the wizard from a PDF
+
+Step 1 has an optional **Fill from a document** panel. Pick a PDF that describes the facility (a room data sheet, specification, printed report, scan or layout drawing):
+
+- **Read on the planner's computer.** The PDF is never uploaded or stored. pdf.js reads the text of typed pages. Pages without text (scans, image-only drawings) are rendered and read with Tesseract OCR, up to 40 such pages. Limits: 25 MB, 200 pages.
+- **Matched to the dataset's own names.** Values are found in four places:
+  - tables, whether one row per room with units in the headers, or one row per room and parameter
+  - `Parameter (Room): value` lines
+  - "… in 'room' from value …" sentences
+  - short labels on drawings
+
+  Units are converted and the conversion is disclosed (sq ft → m², °F → °C, mmWC/inWC → Pa). Synonyms live in one editable file, `intake-vocab.js`.
+- **Reviewed before anything changes.** Every value shows the page and line it came from, a confidence label (High/Medium/Low) and anything it would replace.
+  - Only high-confidence new values start ticked.
+  - Different values found for the same field are an unanswered choice.
+  - Values that already match the project are only counted.
+- **Applied only through validation.** "Fill the selected values" applies the ticked values through `ProjectState.validateInputs`, as a saved project is, so invalid values change nothing. Fields filled from a PDF say so in Step 3 until edited.
+
+Quality depends on how documents word things. Drawings are best-effort, since their labels are scattered.
+
+**AI later:** extraction goes through a small extractor contract (`intake-match.js`), so an opt-in, server-side AI extractor can add proposals to the same review screen. See [`.claude/plans/ai-intake-later.md`](.claude/plans/ai-intake-later.md). None is built yet.
+
 ## Reading the results page
 
-- **Your primary authority first:** chosen in Step 1 from the covered markets you selected. One table per room lists every requirement as ✓ Pass, ✗ Fail, ⊘ Not covered (the authority sets no figure, or the dataset has no data) or ? No value, failures first. Buttons switch to another chosen authority without changing the project. Authorities without data (UK MHRA, TGA, SAHPRA, SFDA) are shown in Step 1 as "No data yet" and can't be chosen.
-- **Then the comparison across every covered authority** (Schedule M, US FDA, EU-GMP / PIC/S, WHO GMP, NMPA, PMDA), whatever you ticked; your target markets are marked "Your target". EU-GMP and PIC/S share identical data, so they appear and count once. Summary: how many frameworks the facility meets, how many gaps and how severe. A note appears when few values were entered, so a sparse facility never reads as a pass.
-- **One strip per authority:** verdict (icon and word), a bar of check counts (met, not met, no value, not regulated) and gaps by severity. The verdict comes from the worst gap, not from the bar.
-- **What to fix first (the gap report):** every gap with its concrete suggested change, grouped as Mandatory gaps, Recommendations, Not yet classified (no mandatory/recommended label yet, pending expert review) and Advisory (international standard only, never affects a verdict). Within each group, the change that satisfies the most authorities comes first, then by severity.
-- **Room by authority:** where the gaps are, rooms sorted by number of gaps.
-- **Entered values against each requirement:** each failing numeric value drawn against every authority's range and the advisory international range.
+- **Verdict by market first:** one plain line per market (your target markets first, named country-first, e.g. "China (NMPA)"). It sits next to how much was actually checked ("4 of 36 checks have values") and the headline ("4 changes (10 authority-gaps), 1 critical"). A verdict resting on one or two checks says so, and "0 of N met" is never shown when nothing was checked.
+- **Gaps by authority and severity:** a small table with one row per market and Critical / Significant / Minor counts.
+- **What to fix first:** one list, most severe first, then the change that satisfies the most authorities.
+  - Each fix shows a severity rail, a Mandatory / Recommended / Not yet classified tag, a short title, the full suggested change, its source, and a strip of the six authorities filled where it closes a gap.
+  - The top 3 are shown, with "Show all" for the rest; "Mandatory only" filters the list.
+  - Advisory (international-standard-only) suggestions are a quiet collapsed group. They never affect a verdict.
+- **Room by authority:** only rooms with a gap, with cells tinted by their worst gap; on phones, one card per room.
+- **Entered values against each requirement:** each failing value against every authority's range. The miss is drawn and labelled ("30 m² short"), and a one-sided limit fades out instead of drawing an edge no authority set.
+- **By authority:** one strip per authority. Its bar counts only checked values (met / not met); values that need a value or have no rule set are listed in words.
+- **Evidence against your primary authority:** one collapsible section per room. Rooms with a failure open by default; requirements without a result are folded away.
 - **Full detail:** every check, recommendation text and source, collapsed at the bottom.
 
-Every chart has a "View as table" option, and status is always shown by a glyph and a word as well as colour (✓ met, ✗ not met, ? no value, – not regulated, ⊘ not covered).
+Status is always a glyph and a word as well as colour. The words are the same on screen, in the saved view and in the downloaded report: Non-compliant / Has gaps / Meets / Not enough data; Critical / Significant / Minor; Met / Not met / Needs value / No rule set. Every chart has a "View as table" option.
 
 ## Accounts and data
 
@@ -120,11 +148,16 @@ In the Supabase dashboard:
 - `SUPABASE_URL`: `https://<project-ref>.supabase.co`
 - `SUPABASE_ANON_KEY`: the anon / publishable key
 
-The build fails if it's given a secret or service-role key, a non-Supabase URL, or if anything secret-looking ends up in the output. **Never put the secret / service-role key in Vercel, the repo or the page.**
+- `TURNSTILE_SITE_KEY` (recommended): the Cloudflare Turnstile **site** key. This turns on the sign-in CAPTCHA, so nobody can use the form to flood inboxes. Put the matching **secret** key only in Supabase (**Authentication → Attack Protection → CAPTCHA → Turnstile**). Without a site key, no CAPTCHA is shown, as in local development.
+
+The build fails if it's given a secret or service-role key, a non-Supabase URL, a malformed Turnstile key, or if anything secret-looking ends up in the output. **Never put the secret / service-role key in Vercel, the repo or the page.**
+
+Each account can hold up to 200 saved projects (migration `20261126120000_project_cap.sql`). At the limit, the app asks the user to delete one before saving.
 
 ## Security notes
 
-- **Headers:** CSP: scripts and styles from the site only, no inline code, no framing; `connect-src` is limited to Supabase and pinned to your project at build time. Also HSTS, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy and COOP.
+- **Headers:** CSP: scripts and styles from the site only (plus Cloudflare's Turnstile script and challenge frame for the sign-in CAPTCHA), no inline code, no framing of this site; `connect-src` is limited to Supabase and pinned to your project at build time. `'wasm-unsafe-eval'` lets the in-browser OCR compile WebAssembly; it does not allow `eval()`. Also HSTS, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy and COOP.
 - **Untrusted payloads:** saved payloads are validated before use (unknown keys, prototype keys, IDs not in the dataset, wrong value types and oversized fields are all rejected). The database repeats the size and format checks.
+- **PDF intake:** the chosen PDF stays in the browser (no request carries it, and the OCR model isn't cached). Document text is treated as untrusted: it is shown only as text, and values reach the project only through `validateInputs`.
 - **No HTML injection:** the page never turns text into HTML. A test fails if any script uses an HTML-parsing sink.
 - **Locked columns:** clients can't set or change a project's owner, created date, last-edit date or deletion flag; database triggers enforce this.

@@ -15,7 +15,7 @@ const dir = path.resolve(arg("--dir", path.join(ROOT, "dist")));
 const port = Number(arg("--port", 8000));
 const extraConnect = arg("--allow-connect", null);
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".gz": "application/gzip", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8" };
 const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
 
 function headersFor(urlPath) {
